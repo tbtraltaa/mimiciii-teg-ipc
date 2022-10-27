@@ -45,8 +45,11 @@ EVENTS = {
             #at the end after discharge, take discharge time from admissions table
             'drgcodes': [13, 'drgcodes', 'dischtime'], 
             #'labevents': [14, 'labevents', 'charttime'],
-            #'microbiologyevents': [15, 'microbiologyevents', 'charttime'],
+            #charttime is NULL when unknown. Hence we use chartdate.
+            #There are 41772 null charttime out of 631726 which is 6.6%.
+            #'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
             #TODO exclude notes with ISERROR=1
+            # 886 ISERROR=1 out of 2083180, that is, around 0.04%
             #charttime preferred over storetime
             #'notevents': [16, 'noteevents', 'charttime'],
             #'prescriptions_start': [17, 'prescriptions', 'startdate'],
@@ -96,6 +99,7 @@ EVENT_COLS_EXCLUDE = {
                         'acknowledgetime',
                         'firstreservationtime',
                         'currentreservationtime'],
+            #kept DBSOURCE which indicates CareVue or Metavision 
             'transfer_in': [
                             'last_careunit',
                             'last_wardid',
@@ -106,10 +110,10 @@ EVENT_COLS_EXCLUDE = {
                             'first_wardid',
                             'intime'],
             'chartevents': [
-                            #'warning', Metavision specific - needed to be handled
-                            #'error', Metavision specific - needed to be handled
-                            'resultstatus', #CareVue specific
-                            #'stopped' # CareVue specific - needed to be handled,
+                            'warning', #TODO Metavision - excluded if 1
+                            'error', #TODO Metavision specific - excluded if 1
+                            'resultstatus', #TODO CareVue - excluded
+                            'stopped' #TODO CareVue specific - excluded if 'D/C'd',
                             ],
             'cptevents': [
                             'ticket_id_seq',
@@ -131,9 +135,10 @@ EVENT_COLS_INCLUDE = {
                                                 'rateuom',
                                                 'storetime',
                                                 'cgid',
-                                                'stopped' #TODO CareVue specific
+                                                'stopped' 
                                                 ],
-                            #stopped - D/C'd, Stopped, NotStopd, Restart
+                            #stopped - D/C'd, Stopped, NotStopd, Restart, NULL
+                            #TODO whether to keep all
                             'inputevents_mv': [
                                                 'icustay_id',
                                                 'itemid',
@@ -146,6 +151,7 @@ EVENT_COLS_INCLUDE = {
                                                 # Metavision specific
                                                 'statusdescription'
                                                 ]
+                            #TODO whether to keep all
                             #statusdescription: Changed, Paused, FinishedRunning,
                                                 #Stopped, Rewritten, Flushed
                             }
@@ -173,6 +179,16 @@ TABLES = {
             'prescriptions', #start and end date
             'procedures_icd', #at the end
             'services'}
+
+FLOAT_COLS = [  'chartevents-valuenum',
+                'icustays_out-los', #length of stay
+                'inputevents-amount',
+                'inputevents-rate',
+                'labevents-valuenum',
+                'microbiologyevents-dilution_value',
+                #'microbiologyevents-isolate_num' #SMAILLINT,
+                'outputevents-value',
+                'transfer_out-los']
 
 EVENTS_EXCLUDE = {
         'chartevents': {'itemid': [ 211, 

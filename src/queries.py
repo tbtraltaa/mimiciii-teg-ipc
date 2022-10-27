@@ -78,7 +78,7 @@ def get_events(conn, event_name, start_time, end_time):
     elif event_name in EVENT_COLS_EXCLUDE:
         cols = [col for col in all_cols if col not in EVENT_COLS_EXCLUDE[event_name]]
         cols = 't.' + ', t.'.join(cols)
-    cols = f"CONCAT(t.subject_id, '-', t.hadm_id) as id, {event_type} as type, {t_table}.{time_col} as t, " + cols
+    cols = f"CONCAT(t.subject_id, '-', t.hadm_id) as id, '{event_name}' as type, {t_table}.{time_col} as t, " + cols
     table = f'{schema}.{table} t INNER JOIN {schema}.admissions a'
     table += f' ON t.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
@@ -91,13 +91,20 @@ def get_events(conn, event_name, start_time, end_time):
     where_cond += f" AND {t_table}.{time_col} < '{end_time}'"
     #Some events occur before the admisson date, but have the correct hadm_id.
     #Those events are ignored.
-    where_cond += f" AND {t_table}.{time_col} >= a.admittime"
-    where_cond += f" AND {t_table}.{time_col} <= a.dischtime"
+    where_cond += f' AND {t_table}.{time_col} >= a.admittime'
+    where_cond += f' AND {t_table}.{time_col} <= a.dischtime'
     order_by = f'ORDER BY {t_table}.{time_col} ASC'
-    if event_name == 'chartevents':
-        items = f"(SELECT c.itemid, count(c.itemid) as count from {schema}.chartevents c GROUP BY c.itemid) AS i"
-        table += f" INNER JOIN {items} ON t.itemid=i.itemid "
-        where_cond += " AND i.count < 200000"
+    match event_name:
+        case 'chartevents':
+            items = f'(SELECT c.itemid, count(c.itemid) as count from {schema}.chartevents c GROUP BY c.itemid) AS i'
+            table += f' INNER JOIN {items} ON t.itemid=i.itemid'
+            where_cond += ' AND i.count < 200000'
+            where_cond += ' AND t.warning != 1'
+            where_cond += ' AND t.error != 1'
+            where_cond += " AND t.stopped !='D/C'd'"
+        case 'noteevents':
+            where_cond += ' AND t.iserror != 1'
+
     query = f"SELECT {cols} FROM {table} WHERE {where_cond} {order_by}"
     df = pd.read_sql_query(query, conn)
     #print(df)
