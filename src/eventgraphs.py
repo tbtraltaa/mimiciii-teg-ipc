@@ -1,7 +1,6 @@
 import numpy as np
 from datetime import timedelta
-from scipy.sparse import csc_matrix
-from scipy.sparse import csgraph
+from scipy.sparse import dok_matrix
 import pprint
 import networkx as nx
 
@@ -63,14 +62,14 @@ def build_eventgraph(subjects, events, join_rule):
     # number of events
     n = len(events)
     # adjacency matrix
-    A = csc_matrix((n, n), dtype=float) 
+    A = dok_matrix((n, n), dtype=float) 
     for i, e1 in enumerate(events):
         j = i + 1
         for e2 in events[i+1:]:
             join = False
             if e2['t'] > e1['t'] + join_rule['t_max']:
                 break
-            if e1['type'] == e2['type']:
+            elif e1['type'] == e2['type'] and e2['t'] >= e1['t'] + join_rule['t_min']:
                 s1 = subjects[e1['id']]
                 s2 = subjects[e2['id']]
                 join, weight = join_events(s1, s2, e1, e2, join_rule)
@@ -87,5 +86,6 @@ def build_eventgraph(subjects, events, join_rule):
                 for e2 in v[i+1:]:
                     if e2['t'] > e1['t'] + join_rule['t_max']:
                         break
-                    A[e1['i'], e2['i']] = join_by_subject(e1, e2, join_rule)
+                    elif e2['t'] >= e1['t'] + join_rule['t_min']:
+                        A[e1['i'], e2['i']] = join_by_subject(e1, e2, join_rule)
     return A

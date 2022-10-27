@@ -34,10 +34,13 @@ def get_patient_demography(conn, start_time, end_time):
     cols += 'EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob)) as age'
     table = f'{schema}.admissions INNER JOIN {schema}.patients'
     join_cond = f'admissions.subject_id = patients.subject_id'
-    #patients in the hospital within the time window
-    where_cond =f"(admissions.admittime < '{end_time}')"
-    where_cond =f"(admissions.dischtime > '{start_time}')"
+    #patients, admitted in the hospital within the time window
+    #Some events occur before the admisson date, but have the correct hadm_id.
+    #Those events are ignored.
+    where_cond = f"(admissions.admittime < '{end_time}')"
+    where_cond += f" AND (admissions.dischtime >= '{start_time}')"
     where_cond += f" AND admissions.diagnosis != 'NEWBORN'"
+    where_cond += f" AND admissions.hadm_id is NOT NULL"
     #excluded 2616 patients with age more than 120 
     where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<= 120"
     query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where_cond}'
@@ -82,17 +85,14 @@ def get_events(conn, event_name, start_time, end_time):
     table += f' ON t.subject_id = p.subject_id'
     where_cond = 't.hadm_id is NOT NULL'
     where_cond += " AND a.diagnosis != 'NEWBORN'"
-    '''
-    if event_name in EVENTS_EXCLUDE:
-        for col, exclude_values in EVENTS_EXCLUDE[event_name].items():
-            q_str = '(' + ','.join(str(val) for val in exclude_values) + ')'
-            where_cond += f" AND t.{col}  NOT IN {q_str}"
-    '''
-
-
     #excluded 2616 patients with age more than 120 
     where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= 120"
-    where_cond += f" AND {t_table}.{time_col} BETWEEN '{start_time}' AND '{end_time}'"
+    where_cond += f" AND {t_table}.{time_col} >= '{start_time}'"
+    where_cond += f" AND {t_table}.{time_col} < '{end_time}'"
+    #Some events occur before the admisson date, but have the correct hadm_id.
+    #Those events are ignored.
+    where_cond += f" AND {t_table}.{time_col} >= a.admittime"
+    where_cond += f" AND {t_table}.{time_col} <= a.dischtime"
     order_by = f'ORDER BY {t_table}.{time_col} ASC'
     if event_name == 'chartevents':
         items = f"(SELECT c.itemid, count(c.itemid) as count from {schema}.chartevents c GROUP BY c.itemid) AS i"
@@ -105,11 +105,18 @@ def get_events(conn, event_name, start_time, end_time):
     df = df.to_dict('records')
     #pprint.pprint(df)
     return df
+
+    '''
+    if event_name in EVENTS_EXCLUDE:
+        for col, exclude_values in EVENTS_EXCLUDE[event_name].items():
+            q_str = '(' + ','.join(str(val) for val in exclude_values) + ')'
+            where_cond += f" AND t.{col}  NOT IN {q_str}"
+    '''
     
 
 if __name__ == '__main__':
     conn = get_db_connection()
-    get_patient_demography(conn, '2025-01-01', '2143-02-01')
-    get_events(conn, 'inputevents_cv', '2025-01-01', '2143-02-01')
+    get_patient_demography(conn, '2143-01-01', '2143-02-01')
+    get_events(conn, 'microbiologyevents', '2143-01-01', '2143-02-01')
 
 

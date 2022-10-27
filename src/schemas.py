@@ -27,14 +27,14 @@ EVENTS = {
             'transfer_out': [7, 'transfers', 'outtime'],
 
             #ICU Events 
-            'chartevents': [8, 'chartevents', 'charttime'],
+            #'chartevents': [8, 'chartevents', 'charttime'],
             #charttime preferred over storetime
-            'inputevents_cv': [9, 'inputevents_cv', 'charttime'],
+            #'inputevents_cv': [9, 'inputevents_cv', 'charttime'],
             #ignored endtime
-            'inputevents_mv': [9, 'inputevents_mv', 'starttime'],
+            #'inputevents_mv': [9, 'inputevents_mv', 'starttime'],
             #'datatimeevents',
             #charttime preferred over storetime
-            'outputevents': [10, 'outputevents', 'charttime'],
+            #'outputevents': [10, 'outputevents', 'charttime'],
             #'procedureevents_mv',
 
             #Hospital Data
@@ -45,12 +45,12 @@ EVENTS = {
             #at the end after discharge, take discharge time from admissions table
             'drgcodes': [13, 'drgcodes', 'dischtime'], 
             #'labevents': [14, 'labevents', 'charttime'],
-            'microbiologyevents': [15, 'microbiologyevents', 'charttime'],
+            #'microbiologyevents': [15, 'microbiologyevents', 'charttime'],
             #TODO exclude notes with ISERROR=1
             #charttime preferred over storetime
             #'notevents': [16, 'noteevents', 'charttime'],
-            'prescriptions_start': [17, 'prescriptions', 'startdate'],
-            'prescriptions_end': [18, 'prescriptions', 'enddate'],
+            #'prescriptions_start': [17, 'prescriptions', 'startdate'],
+            #'prescriptions_end': [18, 'prescriptions', 'enddate'],
             #at the end after discharge, take discharge time from admissions table
             'procedures_icd': [19, 'procedures_icd', 'dischtime'],
             'services': [20, 'services', 'transfertime']}
