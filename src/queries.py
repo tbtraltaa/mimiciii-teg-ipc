@@ -16,6 +16,8 @@ password = 'postgres'
 dbname = 'mimic'
 schema = 'mimiciii'
 
+MAX_AGE = 89
+
 
 def get_db_connection():
     # Connect to MIMIC-III database
@@ -41,8 +43,7 @@ def get_patient_demography(conn, start_time, end_time):
     where_cond += f" AND (admissions.dischtime >= '{start_time}')"
     where_cond += f" AND admissions.diagnosis != 'NEWBORN'"
     where_cond += f" AND admissions.hadm_id is NOT NULL"
-    #excluded 2616 patients with age more than 120 
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<= 120"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<= {MAX_AGE}"
     query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where_cond}'
     df = pd.read_sql_query(query, conn)
     #print(df)
@@ -62,7 +63,7 @@ def get_events(conn, event_name, start_time, end_time):
     Returns events within the given time window. 
     '''
     event_type, table, time_col = EVENTS[event_name] 
-    t_table = 't' #time table
+    t_table = 'tb' #time table
     all_cols = list(pd.read_sql_query(f'SELECT * FROM {schema}.{table} WHERE false', conn).astype(str))
     all_cols.sort()
     all_cols.remove('row_id')
@@ -72,38 +73,38 @@ def get_events(conn, event_name, start_time, end_time):
         all_cols.remove(time_col)
     else:
         t_table='a'
-    cols = 't.' + ', t.'.join(all_cols)
+    cols = 'tb.' + ', tb.'.join(all_cols)
     if event_name in EVENT_COLS_INCLUDE:
-        cols = 't.'+ ', t.'.join(sorted(EVENT_COLS_INCLUDE[event_name])) 
+        cols = 'tb.'+ ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_name])) 
     elif event_name in EVENT_COLS_EXCLUDE:
         cols = [col for col in all_cols if col not in EVENT_COLS_EXCLUDE[event_name]]
-        cols = 't.' + ', t.'.join(cols)
-    cols = f"CONCAT(t.subject_id, '-', t.hadm_id) as id, '{event_name}' as type, {t_table}.{time_col} as t, " + cols
-    table = f'{schema}.{table} t INNER JOIN {schema}.admissions a'
-    table += f' ON t.hadm_id = a.hadm_id'
+        cols = 'tb.' + ', tb.'.join(cols)
+    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, '{event_name}' as type, {t_table}.{time_col} - a.admittime as t, " + cols
+    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
-    table += f' ON t.subject_id = p.subject_id'
-    where_cond = 't.hadm_id is NOT NULL'
+    table += f' ON tb.subject_id = p.subject_id'
+    where_cond = 'tb.hadm_id is NOT NULL'
     where_cond += " AND a.diagnosis != 'NEWBORN'"
     #excluded 2616 patients with age more than 120 
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= 120"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {MAX_AGE}"
     where_cond += f" AND {t_table}.{time_col} >= '{start_time}'"
     where_cond += f" AND {t_table}.{time_col} < '{end_time}'"
     #Some events occur before the admisson date, but have the correct hadm_id.
     #Those events are ignored.
     where_cond += f' AND {t_table}.{time_col} >= a.admittime'
     where_cond += f' AND {t_table}.{time_col} <= a.dischtime'
-    order_by = f'ORDER BY {t_table}.{time_col} ASC'
+    order_by = f'ORDER BY t ASC'
     match event_name:
         case 'chartevents':
             items = f'(SELECT c.itemid, count(c.itemid) as count from {schema}.chartevents c GROUP BY c.itemid) AS i'
-            table += f' INNER JOIN {items} ON t.itemid=i.itemid'
+            table += f' INNER JOIN {items} ON tb.itemid=i.itemid'
             where_cond += ' AND i.count < 200000'
-            where_cond += ' AND t.warning != 1'
-            where_cond += ' AND t.error != 1'
-            where_cond += " AND t.stopped !='D/C'd'"
+            where_cond += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
+            where_cond += ' AND (tb.error != 1 OR tb.error IS NULL)'
+            where_cond += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
         case 'noteevents':
-            where_cond += ' AND t.iserror != 1'
+            where_cond += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
 
     query = f"SELECT {cols} FROM {table} WHERE {where_cond} {order_by}"
     df = pd.read_sql_query(query, conn)

@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 from datetime import timedelta
 from scipy.sparse import dok_matrix
@@ -71,7 +72,7 @@ def build_eventgraph(subjects, events, join_rules):
                 break
             if e2['t'] > e1['t'] + join_rules['t_max']:
                 break
-            elif e2['t'] >= e1['t'] + join_rules['t_min']:
+            elif e2['t'] >= e1['t'] + join_rules['t_min'] and e1['id'] != e2['id']:
                 s1 = subjects[e1['id']]
                 s2 = subjects[e2['id']]
                 w_t, w_e, w_s = weight(s1, s2, e1, e2, join_rules)
@@ -86,16 +87,22 @@ def build_eventgraph(subjects, events, join_rules):
             if e['id'] not in subject_events:
                 subject_events[e['id']] = []
             subject_events[e['id']].append(e)
-        #print(patient_events)
         c2 = 0
         for k, v in subject_events.items():
-            for i, e1 in enumerate(v):
+            e1 = v[0]
+            for i, e2 in enumerate(v[1:]):
+                '''
                 for e2 in v[i+1:]:
-                    if e2['t'] > e1['t'] + join_rules['t_max']:
+                    if e2['t'] < e1['t'] + join_rules['t_min']:
                         break
-                    elif e2['t'] >= e1['t'] + join_rules['t_min']:
-                        w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules)
-                        A[e1['i'], e2['i']] = w_t + w_e + w_s
-                        c2 += 1
+                    elif e2['t'] > e1['t'] + join_rules['t_max']:
+                        break
+                    w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules)
+                    A[e1['i'], e2['i']] = w_t + w_e + w_s 
+                '''
+                w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules)
+                A[e1['i'], e2['i']] = w_t + w_e + w_s 
+                c2 += 1
+                e1 = e2
         print(c1, c2)
     return A

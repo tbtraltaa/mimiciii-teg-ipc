@@ -1,5 +1,7 @@
 # Byte-compiled / optimized / DLL files
-#
+experiments/data/
+experiments/output/
+.DS_Store
 .*
 __pycache__/
 *.py[cod]

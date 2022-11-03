@@ -7,3 +7,9 @@ pip==22.2.2
 setuptools==63.4.1
 six==1.16.0
 wheel==0.37.1
+pyvis==0.2.0
+scipy==1.9.1 
+networkx==2.8.4
+notebook==6.4.12
+pandas==1.4.4
+psycopg2==2.8.6
