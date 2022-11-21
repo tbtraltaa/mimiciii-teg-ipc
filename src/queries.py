@@ -3,7 +3,7 @@ import pandas as pd
 import sys
 import psycopg2
 import pprint
-
+from datetime import timedelta
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -16,8 +16,6 @@ password = 'postgres'
 dbname = 'mimic'
 schema = 'mimiciii'
 
-MAX_AGE = 89
-
 
 def get_db_connection():
     # Connect to MIMIC-III database
@@ -25,7 +23,7 @@ def get_db_connection():
     
 #a patient query: [<id>, **<demography_attributes>]
 #a patient dict: {<id>: **<demography_attributes>}
-def get_patient_demography(conn, start_time, end_time):
+def get_patient_demography(conn, conf):
     '''
     Returns patients with demography between the given time window.
     '''
@@ -39,11 +37,13 @@ def get_patient_demography(conn, start_time, end_time):
     #patients, admitted in the hospital within the time window
     #Some events occur before the admisson date, but have the correct hadm_id.
     #Those events are ignored.
-    where_cond = f"(admissions.admittime < '{end_time}')"
-    where_cond += f" AND (admissions.dischtime >= '{start_time}')"
+    if conf['starttime'] and conf['endtime']:
+        where_cond = f"(admissions.admittime < '{conf['endtime']}')"
+        where_cond += f" AND (admissions.dischtime >= '{conf['starttime']}')"
     where_cond += f" AND admissions.diagnosis != 'NEWBORN'"
     where_cond += f" AND admissions.hadm_id is NOT NULL"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<= {MAX_AGE}"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))>={conf['min_age']}"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<={conf['max_age']}"
     query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where_cond}'
     df = pd.read_sql_query(query, conn)
     #print(df)
@@ -58,7 +58,7 @@ def get_patient_demography(conn, start_time, end_time):
 
 #an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
-def get_events(conn, event_name, start_time, end_time):
+def get_events(conn, event_name, conf):
     '''
     Returns events within the given time window. 
     '''
@@ -86,10 +86,12 @@ def get_events(conn, event_name, start_time, end_time):
     table += f' ON tb.subject_id = p.subject_id'
     where_cond = 'tb.hadm_id is NOT NULL'
     where_cond += " AND a.diagnosis != 'NEWBORN'"
-    #excluded 2616 patients with age more than 120 
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {MAX_AGE}"
-    where_cond += f" AND {t_table}.{time_col} >= '{start_time}'"
-    where_cond += f" AND {t_table}.{time_col} < '{end_time}'"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))>= {conf['min_age']}"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {conf['max_age']}"
+    where_cond += f" AND {t_table}.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    if conf['starttime'] and conf['endtime']:
+        where_cond += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
+        where_cond += f" AND {t_table}.{time_col} < '{conf['endtime']}'"
     #Some events occur before the admisson date, but have the correct hadm_id.
     #Those events are ignored.
     where_cond += f' AND {t_table}.{time_col} >= a.admittime'
@@ -120,7 +122,160 @@ def get_events(conn, event_name, start_time, end_time):
             q_str = '(' + ','.join(str(val) for val in exclude_values) + ')'
             where_cond += f" AND t.{col}  NOT IN {q_str}"
     '''
-    
+
+
+def get_icustays(conn, conf):
+    table = 'icustays'
+    time_col = 'intime'
+    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, tb.subject_id, tb.hadm_id, tb.{time_col} - a.admittime as t, tb.icustay_id"
+    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
+    table += f' INNER JOIN {schema}.patients p'
+    table += f' ON tb.subject_id = p.subject_id'
+    where_cond = 'tb.hadm_id is NOT NULL'
+    where_cond += " AND a.diagnosis != 'NEWBORN'"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))>= {conf['min_age']}"
+    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {conf['max_age']}"
+    where_cond += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    if conf['starttime'] and conf['endtime']:
+        where_cond += f" AND tb.{time_col} >= '{conf['starttime']}'"
+        where_cond += f" AND tb.{time_col} < '{conf['endtime']}'"
+    #Some events occur before the admisson date, but have the correct hadm_id.
+    #Those events are ignored.
+    where_cond += f' AND tb.{time_col} >= a.admittime'
+    where_cond += f' AND tb.{time_col} <= a.dischtime'
+    order_by = f'ORDER BY t ASC'
+    query = f"SELECT {cols} FROM {table} WHERE {where_cond}"
+    df = pd.read_sql_query(query, conn)
+    return dict( [(k,v) for  k, v in zip(df.icustay_id, df.to_dict('records'))])
+
+def get_icu_events_hourly(conn, hourly_vitals, interventions, conf):
+    icustays = get_icustays(conn, conf)
+    print(hourly_vitals.head(5))
+    vitals_stats = get_vitals_stats(hourly_vitals)
+    print(vitals_stats)
+    icu_events = []
+    c1 = 0
+    c2 = 0
+    for e in icustays:
+        for h in range(conf['max_hours']):
+            if e['t'] + timedelta(hours=h) <= timedelta(hours=conf['max_hours']):
+                idx = [(e['subject_id'], e['hadm_id'], e['icustay_id'], h)]
+                if hourly_vitals.index.isin(idx).any():
+                    for col in hourly_vitals.columns:
+                        val = hourly_vitals.loc[(   e['subject_id'], 
+                                                e['hadm_id'],
+                                                e['icustay_id'],
+                                                h), col]
+                        if not pd.isnull(val) and vitals_stats.loc[col, 'missing percent'] >= conf['min_missing_percent']:
+                            stat = vitals_stats.loc[col]
+                            Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
+                            icu_events.append({ 'id': e['id'],
+                                                'type': col,
+                                                't': e['t'] + timedelta(hours=h),
+                                                'icu-hour': h,
+                                                'icu-value':val,
+                                                'Q': Q})
+                            c1 += 1
+                '''
+                if interventions.index.isin(idx).any():
+                    for col in interventions.columns:
+                        val = interventions.loc[(   e['subject_id'], 
+                                                e['hadm_id'],
+                                                e['icustay_id'],
+                                                h), col]
+                        if val == 1:
+                            icu_events.append({ 'id': e['id'],
+                                                'type': 'intervention-' + col,
+                                                't': e['t'] + timedelta(hours=h),
+                                                'icu-hour': h,
+                                                'intervention': 1})
+                            c2 += 1
+                    '''
+    icu_events.sort(key=lambda x: (x['type'], x['t']))            
+    print('Vitals', c1)
+    print('Interventions', c2)
+    return icu_events
+
+def get_icu_events_daily(conn, hourly_vitals, interventions, conf):
+    icustays = get_icustays(conn, conf)
+    print(hourly_vitals.head(5))
+    vitals_stats = get_vitals_stats(hourly_vitals)
+    print(vitals_stats)
+    icu_events = []
+    c1 = 0
+    c2 = 0
+    for e in icustays:
+        for h in range(conf['max_hours']):
+            if e['t'] + timedelta(hours=h) <= timedelta(hours=conf['max_hours']):
+                idx = [(e['subject_id'], e['hadm_id'], e['icustay_id'], h)]
+                if hourly_vitals.index.isin(idx).any():
+                    for col in hourly_vitals.columns:
+                        val = hourly_vitals.loc[(   e['subject_id'], 
+                                                e['hadm_id'],
+                                                e['icustay_id'],
+                                                h), col]
+                        if not pd.isnull(val) and vitals_stats.loc[col, 'missing percent'] >= conf['min_missing_percent']:
+                            daily_sum += val
+                            stat = vitals_stats.loc[col]
+                            Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
+                            icu_events.append({ 'id': e['id'],
+                                                'type': col,
+                                                't': e['t'] + timedelta(hours=h),
+                                                'icu-hour': h,
+                                                'icu-value':val,
+                                                'Q': Q})
+                            c1 += 1
+                '''
+                if interventions.index.isin(idx).any():
+                    for col in interventions.columns:
+                        val = interventions.loc[(   e['subject_id'], 
+                                                e['hadm_id'],
+                                                e['icustay_id'],
+                                                h), col]
+                        if val == 1:
+                            icu_events.append({ 'id': e['id'],
+                                                'type': 'intervention-' + col,
+                                                't': e['t'] + timedelta(hours=h),
+                                                'icu-hour': h,
+                                                'intervention': 1})
+                            c2 += 1
+                    '''
+    icu_events.sort(key=lambda x: (x['type'], x['t']))            
+    print('Vitals', c1)
+    print('Interventions', c2)
+    return icu_events
+     
+
+def get_quartile(vital, Q1, Q2, Q3):
+    if vital <= Q1:
+        vital = 1
+    elif vital > Q1 and vital <= Q2:
+        vital = 2
+    elif vital > Q2 and vital <= Q3:
+        vital = 3
+    else:
+        vital = 4
+    return vital
+
+
+def get_vitals_stats(vitals):
+    vitals_mean = pd.DataFrame(vitals.mean(numeric_only=True),columns=['mean'])
+    vitals_std = pd.DataFrame(vitals.std(numeric_only=True),columns=['stdev'])
+    vitals_Q1 = pd.DataFrame(vitals_mean['mean'] - vitals_std['stdev']*0.675, columns=['Q1'])
+    vitals_Q3 = pd.DataFrame(vitals_mean['mean'] + vitals_std['stdev']*0.675, columns=['Q3'])
+    vitals_missing = pd.DataFrame(vitals.isnull().sum()/vitals.shape[0]*100,columns=['missing percent'])
+
+    vitals_stats = pd.concat([vitals_mean, vitals_std, vitals_missing],axis=1)
+    vitals_stats = pd.concat([vitals_stats, vitals_Q1, vitals_Q3],axis=1)
+    #vitals_stats.index = vitals_stats.index.droplevel(1)
+    vitals_stats.sort_values(by='missing percent', ascending=True, inplace=True)
+    return vitals_stats
+
+def get_daily_vitals(hourly_vitals):
+    print(hourly_vitals.head(24))
+    print(hourly_vitals.rolling(24).mean()) 
+
 
 if __name__ == '__main__':
     conn = get_db_connection()

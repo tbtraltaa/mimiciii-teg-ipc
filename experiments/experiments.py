@@ -1,4 +1,6 @@
 import networkx as nx
+import pandas as pd
+import numpy as np
 from pyvis.network import Network
 import matplotlib.pyplot as plt
 import pprint
@@ -11,83 +13,132 @@ import sys
 sys.path.append('../src')
 
 from queries import *
+from queries_mimic_extract import *
 from eventgraphs import *
+
 
 
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>] 
 join_rules_LF = {
-                "t_min": timedelta(days=0, hours=0, minutes=5),
+                "t_min": timedelta(days=0, hours=1, minutes=0),
                 "t_max": timedelta(days=7, hours=0),
-                "t1_min": timedelta(days=0, hours=0, minutes=5),
-                "t1_max": timedelta(days=7, hours=0),
-                'w_e_max':0.2,
+                'w_e_max':0.3, #maximum event difference
+                #default event difference for different types of events
+                'w_e_default': 1,
                 'join_by_subject': True,
-                'age_similarity': 2 #years
+                'age_similarity': 3, #years
+                'icustays-los': 3, # los similarity in days
+                'transfer-los': 3, # los similarity in days
+                'sequential_join': True
             }
 
 join_rules_HF = {
-                "t_max": timedelta(days=0, hours=1),
-                "t_min": timedelta(days=0, hours=0, minutes=5),
-                "t1_min": timedelta(days=0, hours=0, minutes=5),
-                "t1_max": timedelta(days=3, hours=0),
-                'w_e_max':0.2,
+                't_min': timedelta(days=0, hours=1, minutes=0),
+                't_max': timedelta(days=0, hours=2),
+                'w_e_max':0.3, #maximum event difference
+                #default event difference for different types of events
+                'w_e_default': 1,
                 'join_by_subject': True,
-                'age_similarity': 2 #years
+                'age_similarity': 3, #years
+                'icustays-los': 3, # los similarity in days
+                'transfer-los': 3, # los similarity in days
+                'sequential_join': False
             }
+conf_LF = {
+            'max_hours': 168,
+            'max_age': 89,
+            'min_age': 15,
+            'starttime': '2143-01-01',
+            'endtime': '2143-01-07',
+            'min_missing_percent': 0,
+            'vitals_agg':'daily',
+            'vitals_X_mean': False,
+            'interventions': True,
+            'label': False
+        }
+conf_HF = {
+            'max_hours': 24,
+            'max_age': 89,
+            'min_age': 15,
+            'starttime': '2143-01-01',
+            'endtime': '2143-01-02',
+            'min_missing_percent': 0,
+            'vitals_agg':'daily',
+            'vitals_X_mean': True,
+            'interventions': True
+        }
 
-def eventgraph_mimiciii(starttime, endtime, event_list, join_rules, file_name):
+def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
     conn = get_db_connection()
-    patients = get_patient_demography(conn, starttime, endtime)
+    patients = get_patient_demography(conn, conf)
     all_events = list()
     n = 0
+    events = get_events_interventions(conn, conf)
+    for i, e in enumerate(events):
+        e['i'] = i + n  
+    n += len(events)
+    print('Interventions', len(events))
+    all_events += events 
+    if conf['vitals_X_mean']:
+        events = get_events_vitals_X_mean(conn, conf)
+    else:
+        events = get_events_vitals_X(conn, conf)
+    for i, e in enumerate(events):
+        e['i'] = i + n  
+    n += len(events)
+    print('Vitals', len(events))
+    all_events += events 
     for event_name in event_list:
-        events = get_events(conn, event_name, starttime, endtime)
+        events = get_events(conn, event_name, conf)
         for i, e in enumerate(events):
             e['i'] = i + n 
         n += len(events)
         print(event_name, len(events))
         all_events += events 
+
     print("Total events: ", n)
     print("Total patients:", len(patients))
     A = build_eventgraph(patients, all_events, join_rules)
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    G.remove_nodes_from([n for n, d in G.degree if d == 0])
-    attrs = dict([(e['i'], {'title': "\n".join([str(k) + ":" + str(v) for k, v in e.items()])}) for e in all_events])
-    nx.set_node_attributes(G, attrs)
+    #G.remove_nodes_from([n for n, d in G.degree if d == 0])
+    if conf['label']:
+        attrs = dict([(e['i'], 'circle') for e in all_events])
+        nx.set_node_attributes(G, attrs, 'shape')
+        attrs = dict([(e['i'], e['type']) for e in all_events])
+        nx.set_node_attributes(G, attrs, 'label')
+
+    attrs = dict([(e['i'], e['id']) for e in all_events])
+    nx.set_node_attributes(G, attrs, 'group')
+    attrs = dict([(e['i'], "\n".join([str(k) + ":" + str(v) for k, v in e.items()])) for e in all_events])
+    nx.set_node_attributes(G, attrs, 'title')
+    attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
+    nx.set_node_attributes(G, attrs, 'size')
+    nx.set_node_attributes(G, attrs, 'value')
     attrs = dict([(key, {'value': val, 'title': val}) for key, val in A.items()])
     nx.set_edge_attributes(G, attrs)
-    g = Network(directed=True)
+
+
+    g = Network(directed=True, height=1100, neighborhood_highlight=True, select_menu=True)
     g.hrepulsion()
+    #g.barnes_hut()
     g.from_nx(G, show_edge_weights=False)
     g.toggle_physics(True)
-    g.show_buttons(filter_=['nodes', 'physics'])
+    g.show_buttons(filter_=['physics'])
     print(nx.is_directed_acyclic_graph(G))
-    """
-    g.set_options(
-    '''
-    const options = {
-  "nodes": {
-    "borderWidth": null,
-    "borderWidthSelected": null,
-    "opacity": null,
-    "size": null
-  },
-  "physics": {
-    "minVelocity": 0.75
-  }
-}
-    ''')
-    """
     #g.show("mimic.html")
     g.save_graph(file_name)
 
 
 if __name__ == "__main__":
-    starttime = '2143-01-01'
-    endtime = '2143-01-14'
-    file_name_HF = 'output/mimic_HF_1D.html'
-    file_name_LF = 'output/mimic_LF_2W_longer.html'
-    #eventgraph_mimiciii(starttime, endtime, HIGH_FREQ_EVENTS, join_rules_HF, file_name_HF)
-    eventgraph_mimiciii(starttime, endtime, LOW_FREQ_EVENTS, join_rules_LF, file_name_LF)
+    fname_keys = ['max_hours', 'starttime', 'endtime', 'min_missing_percent', 'vitals_X_mean',                  'vitals_agg', 'label', 't_min', 't_max', 'sequential_join']
+    fname_HF = 'output/mimic_icu_HF'
+    fname_HF += '_' + '_'.join([k + '-' + str(v) for k, v in conf_HF.items() if k in fname_keys])
+    fname_HF += '_' + '_'.join([k + '-' + str(v) for k, v in join_rules_HF.items() if k in fname_keys]) + '.html'
+    fname_LF = 'output/mimic_icu_LF'
+    fname_LF += '_' + '_'.join([k + '-' + str(v) for k, v in conf_LF.items() if k in fname_keys])
+    fname_LF += '_' + '_'.join([k + '-' + str(v) for k, v in join_rules_LF.items() if k in fname_keys]) + '.html'
+    
+    #eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_HF, conf_HF, fname_HF)
+    eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_LF, conf_LF, fname_LF)
 

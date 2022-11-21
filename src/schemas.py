@@ -20,11 +20,10 @@ EVENTS = {
             #Patient tracking events
             'admissions': [1, 'admissions', 'admittime'],
             'discharges': [2, 'admissions', 'dischtime'],
-            'icustays_in': [3, 'icustays', 'intime'],
-            'icustays_out': [4, 'icustays', 'outtime'],
+            'icustays': [3, 'icustays', 'intime'],
             'callout': [5, 'callout', 'outcometime'],
-            'transfer_in': [6, 'transfers', 'intime'],
-            'transfer_out': [7, 'transfers', 'outtime'],
+            'transfer': [6, 'transfers', 'intime'],
+            #'transfer_out': [7, 'transfers', 'outtime'],
 
             #ICU Events 
             'chartevents': [8, 'chartevents', 'charttime'],
@@ -63,11 +62,10 @@ LOW_FREQ_EVENTS = {
             #Patient tracking events
             'admissions': [1, 'admissions', 'admittime'],
             'discharges': [2, 'admissions', 'dischtime'],
-            'icustays_in': [3, 'icustays', 'intime'],
-            'icustays_out': [4, 'icustays', 'outtime'],
+            'icustays': [3, 'icustays', 'intime'],
             'callout': [5, 'callout', 'outcometime'],
-            'transfer_in': [6, 'transfers', 'intime'],
-            'transfer_out': [7, 'transfers', 'outtime'],
+            'transfer': [6, 'transfers', 'intime'],
+            #'transfer_out': [7, 'transfers', 'outtime'],
 
             #ICU Events 
             #'chartevents': [8, 'chartevents', 'charttime'],
@@ -90,7 +88,7 @@ LOW_FREQ_EVENTS = {
             #'labevents': [14, 'labevents', 'charttime'],
             #charttime is NULL when unknown. Hence we use chartdate.
             #There are 41772 null charttime out of 631726 which is 6.6%.
-            #'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
+            'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
             #TODO exclude notes with ISERROR=1
             # 886 ISERROR=1 out of 2083180, that is, around 0.04%
             #charttime preferred over storetime
@@ -106,21 +104,19 @@ HIGH_FREQ_EVENTS = {
             #Patient tracking events
             'admissions': [1, 'admissions', 'admittime'],
             'discharges': [2, 'admissions', 'dischtime'],
-            'icustays_in': [3, 'icustays', 'intime'],
-            'icustays_out': [4, 'icustays', 'outtime'],
+            'icustays': [3, 'icustays', 'intime'],
             'callout': [5, 'callout', 'outcometime'],
-            'transfer_in': [6, 'transfers', 'intime'],
-            'transfer_out': [7, 'transfers', 'outtime'],
+            'transfer': [6, 'transfers', 'intime'],
 
             #ICU Events 
-            'chartevents': [8, 'chartevents', 'charttime'],
+            #'chartevents': [8, 'chartevents', 'charttime'],
             #charttime preferred over storetime
-            'inputevents_cv': [9, 'inputevents_cv', 'charttime'],
+            #'inputevents_cv': [9, 'inputevents_cv', 'charttime'],
             #ignored endtime
-            'inputevents_mv': [9, 'inputevents_mv', 'starttime'],
+            #'inputevents_mv': [9, 'inputevents_mv', 'starttime'],
             #'datatimeevents',
             #charttime preferred over storetime
-            'outputevents': [10, 'outputevents', 'charttime'],
+            #'outputevents': [10, 'outputevents', 'charttime'],
             #'procedureevents_mv',
 
             #Hospital Data
@@ -130,16 +126,16 @@ HIGH_FREQ_EVENTS = {
             'diagnoses_icd': [12, 'diagnoses_icd', 'dischtime'],
             #at the end after discharge, take discharge time from admissions table
             'drgcodes': [13, 'drgcodes', 'dischtime'], 
-            'labevents': [14, 'labevents', 'charttime'],
+            #'labevents': [14, 'labevents', 'charttime'],
             #charttime is NULL when unknown. Hence we use chartdate.
             #There are 41772 null charttime out of 631726 which is 6.6%.
-            'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
+            #'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
             #TODO exclude notes with ISERROR=1
             # 886 ISERROR=1 out of 2083180, that is, around 0.04%
             #charttime preferred over storetime
             #'notevents': [16, 'noteevents', 'charttime'],
-            'prescriptions_start': [17, 'prescriptions', 'startdate'],
-            'prescriptions_end': [18, 'prescriptions', 'enddate'],
+            #'prescriptions_start': [17, 'prescriptions', 'startdate'],
+            #'prescriptions_end': [18, 'prescriptions', 'enddate'],
             #at the end after discharge, take discharge time from admissions table
             'procedures_icd': [19, 'procedures_icd', 'dischtime'],
             'services': [20, 'services', 'transfertime']}
@@ -150,6 +146,8 @@ EVENT_COLS_EXCLUDE = {
             'admissions': [
                             'dischtime',
                             'discharge_location',
+                            'edregtime',
+                            'edouttime',
                             'deathtime', 
                             'hospical_expire_flag',
                             #exluding columns for demography
@@ -161,6 +159,7 @@ EVENT_COLS_EXCLUDE = {
 
             'discharges': [
                             'admittime',
+                            'admission_type',
                             'admission_location',
                             'edregtime',
                             'edouttime',
@@ -170,31 +169,32 @@ EVENT_COLS_EXCLUDE = {
                             'religion',
                             'marital_status',
                             'ethnicity'],
-            'icustays_in': [
-                            'last_careunit',
-                            'last_wardid',
+            'icustays': [
+                            'icustay_id',
                             'outtime',
-                            'los'],
-            'icustays_out': [
-                            'first_careunit',
                             'first_wardid',
-                            'intime'],
+                            'last_wardid'],
             'callout': [
                         'createtime',
                         'updatetime',
                         'acknowledgetime',
                         'firstreservationtime',
-                        'currentreservationtime'],
-            #kept DBSOURCE which indicates CareVue or Metavision 
-            'transfer_in': [
-                            'last_careunit',
-                            'last_wardid',
-                            'outtime',
-                            'los'],
+                        'currentreservationtime',
+                        'submit_wardid',
+                        'curr_wardid',
+                        'discharge_wardid'],
+            #kept DBSOURCE which indicates CareVue or Metavision as info.
+            #It is ignored when comparing events
+            'transfer': [   'icustay_id',
+                            'prev_wardid',
+                            'curr_wardid'
+                            'outtime'],
+            '''
             'transfer_out': [
                             'first_careunit',
                             'first_wardid',
                             'intime'],
+            '''
             'chartevents': [
                             'warning', #TODO Metavision - excluded if 1
                             'error', #TODO Metavision specific - excluded if 1
@@ -207,7 +207,11 @@ EVENT_COLS_EXCLUDE = {
             'prescriptions_start': [
                                     'enddate'],
             'prescriptions_end': [
-                                    'startdate']}
+                                    'startdate'],
+            'outputevents': [
+                                'cgid',
+                                'storetime',
+                    ]}
 
 EVENT_COLS_INCLUDE = {
                             'inputevents_cv': [
@@ -219,8 +223,7 @@ EVENT_COLS_INCLUDE = {
                                                 'amountuom',
                                                 'rate',
                                                 'rateuom',
-                                                'storetime',
-                                                'cgid',
+                                                'charttime',
                                                 'stopped' 
                                                 ],
                             #stopped - D/C'd, Stopped, NotStopd, Restart, NULL
@@ -232,8 +235,7 @@ EVENT_COLS_INCLUDE = {
                                                 'amountuom',
                                                 'rate',
                                                 'rateuom',
-                                                'storetime',
-                                                'cgid',
+                                                'starttime',
                                                 # Metavision specific
                                                 'statusdescription'
                                                 ]
@@ -266,15 +268,24 @@ TABLES = {
             'procedures_icd', #at the end
             'services'}
 
-FLOAT_COLS = [  'chartevents-valuenum',
-                'icustays_out-los', #length of stay
+IGNORE_COLS = [
+                'dbsource',
+              ]
+
+FLOAT_COLS = [  #'chartevents-valuenum',
+                #'icustays-los', #length of stay
                 'inputevents-amount',
                 'inputevents-rate',
-                'labevents-valuenum',
+                #'labevents-valuenum',
                 'microbiologyevents-dilution_value',
                 #'microbiologyevents-isolate_num' #SMAILLINT,
                 'outputevents-value',
-                'transfer_out-los']
+                #'transfer_out-los',
+                'icu-mean',
+                'icu-count',
+                'icu-std',
+                'icu-time',
+                'count_Q']
 
 EVENTS_EXCLUDE = {
         'chartevents': {'itemid': [ 211, 

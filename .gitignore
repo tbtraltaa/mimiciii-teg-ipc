@@ -1,4 +1,7 @@
 # Byte-compiled / optimized / DLL files
+#
+src/tmp/
+src/data/
 experiments/data/
 experiments/output/
 .DS_Store
