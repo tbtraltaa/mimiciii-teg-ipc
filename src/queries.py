@@ -1,3 +1,4 @@
+from schemas import *
 import numpy as np
 import pandas as pd
 import sys
@@ -8,7 +9,6 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-from schemas import *
 
 # Database configuration
 username = 'postgres'
@@ -20,51 +20,59 @@ schema = 'mimiciii'
 def get_db_connection():
     # Connect to MIMIC-III database
     return psycopg2.connect(dbname=dbname, user=username, password=password)
-    
-#a patient query: [<id>, **<demography_attributes>]
-#a patient dict: {<id>: **<demography_attributes>}
+
+# a patient query: [<id>, **<demography_attributes>]
+# a patient dict: {<id>: **<demography_attributes>}
+
+
 def get_patient_demography(conn, conf):
     '''
     Returns patients with demography between the given time window.
     '''
-    cols = f"CONCAT(patients.subject_id, '-', admissions.hadm_id) as id,"
+    cols = f"CONCAT(p.subject_id, '-', a.hadm_id) as id,"
     for table in PATIENTS:
         for col in PATIENTS[table]:
             cols += f'{table}.{col}, '
-    cols += 'EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob)) as age'
-    table = f'{schema}.admissions INNER JOIN {schema}.patients'
-    join_cond = f'admissions.subject_id = patients.subject_id'
-    #patients, admitted in the hospital within the time window
-    #Some events occur before the admisson date, but have the correct hadm_id.
-    #Those events are ignored.
+    cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age'
+    table = f'{schema}.admissions a INNER JOIN {schema}.patients p'
+    join_cond = f'a.subject_id = p.subject_id'
+    # patients, admitted in the hospital within the time window
+    # Some events occur before the admisson date, but have the correct hadm_id.
+    # Those events are ignored.
     if conf['starttime'] and conf['endtime']:
-        where_cond = f"(admissions.admittime < '{conf['endtime']}')"
-        where_cond += f" AND (admissions.dischtime >= '{conf['starttime']}')"
-    where_cond += f" AND admissions.diagnosis != 'NEWBORN'"
-    where_cond += f" AND admissions.hadm_id is NOT NULL"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))>={conf['min_age']}"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(admissions.admittime, patients.dob))<={conf['max_age']}"
-    query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where_cond}'
+        where = f"(a.admittime < '{conf['endtime']}')"
+        where += f" AND (a.dischtime >= '{conf['starttime']}')"
+    where += f" AND a.diagnosis != 'NEWBORN'"
+    where += f" AND a.hadm_id is NOT NULL"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f">={conf['min_age']}"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f"<={conf['max_age']}"
+    query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where}'
     df = pd.read_sql_query(query, conn)
-    #print(df)
-    #age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
-    #df['age'] = round(age, 2)
-    #df.drop(['admittime'], axis=1, inplace=True)
-    #creates a dictionary with <id> as a key.
-    df = dict( [(k,v) for  k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
-    #pprint.pprint(df)
+    # print(df)
+    # age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
+    # df['age'] = round(age, 2)
+    # df.drop(['admittime'], axis=1, inplace=True)
+    # creates a dictionary with <id> as a key.
+    df = dict([(k, v)
+              for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
+    # pprint.pprint(df)
     return df
 
 
-#an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
+# an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
 def get_events(conn, event_name, conf):
     '''
-    Returns events within the given time window. 
+    Returns events within the given time window.
     '''
-    event_type, table, time_col = EVENTS[event_name] 
-    t_table = 'tb' #time table
-    all_cols = list(pd.read_sql_query(f'SELECT * FROM {schema}.{table} WHERE false', conn).astype(str))
+    event_type, table, time_col = EVENTS[event_name]
+    t_table = 'tb'  # time table
+    all_cols = list(
+        pd.read_sql_query(
+            f'SELECT * FROM {schema}.{table} WHERE false',
+            conn).astype(str))
     all_cols.sort()
     all_cols.remove('row_id')
     all_cols.remove('subject_id')
@@ -72,214 +80,98 @@ def get_events(conn, event_name, conf):
     if time_col in all_cols:
         all_cols.remove(time_col)
     else:
-        t_table='a'
+        t_table = 'a'
     cols = 'tb.' + ', tb.'.join(all_cols)
     if event_name in EVENT_COLS_INCLUDE:
-        cols = 'tb.'+ ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_name])) 
+        cols = 'tb.' + ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_name]))
     elif event_name in EVENT_COLS_EXCLUDE:
-        cols = [col for col in all_cols if col not in EVENT_COLS_EXCLUDE[event_name]]
+        cols = [col for col in all_cols if col not in
+                EVENT_COLS_EXCLUDE[event_name]]
         cols = 'tb.' + ', tb.'.join(cols)
-    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, '{event_name}' as type, {t_table}.{time_col} - a.admittime as t, " + cols
+    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id," + \
+        f"'{event_name}' as type" + \
+        f", {t_table}.{time_col} - a.admittime as t, " + cols
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
-    where_cond = 'tb.hadm_id is NOT NULL'
-    where_cond += " AND a.diagnosis != 'NEWBORN'"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))>= {conf['min_age']}"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {conf['max_age']}"
-    where_cond += f" AND {t_table}.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    where = 'tb.hadm_id is NOT NULL'
+    where += " AND a.diagnosis != 'NEWBORN'"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f">= {conf['min_age']}"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f"<= {conf['max_age']}"
+    where += f" AND {t_table}.{time_col} - a.admittime" + \
+        f"<='{conf['max_hours']} hours'"
     if conf['starttime'] and conf['endtime']:
-        where_cond += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
-        where_cond += f" AND {t_table}.{time_col} < '{conf['endtime']}'"
-    #Some events occur before the admisson date, but have the correct hadm_id.
-    #Those events are ignored.
-    where_cond += f' AND {t_table}.{time_col} >= a.admittime'
-    where_cond += f' AND {t_table}.{time_col} <= a.dischtime'
+        where += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
+        where += f" AND {t_table}.{time_col} < '{conf['endtime']}'"
+    # Some events occur before the admisson date, but have the correct hadm_id.
+    # Those events are ignored.
+    where += f' AND {t_table}.{time_col} >= a.admittime'
+    where += f' AND {t_table}.{time_col} <= a.dischtime'
     order_by = f'ORDER BY t ASC'
     match event_name:
         case 'chartevents':
-            items = f'(SELECT c.itemid, count(c.itemid) as count from {schema}.chartevents c GROUP BY c.itemid) AS i'
+            items = f'(SELECT c.itemid, count(c.itemid) as count' + \
+                f'from {schema}.chartevents c GROUP BY c.itemid) AS i'
             table += f' INNER JOIN {items} ON tb.itemid=i.itemid'
-            where_cond += ' AND i.count < 200000'
-            where_cond += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
-            where_cond += ' AND (tb.error != 1 OR tb.error IS NULL)'
-            where_cond += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
+            where += ' AND i.count < 200000'
+            where += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
+            where += ' AND (tb.error != 1 OR tb.error IS NULL)'
+            where += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
         case 'noteevents':
-            where_cond += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
-
-    query = f"SELECT {cols} FROM {table} WHERE {where_cond} {order_by}"
+            where += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
+        case 'transfer':
+            where += ' AND tb.curr_careunit IS NOT NULL'
+            where += ' AND tb.prev_careunit IS NOT NULL'
+    query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
-    #print(df)
+    # print(df)
     # each row is converted into a dictionary indexed by column names
     df = df.to_dict('records')
-    #pprint.pprint(df)
+    # pprint.pprint(df)
     return df
 
     '''
     if event_name in EVENTS_EXCLUDE:
         for col, exclude_values in EVENTS_EXCLUDE[event_name].items():
             q_str = '(' + ','.join(str(val) for val in exclude_values) + ')'
-            where_cond += f" AND t.{col}  NOT IN {q_str}"
+            where += f" AND t.{col}  NOT IN {q_str}"
     '''
 
 
 def get_icustays(conn, conf):
     table = 'icustays'
     time_col = 'intime'
-    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, tb.subject_id, tb.hadm_id, tb.{time_col} - a.admittime as t, tb.icustay_id"
+    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
+    cols += f",tb.subject_id, tb.hadm_id"
+    cols += f", tb.{time_col} - a.admittime as t, tb.icustay_id"
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
-    where_cond = 'tb.hadm_id is NOT NULL'
-    where_cond += " AND a.diagnosis != 'NEWBORN'"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))>= {conf['min_age']}"
-    where_cond += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))<= {conf['max_age']}"
-    where_cond += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    where = 'tb.hadm_id is NOT NULL'
+    where += " AND a.diagnosis != 'NEWBORN'"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f">= {conf['min_age']}"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f"<= {conf['max_age']}"
+    where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
     if conf['starttime'] and conf['endtime']:
-        where_cond += f" AND tb.{time_col} >= '{conf['starttime']}'"
-        where_cond += f" AND tb.{time_col} < '{conf['endtime']}'"
-    #Some events occur before the admisson date, but have the correct hadm_id.
-    #Those events are ignored.
-    where_cond += f' AND tb.{time_col} >= a.admittime'
-    where_cond += f' AND tb.{time_col} <= a.dischtime'
+        where += f" AND tb.{time_col} >= '{conf['starttime']}'"
+        where += f" AND tb.{time_col} < '{conf['endtime']}'"
+    # Some events occur before the admisson date, but have the correct hadm_id.
+    # Those events are ignored.
+    where += f' AND tb.{time_col} >= a.admittime'
+    where += f' AND tb.{time_col} <= a.dischtime'
     order_by = f'ORDER BY t ASC'
-    query = f"SELECT {cols} FROM {table} WHERE {where_cond}"
+    query = f"SELECT {cols} FROM {table} WHERE {where}"
     df = pd.read_sql_query(query, conn)
-    return dict( [(k,v) for  k, v in zip(df.icustay_id, df.to_dict('records'))])
-
-def get_icu_events_hourly(conn, hourly_vitals, interventions, conf):
-    icustays = get_icustays(conn, conf)
-    print(hourly_vitals.head(5))
-    vitals_stats = get_vitals_stats(hourly_vitals)
-    print(vitals_stats)
-    icu_events = []
-    c1 = 0
-    c2 = 0
-    for e in icustays:
-        for h in range(conf['max_hours']):
-            if e['t'] + timedelta(hours=h) <= timedelta(hours=conf['max_hours']):
-                idx = [(e['subject_id'], e['hadm_id'], e['icustay_id'], h)]
-                if hourly_vitals.index.isin(idx).any():
-                    for col in hourly_vitals.columns:
-                        val = hourly_vitals.loc[(   e['subject_id'], 
-                                                e['hadm_id'],
-                                                e['icustay_id'],
-                                                h), col]
-                        if not pd.isnull(val) and vitals_stats.loc[col, 'missing percent'] >= conf['min_missing_percent']:
-                            stat = vitals_stats.loc[col]
-                            Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
-                            icu_events.append({ 'id': e['id'],
-                                                'type': col,
-                                                't': e['t'] + timedelta(hours=h),
-                                                'icu-hour': h,
-                                                'icu-value':val,
-                                                'Q': Q})
-                            c1 += 1
-                '''
-                if interventions.index.isin(idx).any():
-                    for col in interventions.columns:
-                        val = interventions.loc[(   e['subject_id'], 
-                                                e['hadm_id'],
-                                                e['icustay_id'],
-                                                h), col]
-                        if val == 1:
-                            icu_events.append({ 'id': e['id'],
-                                                'type': 'intervention-' + col,
-                                                't': e['t'] + timedelta(hours=h),
-                                                'icu-hour': h,
-                                                'intervention': 1})
-                            c2 += 1
-                    '''
-    icu_events.sort(key=lambda x: (x['type'], x['t']))            
-    print('Vitals', c1)
-    print('Interventions', c2)
-    return icu_events
-
-def get_icu_events_daily(conn, hourly_vitals, interventions, conf):
-    icustays = get_icustays(conn, conf)
-    print(hourly_vitals.head(5))
-    vitals_stats = get_vitals_stats(hourly_vitals)
-    print(vitals_stats)
-    icu_events = []
-    c1 = 0
-    c2 = 0
-    for e in icustays:
-        for h in range(conf['max_hours']):
-            if e['t'] + timedelta(hours=h) <= timedelta(hours=conf['max_hours']):
-                idx = [(e['subject_id'], e['hadm_id'], e['icustay_id'], h)]
-                if hourly_vitals.index.isin(idx).any():
-                    for col in hourly_vitals.columns:
-                        val = hourly_vitals.loc[(   e['subject_id'], 
-                                                e['hadm_id'],
-                                                e['icustay_id'],
-                                                h), col]
-                        if not pd.isnull(val) and vitals_stats.loc[col, 'missing percent'] >= conf['min_missing_percent']:
-                            daily_sum += val
-                            stat = vitals_stats.loc[col]
-                            Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
-                            icu_events.append({ 'id': e['id'],
-                                                'type': col,
-                                                't': e['t'] + timedelta(hours=h),
-                                                'icu-hour': h,
-                                                'icu-value':val,
-                                                'Q': Q})
-                            c1 += 1
-                '''
-                if interventions.index.isin(idx).any():
-                    for col in interventions.columns:
-                        val = interventions.loc[(   e['subject_id'], 
-                                                e['hadm_id'],
-                                                e['icustay_id'],
-                                                h), col]
-                        if val == 1:
-                            icu_events.append({ 'id': e['id'],
-                                                'type': 'intervention-' + col,
-                                                't': e['t'] + timedelta(hours=h),
-                                                'icu-hour': h,
-                                                'intervention': 1})
-                            c2 += 1
-                    '''
-    icu_events.sort(key=lambda x: (x['type'], x['t']))            
-    print('Vitals', c1)
-    print('Interventions', c2)
-    return icu_events
-     
-
-def get_quartile(vital, Q1, Q2, Q3):
-    if vital <= Q1:
-        vital = 1
-    elif vital > Q1 and vital <= Q2:
-        vital = 2
-    elif vital > Q2 and vital <= Q3:
-        vital = 3
-    else:
-        vital = 4
-    return vital
-
-
-def get_vitals_stats(vitals):
-    vitals_mean = pd.DataFrame(vitals.mean(numeric_only=True),columns=['mean'])
-    vitals_std = pd.DataFrame(vitals.std(numeric_only=True),columns=['stdev'])
-    vitals_Q1 = pd.DataFrame(vitals_mean['mean'] - vitals_std['stdev']*0.675, columns=['Q1'])
-    vitals_Q3 = pd.DataFrame(vitals_mean['mean'] + vitals_std['stdev']*0.675, columns=['Q3'])
-    vitals_missing = pd.DataFrame(vitals.isnull().sum()/vitals.shape[0]*100,columns=['missing percent'])
-
-    vitals_stats = pd.concat([vitals_mean, vitals_std, vitals_missing],axis=1)
-    vitals_stats = pd.concat([vitals_stats, vitals_Q1, vitals_Q3],axis=1)
-    #vitals_stats.index = vitals_stats.index.droplevel(1)
-    vitals_stats.sort_values(by='missing percent', ascending=True, inplace=True)
-    return vitals_stats
-
-def get_daily_vitals(hourly_vitals):
-    print(hourly_vitals.head(24))
-    print(hourly_vitals.rolling(24).mean()) 
+    return dict([(k, v) for k, v in zip(df.icustay_id, df.to_dict('records'))])
 
 
 if __name__ == '__main__':
     conn = get_db_connection()
     get_patient_demography(conn, '2143-01-01', '2143-02-01')
     get_events(conn, 'microbiologyevents', '2143-01-01', '2143-02-01')
-
-
