@@ -10,19 +10,21 @@ from schemas import *
 
 
 def event_difference(e1, e2, join_rules):
-    n = len(e1) - 4
+    n = len(e1) - N_ID
     i = float(0)
-    for (k1, v1), (k2, v2) in zip(e1.items(), e2.items()):
-        if k1 == 'id' or k1 == 'type' or k1 == 't' or k1 == 'i':
+    for k1 in e1:
+        if k1 in EVENT_ID:
             continue
+        elif k1 == 'duration' and e2[k1] - e1[k1] <= join_rules['duration_similarity']:
+            i += 1
         elif e1['type'] + '-' + k1 in FLOAT_COLS or k1 in FLOAT_COLS:
             n -= 1
         elif k1 in IGNORE_COLS:
             n -= 1
         elif e1['type'] + '-' + k1 in join_rules:
-            if abs(v1 - v2) <= join_rules[e1['type'] + '-' + k1]:
+            if abs(e1[k1] - e2[k1]) <= join_rules[e1['type'] + '-' + k1]:
                 i += 1
-        elif v1 == v2:
+        elif e1[k1] == e1[k1]:
             i += 1
     return 1 - i / n
 
@@ -30,12 +32,12 @@ def event_difference(e1, e2, join_rules):
 def subject_difference(s1, s2, join_rules):
     n = len(s1) - 1  # dob
     i = float(0)
-    for (k1, v1), (k2, v2) in zip(s1.items(), s2.items()):
+    for k1 in s1:
         if k1 == 'dob':
             continue
-        elif k1 == 'age' and abs(v1 - v2) <= join_rules['age_similarity']:
+        elif k1 == 'age' and abs(s1[k1] - s2[k1]) <= join_rules['age_similarity']:
             i += 1
-        elif v1 == v2:
+        elif s1[k1] == s2[k1]:
             i += 1
     return 1 - i / n
 

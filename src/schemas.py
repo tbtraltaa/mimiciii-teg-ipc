@@ -1,6 +1,8 @@
 # {<table_name>: [<columns>]}
 
-IDENTIFIERS = ['subject_id', 'hadm_id']
+# attributes of an event, not used for comparison
+EVENT_ID = ['id', 'type', 't', 'i']
+N_ID = 4
 
 PATIENTS = {
     # p for patients
@@ -99,47 +101,6 @@ LOW_FREQ_EVENTS = {
     # 'prescriptions_end': [18, 'prescriptions', 'enddate'],
     # at the end after discharge, take discharge time from admissions table
     # 'procedures_icd': [19, 'procedures_icd', 'dischtime'],
-    'services': [20, 'services', 'transfertime']}
-
-# {<event_name>: [<event_number>, <event_table>, <time_column>]}
-HIGH_FREQ_EVENTS = {
-    # Patient tracking events
-    'admissions': [1, 'admissions', 'admittime'],
-    'discharges': [2, 'admissions', 'dischtime'],
-    'icustays': [3, 'icustays', 'intime'],
-    'callout': [5, 'callout', 'outcometime'],
-    'transfer': [6, 'transfers', 'intime'],
-
-    # ICU Events
-    # 'chartevents': [8, 'chartevents', 'charttime'],
-    # charttime preferred over storetime
-    # 'inputevents_cv': [9, 'inputevents_cv', 'charttime'],
-    # ignored endtime
-    # 'inputevents_mv': [9, 'inputevents_mv', 'starttime'],
-    # 'datatimeevents',
-    # charttime preferred over storetime
-    # 'outputevents': [10, 'outputevents', 'charttime'],
-    # 'procedureevents_mv',
-
-    # Hospital Data
-    # Current Procedural Terminology
-    'cptevents': [11, 'cptevents', 'chartdate'],
-    # at the end after discharge, take discharge time from admissions table
-    'diagnoses_icd': [12, 'diagnoses_icd', 'dischtime'],
-    # at the end after discharge, take discharge time from admissions table
-    'drgcodes': [13, 'drgcodes', 'dischtime'],
-    # 'labevents': [14, 'labevents', 'charttime'],
-    # charttime is NULL when unknown. Hence we use chartdate.
-    # There are 41772 null charttime out of 631726 which is 6.6%.
-    # 'microbiologyevents': [15, 'microbiologyevents', 'chartdate'],
-    # TODO exclude notes with ISERROR=1
-    # 886 ISERROR=1 out of 2083180, that is, around 0.04%
-    # charttime preferred over storetime
-    # 'notevents': [16, 'noteevents', 'charttime'],
-    # 'prescriptions_start': [17, 'prescriptions', 'startdate'],
-    # 'prescriptions_end': [18, 'prescriptions', 'enddate'],
-    # at the end after discharge, take discharge time from admissions table
-    'procedures_icd': [19, 'procedures_icd', 'dischtime'],
     'services': [20, 'services', 'transfertime']}
 
 # {event_name : [[<include_columns>], [<exclude_columns>]]}
@@ -276,8 +237,8 @@ TABLES = {
 IGNORE_COLS = [
     'dbsource',
     'icustay_id',
-    'PI_value',
-    'PI_number'
+    'pi_number',
+    'pi_info'
 ]
 
 FLOAT_COLS = [  # 'chartevents-valuenum',
@@ -295,60 +256,3 @@ FLOAT_COLS = [  # 'chartevents-valuenum',
                 'icu-time',
                 'count_Q',
 ]
-
-EVENTS_EXCLUDE = {
-    'chartevents': {'itemid': [211,
-                               742,
-                               646,
-                               618,
-                               212,
-                               161,
-                               128,
-                               550,
-                               1125,
-                               220045,
-                               220210,
-                               220277,
-                               159,
-                               1484,
-                               51,
-                               8368,
-                               52,
-                               220048,
-                               227969,
-                               224650,
-                               5815,
-                               8549,
-                               5820,
-                               8554,
-                               5819,
-                               8553,
-                               834,
-                               3450,
-                               8518,
-                               3603,
-                               581,
-                               3609,
-                               8532,
-                               455,
-                               8441,
-                               456,
-                               31,
-                               5817,
-                               8551,
-                               220181,
-                               220179,
-                               220180,
-                               113,
-                               1703,
-                               220052,
-                               467,
-                               220050,
-                               220051,
-                               80,
-                               1337,
-                               674,
-                               432]
-
-                    }
-}

@@ -1,3 +1,25 @@
+PI_EVENTS = [
+                    'PI stage',
+                    'PI site',
+                    'PI wound base',
+                    'PI drainage',
+                    'PI odor',
+                    'PI cleansing',
+                    'PI treatment',
+                    'PI pressure-reduce',
+                    #'PI position',
+                    'PI skin type',
+                    'PI drainage amount',
+                    'PI surrounding tissue',
+                    'PI tunneling',
+                    'PI undermining',
+                    'PI dressing status',
+                    ]
+
+PI_EVENTS_NUMERIC = [
+                    'PI depth',
+                    'PI width',
+                    'PI length']
 UOM = 'cm'
 
 '''
@@ -15,26 +37,30 @@ mimic=# select count(*) from mimiciii.chartevents
 # \d+ - number
 # \s* - zero or more white space
 # % - any characters
+# TODO strip and uppercase before comparing
 PI_EVENTS_CV = {
     'PI stage': ['Pressure Sore #\\d+ \\[Stage\\]',
-                 ['Other/Remarks', 'Unable to Stage']],
+                 ['\\s*Other\/Remarks\\s*', '\\s*Unable to Stage\\s*']],
     'PI site': ['Press Sore Site #%', []],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
     'PI depth': ['PressSore Depth #%',
-                 ['Other/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
+                 ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
     'PI width': ['Pressure Sore #\\d+ \\[Width\\]',
-                 ['Other/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
-    'PI wound base': ['PressSoreWoundBase#%', ['Other/Remarks']],
-    'PI drainage': ['Pressure Sore #\\d+ \\[Drainage\\]', ['Other/Remarks']],
-    'PI odor': ['Pressure Sore Odor#%', ['Other/Remarks', 'Not Applicable']],
+                 ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
+    'PI wound base': ['PressSoreWoundBase#%', ['\\s*Other\/Remarks\\s*']],
+    'PI drainage': ['Pressure Sore #\\d+ \\[Drainage\\]',
+                        ['\\s*Other\/Remarks\\s*']],
+    'PI odor': ['Pressure Sore Odor#%',
+                    ['\\s*Other\/Remarks\\s*', '\\s*Not Applicable\\s*']],
     # 'Other/Remarks' included
-    'PI cleansing': ['PressSoreCleansing#%'],
+    'PI cleansing': ['PressSoreCleansing#%', []],
     'PI treatment': ['PressSoreTreatment#%', []],
     # 'Other/Remarks' included
-    'PI pressure-reduce': ['PressureReduceDevice'],
+    'PI pressure-reduce': ['PressureReduceDevice', []],
+    # TODO strip and uppercase before comparing
     'PI position': ['Position', []]}
 
 '''
@@ -53,6 +79,7 @@ where d.category='Skin - Impairment';
 # \d+ - number
 # \s* - zero or more white space
 # % - any characters
+# TODO strip and uppercase before comparing values
 PI_EVENTS_MV = {
     'PI stage': ['Pressure Ulcer Stage #%',
                  [
@@ -68,11 +95,12 @@ PI_EVENTS_MV = {
     # numeric value as string
     'PI width': ['Impaired Skin Width #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
     'PI wound base': ['Impaired Skin Wound Base #%', ['\\s*Not assessed\\s*']],
-    'PI drainage': ['Impaired Skin Drainage #%', '\\s*Not assessed\\s*'],
-    'PI odor': ['Impaired Skin Odor #%', ],
+    'PI drainage': ['Impaired Skin Drainage #%', ['\\s*Not assessed\\s*']],
+    'PI odor': ['Impaired Skin Odor #%', []],
     'PI cleansing': ['Impaired Skin Cleanse #%', ['\\s*Not applicable\\s*']],
     'PI treatment': ['Impaired Skin Treatment #%', []],
-    'PI type': ['Impaired Skin Type #%', []],
+    # TODO Replace 'SubQ Emphysema' with 'Sub Q emphysema'
+    'PI skin type': ['Impaired Skin Type #%', []],
     # numeric value as string
     'PI length': ['Impaired Skin Length #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
     'PI drainage amount': ['Impaired Skin Drainage Amount #%',
@@ -92,8 +120,7 @@ PI_EVENTS_MV = {
     # 'dressing change': 'Impaired Skin  - Dressing Change #N'
 }
 
-PI_EVENTS_VALUE_MAP = {
-    'PI stage': {
+PI_STAGE_MAP = {
         # CV
         'Red; unbroken': 1,
         'Partial thickness skin loss through epidermis and/or dermis; '\
@@ -113,7 +140,9 @@ PI_EVENTS_VALUE_MAP = {
         'Full Thickness': 3,
         'Through Fascia': 4,
         'To Bone': 4,
-        'Deep Tiss Injury': 5},
+        'Deep Tiss Injury': 5}
+
+PI_VALUE_MAP = {
     'PI site': {
         # CV
         'Abdomen': 1,
@@ -252,6 +281,77 @@ PI_EVENTS_VALUE_MAP = {
         'Toes, Left': 35,
         'Toes, Right': 36,
         'Torso': 52},
-    'PI wound base': {
-    }
+    'PI odor': {
+        'Negative': 0,
+        'Positive': 1,
+        '0': 0,
+        '1': 1},
+    'PI treatment': {
+        # CV
+        'Accuzyme': 1,
+        'Ace Wrap': 2,
+        'Adaptic': 3,
+        'Alginate/Kalstat': 4,
+        'Allevyn': 5,
+        'Allevyn Trach': 5,
+        'Antifungal Oint': 6,
+        'Antifungal Powde': 6,
+        'Aquacel': 7,
+        'Aquacel AG': 7,
+        'Aquaphor': 8,
+        'Collagenase': 9,
+        'Coloplast': 10,
+        'Dermagran': 11,
+        'Dry Sterile Dsg': 12,
+        'Duoderm': 13,
+        'Hydrogel/Vigilon': 14,
+        'Open to Air': 15,
+        'Other/Remarks': 16,
+        'Transparent': 17,
+        'Wet to Dry': 18,
+        'Wnd Gel/Allevyn': 20,
+        'Wound Gel': 20,
+        'Wound Gel/Adapti': 20,
+        # MV
+        'Accuzyme (enzymatic debrider)': 1,
+        'Adaptic': 3,
+        'Allevyn Foam Dressing': 5,
+        'Aloe Vesta Anti-Fungal': 6,
+        'Aloe Vesta Anti-Fungal Ointment': 6,
+        'Aquacel AG Rope': 7,
+        'Aquacel AG Sheet': 7,
+        'Aquacel Rope': 7,
+        'Aquacel Sheet 4 x 4': 7,
+        'Aquacel Sheet 6 x 6': 7,
+        'Aquaphor': 8,
+        'Collagenese (Santyl-enzymatic)': 9,
+        'Dakins Solution': 21,
+        'Double Guard Ointment': 22,
+        'Drainage Bag': 23,
+        #'Drainage Bag',
+        'Dry Sterile Dressing': 12,
+        'Duoderm CGF': 13,
+        'Duoderm Extra Thin': 13,
+        'Duoderm Gel': 13,
+        #'Duoderm Gel',
+        'Iodoform': 24,
+        'Iodoform Gauze': 24,
+        'Mepilex Foam Dressing': 6,
+        'Mesait': 25,
+        'NU-Gauze': 26,
+        'None-Open to Air': 15,
+        #'Not applicable',
+        #'Not applicable',
+        'Softsorb': 27,
+        'Telfa': 28,
+        'Therapeutic  Ointment': 29,
+        #'Therapeutic Ointment',
+        'Transparent': 17,
+        'VAC-White Foam': 30,
+        'VAC-black dsg': 31,
+        'VAC-white foam': 32,
+        'Vaseline Gauze': 33,
+        'Vigilon Sheet Gel': 34,
+        'Wet to Dry': 18,
+        'Xeroform': 35},
 }

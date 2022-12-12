@@ -1,16 +1,17 @@
-from schemas_PI import *
 import numpy as np
 import pandas as pd
 import sys
 import psycopg2
 import pprint
 from datetime import timedelta
+import copy
 import warnings
 
 warnings.filterwarnings('ignore')
 
 
-PI_EVENT_NAMES = ['PI stage', 'PI site']
+from schemas_PI import *
+
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
 
@@ -49,7 +50,7 @@ def get_all_PI_events(conn, event_name, conf):
     where += f' AND tb.{time_col} >= a.admittime'
     where += f' AND tb.{time_col} <= a.dischtime'
     where += f" AND (d.label similar to '{label_CV}'" + \
-        f"OR d.label SIMILAR TO '{label_MV}')"
+        f" OR d.label SIMILAR TO '{label_MV}')"
     where += f' AND tb.value is NOT NULL'
     for value in ignored_values_CV:
         where += f" AND tb.value not similar to '{value}'"
@@ -62,7 +63,7 @@ def get_all_PI_events(conn, event_name, conf):
     df = df.to_dict('records')
     if event_name == 'PI stage':
         for i, e in enumerate(df):
-            e['stage'] = PI_EVENTS_VALUE_MAP['PI stage'][e['value']]
+            e['stage'] = PI_VALUE_MAP['PI stage'][e['value']]
     return df
 
 
@@ -73,8 +74,16 @@ def get_unique_PI_events(conn, event_name, conf):
     schema = 'mimiciii'
     table = 'chartevents'
     time_col = 'charttime'
-    label_CV, ignored_values_CV = PI_EVENTS_CV[event_name]
-    label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
+    labels = []
+    ignored_values = []
+    if event_name in PI_EVENTS_CV:
+        label_CV, ignored_values_CV = PI_EVENTS_CV[event_name]
+        labels.append(label_CV)
+        ignored_values += ignored_values_CV
+    if event_name in PI_EVENTS_MV:
+        label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
+        labels.append(label_MV)
+        ignored_values += ignored_values_MV
 
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
     cols += f"'{event_name}' as type, "
@@ -84,7 +93,9 @@ def get_unique_PI_events(conn, event_name, conf):
     cols += f"tb.icustay_id, d.dbsource, "  # extra info
     cols += 'row_number() over (partition by ' + \
         f'tb.subject_id, tb.hadm_id, tb.icustay_id, tb.value, d.label' + \
+        f', EXTRACT(DAY FROM tb.{time_col} - a.admittime)' + \
         f' order by tb.charttime )'
+
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
@@ -105,12 +116,12 @@ def get_unique_PI_events(conn, event_name, conf):
     # Those events are ignored.
     where += f' AND tb.{time_col} >= a.admittime'
     where += f' AND tb.{time_col} <= a.dischtime'
-    where += f" AND (d.label similar to '{label_CV}'" + \
-        f"OR d.label SIMILAR TO '{label_MV}')"
     where += f' AND tb.value is NOT NULL'
-    for value in ignored_values_CV:
-        where += f" AND tb.value not similar to '{value}'"
-    for value in ignored_values_MV:
+    where += f" AND (d.label similar to '{labels[0]}'"
+    for label in labels[1:]:
+        where += f" OR d.label SIMILAR TO '{label}'"
+    where += ")"
+    for value in ignored_values:
         where += f" AND tb.value not similar to '{value}'"
     order_by = f'ORDER BY t ASC'
     query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
@@ -118,12 +129,53 @@ def get_unique_PI_events(conn, event_name, conf):
 
     df = pd.read_sql_query(query, conn)
     df.drop(['row_number'], axis=1, inplace=True)
+    df['duration'] = timedelta(days=0)
+    if event_name in PI_EVENTS_NUMERIC:
+        df['pi_value'] = df['pi_value'].apply(lambda x: float(x.strip().split()[0]))
+    elif event_name == 'PI stage':
+        df['pi_value'] = df['pi_value'] \
+                            .apply(lambda x: PI_STAGE_MAP[x])
+        df['pi_state'] = df['pi_value'] \
+                            .apply(lambda x: conf['PI_states'][x])
+    elif event_name in PI_VALUE_MAP:
+        df['pi_info'] = df['pi_value']
+        df['pi_value'] = df['pi_value'] \
+                                .apply(lambda x: PI_VALUE_MAP[event_name][x])
+    else:
+        df['pi_value'] = df['pi_value'].apply(lambda x: x.strip().title())
+    if event_name == 'PI skin type':
+        df[df['pi_value'] == 'Subq Emphysema']['pi_value'] = 'Sub Q Emphysema'
+
     # each row is converted into a dictionary indexed by column names
-    df = df.to_dict('records')
-    if event_name == 'PI stage':
-        for i, e in enumerate(df):
-            e['PI_stage'] = PI_EVENTS_VALUE_MAP['PI stage'][e['pi_value']]
-            e['PI_state'] = conf['PI_states'][e['PI_stage']]
-    for i, e in enumerate(df):
-        e['PI_value_id'] = PI_EVENTS_VALUE_MAP[event_name][e['pi_value']]
-    return df
+    events = df.to_dict('records')
+    if conf['duration']:
+        # calculating event duration for each PI
+        events.sort(key=lambda x: (x['id'], x['pi_number'], x['pi_value'], x['t']))
+        key = 'pi_value'
+        prev_val = None
+        prev_t = np.inf
+        prev_id = None
+        prev_num = None
+        start = None
+        t_unit = timedelta(days=1)
+        del_list = []
+        for i, e in enumerate(events):
+            if e[key] == prev_val and \
+                e['t'].days - prev_t == 1 and \
+                e['id'] == prev_id and \
+                e['pi_number'] == prev_num:
+                events[start]['duration'] += t_unit 
+                prev_t = e['t'].days
+                del_list.append(i)
+            else:
+                start = i
+                prev_val = e[key]
+                prev_t = e['t'].days
+                prev_id = e['id']
+                prev_num = e['pi_number']
+        del_count=0
+        for i in del_list:
+            del events[i - del_count]
+            del_count += 1
+    events.sort(key = lambda x: x['t'])
+    return events

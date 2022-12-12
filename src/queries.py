@@ -50,14 +50,12 @@ def get_patient_demography(conn, conf):
         f"<={conf['max_age']}"
     query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where}'
     df = pd.read_sql_query(query, conn)
-    # print(df)
     # age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
     # df['age'] = round(age, 2)
     # df.drop(['admittime'], axis=1, inplace=True)
     # creates a dictionary with <id> as a key.
     df = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
-    # pprint.pprint(df)
     return df
 
 
@@ -127,11 +125,42 @@ def get_events(conn, event_name, conf):
             where += ' AND tb.prev_careunit IS NOT NULL'
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
-    # print(df)
+    df['duration'] = timedelta(days=0)
     # each row is converted into a dictionary indexed by column names
-    df = df.to_dict('records')
-    # pprint.pprint(df)
-    return df
+    events = df.to_dict('records')
+    if conf['duration'] and event_name == 'cptevents':
+        events.sort(key=lambda x: (x['id'],
+                                   x['cpt_cd'],
+                                   x['t']))
+        key = 'cpt_cd'
+        prev_val = None
+        prev_t = np.inf
+        prev_id = None
+        start = None
+        t_unit = timedelta(days=1)
+        del_list = []
+        for i, e in enumerate(events):
+            if e[key] == prev_val and \
+                e['t'].days - prev_t == 1 and \
+                e['id'] == prev_id:
+                events[start]['duration'] += t_unit 
+                prev_t = e['t'].days
+                del_list.append(i)
+            elif e[key] == prev_val and \
+                e['t'].days - prev_t == 0 and \
+                e['id'] == prev_id:
+                del_list.append(i)
+            else:
+                start = i
+                prev_val = e[key]
+                prev_t = e['t'].days
+                prev_id = e['id']
+        del_count=0
+        for i in del_list:
+            del events[i - del_count]
+            del_count += 1
+    events.sort(key = lambda x: x['t'])
+    return events
 
     '''
     if event_name in EVENTS_EXCLUDE:
