@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 sys.path.append('../src')
 from mimic_events import *
 from eventgraphs import *
-from percolation import percolation_centrality_with_target
+from percolation import percolation_centrality_with_target, PC_with_target
 
 
 # Event graph configuration
@@ -32,12 +32,12 @@ join_rules_LF = {
 }
 
 conf_LF = {
-    'max_hours': 168,
+    'max_hours': 720,
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
     'endtime': '2143-01-14',
-    'min_missing_percent': 80,
+    'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -47,7 +47,7 @@ conf_LF = {
 }
 
 
-def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
+def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     patients, all_events = mimic_events(event_list, join_rules, conf)
     n = len(all_events)
     A = build_eventgraph(patients, all_events, join_rules)
@@ -66,7 +66,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
-    PC = percolation_centrality_with_target(G, states=states, weight='weight')
+    PC, paths = PC_with_target(G, states=states, weight='weight')
     shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'circle') for i, v in enumerate(PC)])
     shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'box') for i, shape in shapes.items()])
     nx.set_node_attributes(G, shapes, 'shape')
@@ -79,28 +79,60 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
     attrs = dict([(key, {'value': val, 'title': val})
                  for key, val in A.items()])
     nx.set_edge_attributes(G, attrs)
+    PC_sorted = [[k, v, all_events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True) if v > 0]
+    pprint.pprint(PC_sorted[:5])
+    PC_top = dict()
+    num = 100 if len(PC_sorted) > 100 else len(PC_sorted)
+    for info in PC_sorted[:num]:
+        if info[2]['type'] not in PC_top:
+            PC_top[info[2]['type']] = [1, info[1]]
+        else:
+            PC_top[info[2]['type']][0] += 1
+            PC_top[info[2]['type']][1] = info[1]
+    pprint.pprint(PC_top)
+    #vis = False
+    if vis:
+        visualize_graph(G, all_events, patients, PC, paths, file_name)
+
+
+def visualize_graph(G, all_events, patients, PC, paths, file_name):
+    PC_related_nodes = set()
+    for v, v_paths in paths.items():
+        for path in v_paths:
+            i = path[0]
+            PC_related_nodes.add(i)
+            for j in path[1:]:
+                PC_related_nodes.add(j)
+                G[i][j]['color']='black'
+                i = j
+    '''
     g = Network(
         directed=True,
         height=1000,
         neighborhood_highlight=True,
         select_menu=True)
     g.hrepulsion()
-    # g.barnes_hut()
     g.from_nx(G, show_edge_weights=False)
+    # g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons(filter_=['physics'])
     print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(file_name)
-    PC_sorted = [[k, v, all_events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True)]
-    pprint.pprint(PC_sorted[:10])
-    PC_top = dict()
-    for info in PC_sorted[:40]:
-        if info[2]['type'] not in PC_top:
-            PC_top[info[2]['type']] = 1
-        else:
-            PC_top[info[2]['type']] += 1
-    pprint.pprint(PC_top)
+    g.save_graph(file_name + '.html')
+    '''
+    g = Network(
+        directed=True,
+        height=1000,
+        neighborhood_highlight=True,
+        select_menu=True)
+    g.hrepulsion()
+    g.from_nx(G.subgraph(PC_related_nodes), show_edge_weights=False)
+    # g.barnes_hut()
+    g.toggle_physics(True)
+    g.show_buttons(filter_=['physics'])
+    print(nx.is_directed_acyclic_graph(G))
+    # g.show("mimic.html")
+    g.save_graph(file_name + 'PC_related.html')
 
     fig, ax = plt.subplots(figsize=(10, 10))
     pos = nx.spring_layout(G, k=0.15, seed=4572321)
@@ -155,7 +187,7 @@ if __name__ == "__main__":
                                for k, v in conf_LF.items() if k in fname_keys])
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                     for k, v in join_rules_LF.items()
-                                    if k in fname_keys]) + 'Position_excluded.html'
+                                    if k in fname_keys])
 
     # eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_HF, conf_HF, fname_HF)
     eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_LF, conf_LF, fname_LF)

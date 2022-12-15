@@ -9,7 +9,9 @@ from queries import *
 
 warnings.filterwarnings('ignore')
 
+from PI_risk_factors import *
 LEVEL2 = '../src/data/all_hourly_data.h5'
+
 
 
 def get_vitals(conf):
@@ -47,7 +49,7 @@ def get_events_interventions(conn, conf):
     icustays_ids = list(icustays.keys())
     interventions = get_interventions(conf)
     skip_count = 0
-    event_count = 0
+    event_idx = 0
     zero_duration = timedelta(days=0)
     if conf['vitals_agg'] == 'daily':
         time_unit = timedelta(days=1)
@@ -74,7 +76,7 @@ def get_events_interventions(conn, conf):
             if val == 0:
                 continue
             if i not in prev:
-                prev[i] = [val, h, event_count]
+                prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'intervention-' + col,
                                't': e['t'] + time,
@@ -82,11 +84,12 @@ def get_events_interventions(conn, conf):
                                'intervention-count': count,
                                'intervention': 1,
                                'duration': zero_duration})
-                event_count += 1
+                event_idx += 1
             elif conf['duration'] and prev[i][0] == val and prev[i][1] == h - 1:
                 events[prev[i][2]]['duration'] += time_unit
+                events[prev[i][2]]['intervention-count'] += count
             elif conf['duration'] and prev[i][0] == val and prev[i][1] != h - 1:
-                prev[i] = [val, h, event_count]
+                prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'intervention-' + col,
                                't': e['t'] + time,
@@ -94,9 +97,9 @@ def get_events_interventions(conn, conf):
                                'intervention-count': count,
                                'intervention': 1,
                                'duration': zero_duration})
-                event_count += 1
+                event_idx += 1
             elif val != prev[i][0]:
-                prev[i] = [val, h, event_count]
+                prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'intervention-' + col,
                                't': e['t'] + time,
@@ -104,7 +107,7 @@ def get_events_interventions(conn, conf):
                                'intervention-count': count,
                                'intervention': 1,
                                'duration': zero_duration})
-                event_count += 1
+                event_idx += 1
             elif not conf['duration']:
                 skip_count += 1
     events.sort(key=lambda x: (x['type'], x['t']))
@@ -121,7 +124,7 @@ def get_events_vitals_X_mean(conn, conf):
     vitals = vitals.loc[(slice(None), slice(
         None), icustays_ids, slice(None)), :]
     skip_count = 0
-    event_count = 0
+    event_idx = 0
     zero_duration = timedelta(days=0)
     if conf['vitals_agg'] == 'daily':
         time_unit = timedelta(days=1)
@@ -140,7 +143,8 @@ def get_events_vitals_X_mean(conn, conf):
 
         if e['t'] + time >= timedelta(hours=conf['max_hours']):
             continue
-        for i, col in enumerate(vitals.columns):
+        for i, col in enumerate(PI_VITALS):
+            print(['%s'%col for col in vitals.columns])
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
             if not pd.isnull(val) and \
                 vitals_stats.loc[col, 'missing percent'] \
@@ -148,37 +152,37 @@ def get_events_vitals_X_mean(conn, conf):
                 stat = vitals_stats.loc[col]
                 Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
                 if i not in prev:
-                    prev[i] = [Q, h, event_count]
+                    prev[i] = [Q, h, event_idx]
                     icu_events.append({'id': e['id'],
                                        'type': col,
                                        't': e['t'] + time,
                                        'icu-time': time,
-                                       'icu-mean': val,
+                                       'vitals-mean': val,
                                        'Q': Q,
                                        'duration': zero_duration})
-                    event_count += 1
+                    event_idx += 1
                 elif conf['duration'] and prev[i][0] == Q and prev[i][1] == h - 1:
                     icu_events[prev[i][2]]['duration'] += time_unit
                 elif conf['duration'] and prev[i][0] == Q and prev[i][1] != h - 1:
-                    prev[i] = [Q, h, event_count]
+                    prev[i] = [Q, h, event_idx]
                     icu_events.append({'id': e['id'],
                                        'type': col,
                                        't': e['t'] + time,
                                        'icu-time': time,
-                                       'icu-mean': val,
+                                       'vitals-mean': val,
                                        'Q': Q,
                                        'duration': zero_duration})
-                    event_count += 1
+                    event_idx += 1
                 elif Q != prev[i][0]:
-                    prev[i] = [Q, h, event_count]
+                    prev[i] = [Q, h, event_idx]
                     icu_events.append({'id': e['id'],
                                        'type': col,
                                        't': e['t'] + time,
                                        'icu-time': time,
-                                       'icu-mean': val,
+                                       'vitals-mean': val,
                                        'Q': Q,
                                        'duration': zero_duration})
-                    event_count += 1
+                    event_idx += 1
                 elif not conf['duration']:
                     skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
@@ -200,7 +204,7 @@ def get_events_vitals_X(conn, conf):
         None), icustays_ids, slice(None)), :]
     print(vitals.index)
     skip_count = 0
-    event_count = 0
+    event_idx = 0
     zero_duration = timedelta(days=0)
     if conf['vitals_agg'] == 'daily':
         time_unit = timedelta(days=1)
@@ -216,7 +220,8 @@ def get_events_vitals_X(conn, conf):
             time = timedelta(hours=h)
         if e['t'] + time <= timedelta(hours=conf['max_hours']):
             # print(vitals.columns.levels[0])
-            for i, col in enumerate(vitals.columns.levels[0]):
+            #for i, col in enumerate(vitals.columns.levels[0]):
+            for i, col in enumerate(PI_VITALS):
                 count, mean, std = vitals.loc[(
                     subject_id, hadm_id, icustay_id, h), (col, slice(None))]
                 if count != 0 and \
@@ -236,49 +241,50 @@ def get_events_vitals_X(conn, conf):
                                          Q2.loc[(col, 'std')],
                                          Q3.loc[(col, 'std')])
                     if i not in prev:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_count]
+                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                         icu_events.append({'id': e['id'],
                                            'type': col,
                                            't': e['t'] + time,
                                            'icu-time': time,
-                                           'icu-count': count,
-                                           'icu-mean': mean,
-                                           'icu-std': std,
+                                           'vitals-count': count,
+                                           'vitals-mean': mean,
+                                           'vitals-std': std,
                                            'count_Q': count_Q,
                                            'mean_Q': mean_Q,
                                            'std_Q': std_Q,
                                            'duration': zero_duration})
-                        event_count += 1
+                        event_idx += 1
                     elif conf['duration'] and prev[i][1] == mean_Q and prev[i][3] == h - 1:
                         icu_events[prev[i][4]]['duration'] += time_unit
+                        icu_events[prev[i][4]]['vitals-count'] += count
                     elif conf['duration'] and prev[i][1] == mean_Q and prev[i][1] != h - 1:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_count]
+                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                         icu_events.append({'id': e['id'],
                                            'type': col,
                                            't': e['t'] + time,
                                            'icu-time': time,
-                                           'icu-count': count,
-                                           'icu-mean': mean,
-                                           'icu-std': std,
+                                           'vitals-count': count,
+                                           'vitals-mean': mean,
+                                           'vitals-std': std,
                                            'count_Q': count_Q,
                                            'mean_Q': mean_Q,
                                            'std_Q': std_Q,
                                            'duration': zero_duration})
-                        event_count += 1
+                        event_idx += 1
                     elif mean_Q != prev[i][1]:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_count]
+                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                         icu_events.append({'id': e['id'],
                                            'type': col,
                                            't': e['t'] + time,
                                            'icu-time': time,
-                                           'icu-count': count,
-                                           'icu-mean': mean,
-                                           'icu-std': std,
+                                           'vitals-count': count,
+                                           'vitals-mean': mean,
+                                           'vitals-std': std,
                                            'count_Q': count_Q,
                                            'mean_Q': mean_Q,
                                            'std_Q': std_Q,
                                            'duration': zero_duration})
-                        event_count += 1
+                        event_idx += 1
                     elif not conf['duration']:
                         skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
@@ -325,6 +331,7 @@ def get_stats_vitals_X_mean(vitals):
         by='missing percent',
         ascending=True,
         inplace=True)
+    #vitals_states.to_csv('vital_stats.csv', sep=',')
     return vitals_stats
 
 

@@ -1,8 +1,8 @@
 # {<table_name>: [<columns>]}
 
 # attributes of an event, not used for comparison
-EVENT_ID = ['id', 'type', 't', 'i']
-N_ID = 4
+EVENT_ID = ['id', 'type', 't', 'i', 'duration']
+N_ID = 5
 
 PATIENTS = {
     # p for patients
@@ -238,7 +238,14 @@ IGNORE_COLS = [
     'dbsource',
     'icustay_id',
     'pi_number',
-    'pi_info'
+    'pi_info',
+    'intervention-count'
+    'vitals-mean',
+    'vitals-count',
+    'vitals-std',
+    'icu-time',
+    'count_Q',
+    'std_Q'
 ]
 
 FLOAT_COLS = [  # 'chartevents-valuenum',
@@ -250,9 +257,5 @@ FLOAT_COLS = [  # 'chartevents-valuenum',
                 # 'microbiologyevents-isolate_num' #SMAILLINT,
                 'outputevents-value',
                 # 'transfer_out-los',
-                'icu-mean',
-                'icu-count',
-                'icu-std',
-                'icu-time',
-                'count_Q',
+
 ]
