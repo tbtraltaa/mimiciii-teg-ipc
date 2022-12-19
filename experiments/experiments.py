@@ -36,7 +36,7 @@ conf_LF = {
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
-    'endtime': '2143-01-14',
+    'endtime': '2143-01-21',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -83,13 +83,13 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     pprint.pprint(PC_sorted[:5])
     PC_top = dict()
     num = 100 if len(PC_sorted) > 100 else len(PC_sorted)
-    for info in PC_sorted[:num]:
+    for i, info in enumerate(PC_sorted[:num]):
         if info[2]['type'] not in PC_top:
             PC_top[info[2]['type']] = [1, info[1]]
         else:
             PC_top[info[2]['type']][0] += 1
             PC_top[info[2]['type']][1] = info[1]
-    pprint.pprint(PC_top)
+    pprint.pprint(PC_top, sort_dicts=False)
     #vis = False
     if vis:
         visualize_graph(G, all_events, patients, PC, paths, file_name)
