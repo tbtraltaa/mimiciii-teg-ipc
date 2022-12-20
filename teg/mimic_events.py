@@ -6,10 +6,10 @@ from datetime import timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
-from eventgraphs import *
-from queries_mimic_extract import *
-from queries_PI import *
-from queries import *
+from teg.eventgraphs import *
+from teg.queries_mimic_extract import *
+from teg.queries_PI import *
+from teg.queries import *
 
 def mimic_events(event_list, join_rules, conf):
     conn = get_db_connection()

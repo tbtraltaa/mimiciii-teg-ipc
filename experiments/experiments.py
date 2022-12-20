@@ -1,4 +1,3 @@
-import sys
 import networkx as nx
 import pandas as pd
 import numpy as np
@@ -9,10 +8,9 @@ from datetime import timedelta
 import warnings
 warnings.filterwarnings('ignore')
 
-sys.path.append('../src')
-from mimic_events import *
-from eventgraphs import *
-from percolation import percolation_centrality_with_target, PC_with_target
+from teg.mimic_events import *
+from teg.eventgraphs import *
+from teg.percolation import PC_with_target
 
 
 # Event graph configuration
@@ -36,7 +34,7 @@ conf_LF = {
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
-    'endtime': '2143-01-21',
+    'endtime': '2143-01-14',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,

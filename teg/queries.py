@@ -1,4 +1,3 @@
-from schemas import *
 import numpy as np
 import pandas as pd
 import sys
@@ -9,6 +8,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
+from teg.schemas import *
 
 # Database configuration
 username = 'postgres'

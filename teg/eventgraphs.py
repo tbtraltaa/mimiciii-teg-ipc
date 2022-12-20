@@ -6,7 +6,7 @@ from scipy.sparse import dok_matrix
 import pprint
 import networkx as nx
 
-from schemas import *
+from teg.schemas import *
 
 
 def event_difference(e1, e2, join_rules):

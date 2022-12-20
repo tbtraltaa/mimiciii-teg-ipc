@@ -10,7 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-from schemas_PI import *
+from teg.schemas_PI import *
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]

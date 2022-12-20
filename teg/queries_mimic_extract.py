@@ -5,12 +5,12 @@ import psycopg2
 import pprint
 from datetime import timedelta
 import warnings
-from queries import *
-
 warnings.filterwarnings('ignore')
 
-from PI_risk_factors import *
-LEVEL2 = '../src/data/all_hourly_data.h5'
+from teg.queries import *
+from teg.PI_risk_factors import *
+LEVEL2 = '../data/all_hourly_data.h5'
+#LEVEL2 = 'data/all_hourly_data.h5'
 
 
 
