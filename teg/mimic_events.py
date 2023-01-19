@@ -53,6 +53,11 @@ def mimic_events(event_list, join_rules, conf):
     for i, e in enumerate(sorted_events):
         if e['type'] == 'PI stage' and e['pi_value'] != stage:
             stage = e['pi_value']
+        if stage == 0 and e['type'] != 'PI stage' and 'PI' in e['type']:
+            #PI related events before stage I is considered as stage 0.5
+            stage = 0.5
+            all_events[e['i']]['pi_value'] = stage
+            all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
         else:
             all_events[e['i']]['pi_value'] = stage
             all_events[e['i']]['pi_state'] = conf['PI_states'][stage]

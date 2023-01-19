@@ -31,13 +31,10 @@ setuptools.setup(
         'matplotlib>=3.5.2',
         'scipy>=1.9.1',
         'pyvis>=0.2.0',
-        'hdf5>=1.10.6',
+        #'hdf5>=1.10.6',
         'psycopg2>=2.8.6',
-        'pytables>=3.6.1',
+        #'pytables>=3.6.1',
     ],
     include_package_data=False,
-    package_data={
-    'teg': ['data/all_hourly_data.h5'],
-    },
     zip_safe=False,
 )

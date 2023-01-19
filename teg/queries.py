@@ -109,20 +109,19 @@ def get_events(conn, event_name, conf):
     where += f' AND {t_table}.{time_col} >= a.admittime'
     where += f' AND {t_table}.{time_col} <= a.dischtime'
     order_by = f'ORDER BY t ASC'
-    match event_name:
-        case 'chartevents':
-            items = f'(SELECT c.itemid, count(c.itemid) as count' + \
-                f'from {schema}.chartevents c GROUP BY c.itemid) AS i'
-            table += f' INNER JOIN {items} ON tb.itemid=i.itemid'
-            where += ' AND i.count < 200000'
-            where += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
-            where += ' AND (tb.error != 1 OR tb.error IS NULL)'
-            where += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
-        case 'noteevents':
-            where += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
-        case 'transfer':
-            where += ' AND tb.curr_careunit IS NOT NULL'
-            where += ' AND tb.prev_careunit IS NOT NULL'
+    if event_name == 'chartevents':
+        items = f'(SELECT c.itemid, count(c.itemid) as count' + \
+            f'from {schema}.chartevents c GROUP BY c.itemid) AS i'
+        table += f' INNER JOIN {items} ON tb.itemid=i.itemid'
+        where += ' AND i.count < 200000'
+        where += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
+        where += ' AND (tb.error != 1 OR tb.error IS NULL)'
+        where += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
+    elif event_name == 'noteevents':
+        where += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
+    elif event_name == 'transfer':
+        where += ' AND tb.curr_careunit IS NOT NULL'
+        where += ' AND tb.prev_careunit IS NOT NULL'
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
     df['duration'] = timedelta(days=0)

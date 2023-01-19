@@ -11,6 +11,7 @@ warnings.filterwarnings('ignore')
 from teg.mimic_events import *
 from teg.eventgraphs import *
 from teg.percolation import PC_with_target
+from teg.apercolation import algebraic_PC_with_paths
 
 
 # Event graph configuration
@@ -34,13 +35,13 @@ conf_LF = {
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
-    'endtime': '2143-01-14',
+    'endtime': '2143-01-21',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
     'label': True,
-    'PI_states': {0: 0, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
+    'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'duration': True
 }
 
@@ -64,7 +65,14 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
-    PC, paths = PC_with_target(G, states=states, weight='weight')
+    #PC, paths = PC_with_target(G, states=states, weight='weight')
+    PC_vals, V, paths = algebraic_PC_with_paths(A, states=states)
+    PC = dict()
+    for i, val in enumerate(PC_vals):
+        PC[i] = val
+    #print(np.all(PC.values()==APC))
+    #print('PC', PC)
+    #print('APC', APC)
     shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'circle') for i, v in enumerate(PC)])
     shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'box') for i, shape in shapes.items()])
     nx.set_node_attributes(G, shapes, 'shape')
@@ -86,11 +94,26 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
             PC_top[info[2]['type']] = [1, info[1]]
         else:
             PC_top[info[2]['type']][0] += 1
-            PC_top[info[2]['type']][1] = info[1]
+            PC_top[info[2]['type']][1] += info[1]
     pprint.pprint(PC_top, sort_dicts=False)
     #vis = False
     if vis:
-        visualize_graph(G, all_events, patients, PC, paths, file_name)
+        visualize_SP_tree(G, all_events, patients, PC, V, paths, file_name)
+
+def visualize_SP_tree(G, all_events, patients, PC, V, paths, file_name):
+    g = Network(
+        directed=True,
+        height=1000,
+        neighborhood_highlight=True,
+        select_menu=True)
+    g.hrepulsion()
+    g.from_nx(G.subgraph(V), show_edge_weights=False)
+    # g.barnes_hut()
+    g.toggle_physics(True)
+    g.show_buttons(filter_=['physics'])
+    print(nx.is_directed_acyclic_graph(G))
+    # g.show("mimic.html")
+    g.save_graph(file_name + 'PC_related.html')
 
 
 def visualize_graph(G, all_events, patients, PC, paths, file_name):
