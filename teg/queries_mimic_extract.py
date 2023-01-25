@@ -143,7 +143,8 @@ def get_events_vitals_X_mean(conn, conf):
 
         if e['t'] + time >= timedelta(hours=conf['max_hours']):
             continue
-        for i, col in enumerate(PI_VITALS):
+        #for i, col in enumerate(PI_VITALS):
+        for i, col in enumerate(vitals.columns.levels[0]):
             print(['%s'%col for col in vitals.columns])
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
             if not pd.isnull(val) and \
@@ -220,8 +221,8 @@ def get_events_vitals_X(conn, conf):
             time = timedelta(hours=h)
         if e['t'] + time <= timedelta(hours=conf['max_hours']):
             # print(vitals.columns.levels[0])
-            #for i, col in enumerate(vitals.columns.levels[0]):
-            for i, col in enumerate(PI_VITALS):
+            for i, col in enumerate(vitals.columns.levels[0]):
+            #for i, col in enumerate(PI_VITALS):
                 count, mean, std = vitals.loc[(
                     subject_id, hadm_id, icustay_id, h), (col, slice(None))]
                 if count != 0 and \

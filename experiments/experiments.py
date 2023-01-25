@@ -5,12 +5,13 @@ from pyvis.network import Network
 import matplotlib.pyplot as plt
 import pprint
 from datetime import timedelta
+import time
 import warnings
 warnings.filterwarnings('ignore')
 
 from teg.mimic_events import *
 from teg.eventgraphs import *
-from teg.percolation import PC_with_target
+from teg.percolation import PC_with_target, percolation_centrality_with_target
 from teg.apercolation import algebraic_PC_with_paths
 
 
@@ -18,7 +19,7 @@ from teg.apercolation import algebraic_PC_with_paths
 # t_max = [<delta days>, <delta hours>]
 join_rules_LF = {
     "t_min": timedelta(days=0, hours=0, minutes=5),
-    "t_max": timedelta(days=1, hours=0),
+    "t_max": timedelta(days=7, hours=0),
     'w_e_max': 0.3,  # maximum event difference
     # default event difference for different types of events
     'w_e_default': 1,
@@ -35,14 +36,16 @@ conf_LF = {
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
-    'endtime': '2143-01-21',
+    'endtime': '2143-02-01',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
     'label': True,
-    'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
-    'duration': True
+    #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
+    'PI_states': {0: 0, 1: 1},
+    'duration': True,
+    'PC_percentile': 90,
 }
 
 
@@ -50,41 +53,21 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     patients, all_events = mimic_events(event_list, join_rules, conf)
     n = len(all_events)
     A = build_eventgraph(patients, all_events, join_rules)
-    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    # G.remove_nodes_from([n for n, d in G.degree if d == 0])
-    if conf['label']:
-        attrs = dict([(e['i'], 'circle') for e in all_events])
-        nx.set_node_attributes(G, attrs, 'shape')
-        attrs = dict([(e['i'], e['type']) for e in all_events])
-        nx.set_node_attributes(G, attrs, 'label')
-
-    # attrs = dict([(e['i'], e['type']) if 'PI' in e['type'] \
-    #        else (e['i'], e['id']) for e in all_events])
-    attrs = dict([(e['i'], e['id']) for e in all_events])
-    nx.set_node_attributes(G, attrs, 'group')
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
-    #PC, paths = PC_with_target(G, states=states, weight='weight')
+    start = time.time()
+    #G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
+
     PC_vals, V, paths = algebraic_PC_with_paths(A, states=states)
     PC = dict()
     for i, val in enumerate(PC_vals):
-        PC[i] = val
+        PC[i] = float(val)
+    print(float(time.time() - start)/60.0)
     #print(np.all(PC.values()==APC))
     #print('PC', PC)
     #print('APC', APC)
-    shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'circle') for i, v in enumerate(PC)])
-    shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'box') for i, shape in shapes.items()])
-    nx.set_node_attributes(G, shapes, 'shape')
-    nx.set_node_attributes(G, PC, 'size')
-    nx.set_node_attributes(G, PC, 'value')
-    attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
-        for k, v in e.items()]) + "\nPC: " + str(PC[e['i']])) for e in all_events])
-    nx.set_node_attributes(G, attrs, 'title')
-    #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
-    attrs = dict([(key, {'value': val, 'title': val})
-                 for key, val in A.items()])
-    nx.set_edge_attributes(G, attrs)
     PC_sorted = [[k, v, all_events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True) if v > 0]
     pprint.pprint(PC_sorted[:5])
     PC_top = dict()
@@ -96,11 +79,75 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
             PC_top[info[2]['type']][0] += 1
             PC_top[info[2]['type']][1] += info[1]
     pprint.pprint(PC_top, sort_dicts=False)
+    if conf['PC_percentile']:
+        PC_nz = [v for v in PC.values() if v > 0]
+        percentile = np.percentile(PC_nz, conf['PC_percentile'])
+        print("Nonzero PC", len(PC_nz))
+        print("Percentile", percentile)
+        V_percentile = [i for i in PC if PC[i] >= percentile]
+        print("Nodes above percentile", len(V_percentile))
     #vis = False
     if vis:
-        visualize_SP_tree(G, all_events, patients, PC, V, paths, file_name)
+        G = build_networkx_graph(A, all_events, patients, PC, paths, conf)
+        visualize_SP_tree(G, V, paths, file_name+"SP")
+        visualize_SP_tree(G, V_percentile, paths, file_name+"SP_percentile")
+        visualize_vertices(G, V_percentile, file_name+"V_percentile")
+        
 
-def visualize_SP_tree(G, all_events, patients, PC, V, paths, file_name):
+def build_networkx_graph(A, all_events, patients, PC, paths, conf):
+    n = len(all_events)
+    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    # G.remove_nodes_from([n for n, d in G.degree if d == 0])
+    if conf['label']:
+        attrs = dict([(e['i'], e['type']) for e in all_events])
+        nx.set_node_attributes(G, attrs, 'label')
+
+    # attrs = dict([(e['i'], e['type']) if 'PI' in e['type'] \
+    #        else (e['i'], e['id']) for e in all_events])
+    attrs = dict([(e['i'], e['id']) for e in all_events])
+    nx.set_node_attributes(G, attrs, 'group')
+    shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
+    shapes = dict([(i, shape) if 'PI' not in all_events[i]['type'] else (i, 'triangle') for i, shape in shapes.items()])
+    shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'box') for i, shape in shapes.items()])
+    nx.set_node_attributes(G, shapes, 'shape')
+    max_PC = max(PC.values())
+    PC_scaled = dict([(i, v/max_PC * 300) for i, v in PC.items()])
+    nx.set_node_attributes(G, PC_scaled, 'size')
+    #nx.set_node_attributes(G, PC_scaled, 'value')
+    attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
+        for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in all_events])
+    nx.set_node_attributes(G, attrs, 'title')
+    #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
+    attrs = dict([(key, {'value': val, 'title': val})
+                 for key, val in A.items()])
+    nx.set_edge_attributes(G, attrs)
+    return G
+
+
+def visualize_SP_tree(G, V, paths, file_name):
+    PC_edges = list()
+    for v in V:
+        for path in paths[v]:
+            i = path[0]
+            for j in path[1:]:
+                PC_edges.append((i,j))
+                i = j
+    g = Network(
+        directed=True,
+        height=1000,
+        neighborhood_highlight=True,
+        select_menu=True)
+    g.hrepulsion()
+    g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=False)
+    # g.barnes_hut()
+    g.toggle_physics(True)
+    g.show_buttons(filter_=['physics'])
+    print(nx.is_directed_acyclic_graph(G))
+    # g.show("mimic.html")
+    g.save_graph(file_name + '.html')
+
+def visualize_vertices(G, V, file_name):
+    G.remove_edges_from(list(G.edges()))
     g = Network(
         directed=True,
         height=1000,
@@ -113,17 +160,14 @@ def visualize_SP_tree(G, all_events, patients, PC, V, paths, file_name):
     g.show_buttons(filter_=['physics'])
     print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(file_name + 'PC_related.html')
+    g.save_graph(file_name + '.html')
 
 
-def visualize_graph(G, all_events, patients, PC, paths, file_name):
-    PC_related_nodes = set()
-    for v, v_paths in paths.items():
-        for path in v_paths:
+def visualize_graph(G, V, paths, file_name):
+    for v in V:
+        for path in paths[v]:
             i = path[0]
-            PC_related_nodes.add(i)
             for j in path[1:]:
-                PC_related_nodes.add(j)
                 G[i][j]['color']='black'
                 i = j
     '''
@@ -153,7 +197,7 @@ def visualize_graph(G, all_events, patients, PC, paths, file_name):
     g.show_buttons(filter_=['physics'])
     print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(file_name + 'PC_related.html')
+    g.save_graph(file_name + '.html')
 
     fig, ax = plt.subplots(figsize=(10, 10))
     pos = nx.spring_layout(G, k=0.15, seed=4572321)
@@ -202,7 +246,9 @@ if __name__ == "__main__":
         'label',
         't_min',
         't_max',
-        'sequential_join']
+        'sequential_join',
+        'PC_percentile',
+        'duration']
     fname_LF = 'output/mimic_icu_LF'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf_LF.items() if k in fname_keys])

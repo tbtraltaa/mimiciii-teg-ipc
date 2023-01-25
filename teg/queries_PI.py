@@ -23,12 +23,12 @@ def get_all_PI_events(conn, event_name, conf):
     schema = 'mimiciii'
     table = 'chartevents'
     time_col = 'charttime'
-    label_CV, ignored_values_CV = PI_EVENTS_CV[event_name]
+    label_CV, ignored_values = PI_EVENTS_CV[event_name]
     label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
-
+    ignored_values = ignored_values + ignored_values_MV
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
     cols += f", '{event_name}' as type, tb.{time_col} - a.admittime as t"
-    cols += f'tb.value, d.label as itemid_label'
+    cols += f', tb.value, d.label as itemid_label'
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
@@ -52,9 +52,7 @@ def get_all_PI_events(conn, event_name, conf):
     where += f" AND (d.label similar to '{label_CV}'" + \
         f" OR d.label SIMILAR TO '{label_MV}')"
     where += f' AND tb.value is NOT NULL'
-    for value in ignored_values_CV:
-        where += f" AND tb.value not similar to '{value}'"
-    for value in ignored_values_MV:
+    for value in ignored_values:
         where += f" AND tb.value not similar to '{value}'"
     order_by = f'ORDER BY t ASC'
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
@@ -84,6 +82,8 @@ def get_unique_PI_events(conn, event_name, conf):
         label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
         labels.append(label_MV)
         ignored_values += ignored_values_MV
+    #if event_name == 'PI stage':
+    #    ignored_values += [k for k, v in PI_STAGE_MAP.items() if v not in conf['PI_states']]
 
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
     cols += f"'{event_name}' as type, "
@@ -135,8 +135,6 @@ def get_unique_PI_events(conn, event_name, conf):
     elif event_name == 'PI stage':
         df['pi_value'] = df['pi_value'] \
                             .apply(lambda x: PI_STAGE_MAP[x])
-        df['pi_state'] = df['pi_value'] \
-                            .apply(lambda x: conf['PI_states'][x])
     elif event_name in PI_VALUE_MAP:
         df['pi_info'] = df['pi_value']
         df['pi_value'] = df['pi_value'] \

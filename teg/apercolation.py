@@ -53,7 +53,7 @@ def shortest_path_FW(matrix):
             D += D_k
     return D
 
-def algebraic_PC(Adj, states):
+def algebraic_PC(Adj, states, normalize=False):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     S = 0.0
@@ -89,7 +89,7 @@ def algebraic_PC(Adj, states):
                         PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
     return PC
 
-def algebraic_PC_with_paths(Adj, states):
+def algebraic_PC_with_paths(Adj, states, normalize=False):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)

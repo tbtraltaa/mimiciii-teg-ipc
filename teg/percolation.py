@@ -2,7 +2,7 @@ import numpy as np
 import pprint
 import networkx as nx
 
-def percolation_centrality_with_target(G, states=None, weight=None):
+def percolation_centrality_with_target(G, states=None, weight=None, normalize=False):
     PC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
     S = 0.0
@@ -11,6 +11,7 @@ def percolation_centrality_with_target(G, states=None, weight=None):
         S += np.sum(deltas[deltas > 0.0])
     D = dict(nx.all_pairs_dijkstra(G, weight='weight'))
     paths = dict()
+    V = set()
     for v in range(n):
         if v not in D:
             continue
@@ -19,11 +20,11 @@ def percolation_centrality_with_target(G, states=None, weight=None):
         S_exclude_v -= np.sum(deltas_v_source[deltas_v_source > 0])
         deltas_v_target = states * (-1) + states[v]
         S_exclude_v  -= np.sum(deltas_v_target[deltas_v_target > 0])
-        for s in range(n):
-            if s not in D or v not in D[s][0]:
+        for s in D:
+            if v not in D[s][0]:
                 continue
-            for t in range(n):
-                if t not in D[s][0] or t not in D[v][0]:
+            for t in D[s][0]:
+                if t not in D[v][0]:
                     continue
                 st_paths = list(nx.all_shortest_paths(G, source=s, target=t, weight='weight'))
                 if s != v and t != v and s != t and D[s][0][t] == D[s][0][v] + D[v][0][t]:
@@ -43,10 +44,12 @@ def percolation_centrality_with_target(G, states=None, weight=None):
                         for p1 in sv_paths:
                             for p2 in vt_paths:
                                 paths[v].append(p1 + p2[1:])
+                                V.update(p1 + p2[1:])
         
-    for v in PC:
-        PC[v] *= 1.0 / (n - 2)
-    return PC, paths
+    if normalize:
+        for v in PC:
+            PC[v] *= 1.0 / (n - 2)
+    return PC, V, paths
 
 def PC_with_target(G, states=None, weight=None):
     PC = dict.fromkeys(G, 0.0)
@@ -116,4 +119,4 @@ def PC_with_target(G, states=None, weight=None):
                             paths[v].append(p1 + p2[1:])
     for v in PC:
         PC[v] *= 1.0 / (n - 2)
-    return PC, paths
+    return PC, v_set, paths

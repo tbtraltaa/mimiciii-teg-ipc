@@ -49,19 +49,35 @@ def mimic_events(event_list, join_rules, conf):
     print("Total patients:", len(patients))
     # Add stage to all events
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
+    min_stage = min(conf['PI_states'].keys())
+    max_stage = max(conf['PI_states'].keys())
+    exclude_indices = []
     stage = 0
+    prev_stage = 0
     for i, e in enumerate(sorted_events):
-        if e['type'] == 'PI stage' and e['pi_value'] != stage:
+        if e['type'] == 'PI stage':
+            prev_stage = stage
             stage = e['pi_value']
-        if stage == 0 and e['type'] != 'PI stage' and 'PI' in e['type']:
-            #PI related events before stage I is considered as stage 0.5
-            stage = 0.5
+        include = True
+        if stage < min_stage or stage > max_stage:
+            include = False
+            exclude_indices.append(e['i'])
+        # exclude events after max stage
+        if stage == max_stage and stage == prev_stage:
+            include= False
+            exclude_indices.append(e['i'])
+        if include:
+            if stage == 0 and e['type'] != 'PI stage' and 'PI' in e['type']:
+                # PI related events before stage I is considered as stage 1
+                # exclude all other PI events once stage 1 happened when stage 1 is max stage
+                stage = 1
+                prev_stage = 1
             all_events[e['i']]['pi_value'] = stage
             all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
-        else:
-            all_events[e['i']]['pi_value'] = stage
-            all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
-        if i + 1 < n:
-            if e['id'] != sorted_events[i + 1]['id']:
+        if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
                 stage = 0
+    for i in sorted(exclude_indices, reverse=True):
+        del all_events[i]
+    for i in range(len(all_events)):
+        all_events[i]['i'] = i
     return patients, all_events
