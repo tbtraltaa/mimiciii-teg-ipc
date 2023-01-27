@@ -9,34 +9,19 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 
+
 from teg.mimic_events import *
 from teg.eventgraphs import *
 from teg.percolation import PC_with_target, percolation_centrality_with_target
 from teg.apercolation import algebraic_PC_with_paths
 
-
-# Event graph configuration
-# t_max = [<delta days>, <delta hours>]
-join_rules_LF = {
-    "t_min": timedelta(days=0, hours=0, minutes=5),
-    "t_max": timedelta(days=7, hours=0),
-    'w_e_max': 0.3,  # maximum event difference
-    # default event difference for different types of events
-    'w_e_default': 1,
-    'join_by_subject': True,
-    'age_similarity': 3,  # years
-    'icustays-los': 3,  # los similarity in days
-    'transfer-los': 3,  # los similarity in days
-    'duration_similarity': timedelta(days=2),
-    'sequential_join': True
-}
-
-conf_LF = {
+# Experiment configuration
+conf = {
     'max_hours': 720,
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-07',
-    'endtime': '2143-02-01',
+    'endtime': '2143-01-14',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -44,8 +29,26 @@ conf_LF = {
     'label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
-    'duration': True,
+    'duration': False,
     'PC_percentile': 90,
+}
+
+# Event graph configuration
+# t_max = [<delta days>, <delta hours>]
+join_rules = {
+    "t_min": timedelta(days=0, hours=0, minutes=5),
+    "t_max": timedelta(days=1, hours=0),
+    'w_e_max': 0.3,  # maximum event difference
+    # default event difference for different types of events
+    'w_e_default': 1,
+    'join_by_subject': True,
+    'age_similarity': 3,  # years
+    'icustays-los': 3,  # los similarity in days
+    'transfer-los': 3,  # los similarity in days
+    'duration': conf['duration'],
+    'duration_similarity': timedelta(days=2),
+    'sequential_join': True,
+    'max_pi_value':1,
 }
 
 
@@ -91,6 +94,9 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         G = build_networkx_graph(A, all_events, patients, PC, paths, conf)
         visualize_SP_tree(G, V, paths, file_name+"SP")
         visualize_SP_tree(G, V_percentile, paths, file_name+"SP_percentile")
+        attrs = dict([(e['i'], e['type']) for e in all_events])
+        visualize_graph(G, V, paths, file_name+"all")
+        nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, V_percentile, file_name+"V_percentile")
         
 
@@ -107,11 +113,11 @@ def build_networkx_graph(A, all_events, patients, PC, paths, conf):
     attrs = dict([(e['i'], e['id']) for e in all_events])
     nx.set_node_attributes(G, attrs, 'group')
     shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
-    shapes = dict([(i, shape) if 'PI' not in all_events[i]['type'] else (i, 'triangle') for i, shape in shapes.items()])
-    shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'box') for i, shape in shapes.items()])
+    shapes = dict([(i, shape) if 'PI' not in all_events[i]['type'] else (i, 'diamond') for i, shape in shapes.items()])
+    shapes = dict([(i, shape) if all_events[i]['type']!= 'PI stage' else (i, 'triangle') for i, shape in shapes.items()])
     nx.set_node_attributes(G, shapes, 'shape')
     max_PC = max(PC.values())
-    PC_scaled = dict([(i, v/max_PC * 300) for i, v in PC.items()])
+    PC_scaled = dict([(i, v/max_PC * 100) for i, v in PC.items()])
     nx.set_node_attributes(G, PC_scaled, 'size')
     #nx.set_node_attributes(G, PC_scaled, 'value')
     attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
@@ -170,7 +176,6 @@ def visualize_graph(G, V, paths, file_name):
             for j in path[1:]:
                 G[i][j]['color']='black'
                 i = j
-    '''
     g = Network(
         directed=True,
         height=1000,
@@ -185,20 +190,6 @@ def visualize_graph(G, V, paths, file_name):
     # g.show("mimic.html")
     g.save_graph(file_name + '.html')
     '''
-    g = Network(
-        directed=True,
-        height=1000,
-        neighborhood_highlight=True,
-        select_menu=True)
-    g.hrepulsion()
-    g.from_nx(G.subgraph(PC_related_nodes), show_edge_weights=False)
-    # g.barnes_hut()
-    g.toggle_physics(True)
-    g.show_buttons(filter_=['physics'])
-    print(nx.is_directed_acyclic_graph(G))
-    # g.show("mimic.html")
-    g.save_graph(file_name + '.html')
-
     fig, ax = plt.subplots(figsize=(10, 10))
     pos = nx.spring_layout(G, k=0.15, seed=4572321)
     patient_i = dict([(id_, i) for i, id_ in enumerate(patients.keys())])
@@ -234,6 +225,7 @@ def visualize_graph(G, V, paths, file_name):
     fig.tight_layout()
     plt.axis("off")
     plt.show()
+    '''
 
 if __name__ == "__main__":
     fname_keys = [
@@ -251,10 +243,10 @@ if __name__ == "__main__":
         'duration']
     fname_LF = 'output/mimic_icu_LF'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
-                               for k, v in conf_LF.items() if k in fname_keys])
+                               for k, v in conf.items() if k in fname_keys])
     fname_LF += '_' + '_'.join([k + '-' + str(v)
-                                    for k, v in join_rules_LF.items()
+                                    for k, v in join_rules.items()
                                     if k in fname_keys])
 
     # eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_HF, conf_HF, fname_HF)
-    eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules_LF, conf_LF, fname_LF)
+    eventgraph_mimiciii(LOW_FREQ_EVENTS, join_rules, conf, fname_LF)
