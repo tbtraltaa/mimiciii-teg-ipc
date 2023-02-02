@@ -55,9 +55,10 @@ def mimic_events(event_list, join_rules, conf):
     stage = 0
     prev_stage = 0
     for i, e in enumerate(sorted_events):
+        # PI stage
         if e['type'] == 'PI stage':
-            prev_stage = stage
-            stage = e['pi_value']
+            stage = e['pi_stage']
+        # PI related events before stage I is considered as stage 1
         include = True
         if stage < min_stage or stage > max_stage:
             include = False
@@ -68,14 +69,13 @@ def mimic_events(event_list, join_rules, conf):
             exclude_indices.append(e['i'])
         if include:
             if stage == 0 and e['type'] != 'PI stage' and 'PI' in e['type']:
-                # PI related events before stage I is considered as stage 1
-                # exclude all other PI events once stage 1 happened when stage 1 is max stage
                 stage = 1
-                prev_stage = 1
-            all_events[e['i']]['pi_value'] = stage
             all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+            all_events[e['i']]['pi_stage'] = stage
+        prev_stage = stage
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
-                stage = 0
+            stage = 0
+            prev_stage = 0
     for i in sorted(exclude_indices, reverse=True):
         del all_events[i]
     for i in range(len(all_events)):

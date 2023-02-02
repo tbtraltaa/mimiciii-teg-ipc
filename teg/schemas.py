@@ -1,8 +1,7 @@
 # {<table_name>: [<columns>]}
 
 # attributes of an event, not used for comparison
-EVENT_ID = ['id', 'type', 't', 'i', 'duration']
-N_ID = 5
+EVENT_IDs = ['id', 'type', 't', 'i']
 
 PATIENTS = {
     # p for patients
@@ -24,10 +23,11 @@ EVENTS = {
     # Patient tracking events
     'admissions': [1, 'admissions', 'admittime'],
     'discharges': [2, 'admissions', 'dischtime'],
-    'icustays': [3, 'icustays', 'intime'],
+    'icu_in': [3, 'icustays', 'intime'],
+    'icu_out': [3, 'icustays', 'outtime'],
     'callout': [5, 'callout', 'outcometime'],
-    'transfer': [6, 'transfers', 'intime'],
-    # 'transfer_out': [7, 'transfers', 'outtime'],
+    'transfer_in': [6, 'transfers', 'intime'],
+    'transfer_out': [7, 'transfers', 'outtime'],
 
     # ICU Events
     'chartevents': [8, 'chartevents', 'charttime'],
@@ -66,10 +66,11 @@ LOW_FREQ_EVENTS = {
     # Patient tracking events
     'admissions': [1, 'admissions', 'admittime'],
     'discharges': [2, 'admissions', 'dischtime'],
-    'icustays': [3, 'icustays', 'intime'],
+    'icu_in': [3, 'icustays', 'intime'],
+    'icu_out': [4, 'icustays', 'outtime'],
     'callout': [5, 'callout', 'outcometime'],
-    'transfer': [6, 'transfers', 'intime'],
-    # 'transfer_out': [7, 'transfers', 'outtime'],
+    'transfer_in': [6, 'transfers', 'intime'],
+    'transfer_out': [7, 'transfers', 'outtime'],
 
     # ICU Events
     # 'chartevents': [8, 'chartevents', 'charttime'],
@@ -109,10 +110,12 @@ EVENT_COLS_EXCLUDE = {
     'admissions': [
         'dischtime',
         'discharge_location',
+        'los',
         'edregtime',
         'edouttime',
         'deathtime',
-        'hospical_expire_flag',
+        'hospital_expire_flag', # 1 - death, 0 - survival
+        'has_chartevents_data',
         # exluding columns for demography
         'insurance',
         'language',
@@ -126,17 +129,32 @@ EVENT_COLS_EXCLUDE = {
         'admission_location',
         'edregtime',
         'edouttime',
+        'deathtime',
+        # discharge_location indicates if there is death/expire
+        'hospital_expire_flag', # 1 - death, 0 - survival
+        'has_chartevents_data',
         # exluding columns for demography
         'insurance',
         'language',
         'religion',
         'marital_status',
         'ethnicity'],
-    'icustays': [
+
+    'icu_in': [
         'icustay_id',
         'outtime',
+        'last_careunit',
+        'los',
         'first_wardid',
         'last_wardid'],
+
+    'icu_out': [
+        'icustay_id',
+        'intime',
+        'first_careunit',
+        'first_wardid',
+        'last_wardid'],
+
     'callout': [
         'createtime',
         'updatetime',
@@ -149,31 +167,39 @@ EVENT_COLS_EXCLUDE = {
         'callout_wardid'],
     # kept DBSOURCE which indicates CareVue or Metavision as info.
     # It is ignored when comparing events
-    'transfer': ['icustay_id',
-                 'prev_wardid',
-                 'curr_wardid'
-                 'outtime'],
-    '''
-            'transfer_out': [
-                            'first_careunit',
-                            'first_wardid',
-                            'intime'],
-            '''
+    'transfer_in': [
+        'eventtype',
+        'icustay_id',
+        'prev_wardid',
+        'curr_wardid'
+        'outtime'],
+
+    'transfer_out': [
+        'icustay_id',
+        'eventtype',
+        'prev_wardid',
+        'curr_wardid'
+        'intime',
+        'los'],
+
     'chartevents': [
         'warning',  # TODO Metavision - excluded if 1
         'error',  # TODO Metavision specific - excluded if 1
         'resultstatus',  # TODO CareVue - excluded
-        'stopped'  # TODO CareVue specific - excluded if 'D/C'd',
+        'stopped'  # TODO CareVue specific - excluded if 'D/C'd'
     ],
     'cptevents': [
         'ticket_id_seq',
         'description',
         'cpt_number',
         'cpt_suffix'],
+
     'prescriptions_start': [
         'enddate'],
+
     'prescriptions_end': [
         'startdate'],
+
     'outputevents': [
         'cgid',
         'storetime',
@@ -239,6 +265,7 @@ IGNORE_COLS = [
     'icustay_id',
     'pi_number',
     'pi_info',
+    'pi_stage',
     'intervention-count'
     'vitals-mean',
     'vitals-count',

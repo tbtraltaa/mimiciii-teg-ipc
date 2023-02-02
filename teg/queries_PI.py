@@ -91,6 +91,7 @@ def get_unique_PI_events(conn, event_name, conf):
     cols += f"tb.value as pi_value, "
     cols += f"regexp_replace(d.label, '\\D+', '', 'g') as pi_number, "
     cols += f"tb.icustay_id, d.dbsource, "  # extra info
+    # Take the first occurance of PI event for a day
     cols += 'row_number() over (partition by ' + \
         f'tb.subject_id, tb.hadm_id, tb.icustay_id, tb.value, d.label' + \
         f', EXTRACT(DAY FROM tb.{time_col} - a.admittime)' + \
@@ -130,17 +131,22 @@ def get_unique_PI_events(conn, event_name, conf):
     df = pd.read_sql_query(query, conn)
     df.drop(['row_number'], axis=1, inplace=True)
     df['duration'] = timedelta(days=0)
+    # pi_value is used for event comparision
+    # pi_info is extra information on pi_value, not used for comparison
+    # pi_stage is PI stage of PI stage event.
     if event_name in PI_EVENTS_NUMERIC:
         df['pi_value'] = df['pi_value'].apply(lambda x: float(x.strip().split()[0]))
     elif event_name == 'PI stage':
         df['pi_value'] = df['pi_value'] \
                             .apply(lambda x: PI_STAGE_MAP[x])
+        df['pi_stage'] = df['pi_value']
     elif event_name in PI_VALUE_MAP:
         df['pi_info'] = df['pi_value']
         df['pi_value'] = df['pi_value'] \
                                 .apply(lambda x: PI_VALUE_MAP[event_name][x])
     else:
         df['pi_value'] = df['pi_value'].apply(lambda x: x.strip().title())
+        df['pi_info'] = df['pi_value']
     if event_name == 'PI skin type':
         df[df['pi_value'] == 'Subq Emphysema']['pi_value'] = 'Sub Q Emphysema'
 

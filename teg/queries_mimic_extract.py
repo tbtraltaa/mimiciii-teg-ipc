@@ -130,6 +130,10 @@ def get_events_vitals_X_mean(conn, conf):
         time_unit = timedelta(days=1)
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
+    if conf['PI_vitals']:
+        vitals_included = PI_VITALS
+    else:
+        vitals_included = vitals.columns.levels[0]
     for subject_id, hadm_id, icustay_id, h in vitals.index:
         if h == 0:
             prev = dict()
@@ -143,8 +147,7 @@ def get_events_vitals_X_mean(conn, conf):
 
         if e['t'] + time >= timedelta(hours=conf['max_hours']):
             continue
-        #for i, col in enumerate(PI_VITALS):
-        for i, col in enumerate(vitals.columns.levels[0]):
+        for i, col in enumerate(vitals_included):
             print(['%s'%col for col in vitals.columns])
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
             if not pd.isnull(val) and \
@@ -211,6 +214,10 @@ def get_events_vitals_X(conn, conf):
         time_unit = timedelta(days=1)
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
+    if conf['PI_vitals']:
+        vitals_included = PI_VITALS
+    else:
+        vitals_included = vitals.columns.levels[0]
     for subject_id, hadm_id, icustay_id, h in vitals.index:
         if h == 0:
             prev = dict()
@@ -221,8 +228,7 @@ def get_events_vitals_X(conn, conf):
             time = timedelta(hours=h)
         if e['t'] + time <= timedelta(hours=conf['max_hours']):
             # print(vitals.columns.levels[0])
-            for i, col in enumerate(vitals.columns.levels[0]):
-            #for i, col in enumerate(PI_VITALS):
+            for i, col in enumerate(vitals_included):
                 count, mean, std = vitals.loc[(
                     subject_id, hadm_id, icustay_id, h), (col, slice(None))]
                 if count != 0 and \

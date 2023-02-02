@@ -10,10 +10,10 @@ from teg.schemas import *
 
 
 def event_difference(e1, e2, join_rules):
-    n = len(e1) - N_ID
+    n = len(e1) - len(join_rules['IDs'])
     i = float(0)
     for k1 in e1:
-        if k1 in EVENT_ID:
+        if k1 in join_rules['IDs']:
             continue
         elif k1 == 'duration' and e2[k1] - e1[k1] <= join_rules['duration_similarity']:
             i += 1
@@ -24,7 +24,7 @@ def event_difference(e1, e2, join_rules):
         elif e1['type'] + '-' + k1 in join_rules:
             if abs(e1[k1] - e2[k1]) <= join_rules[e1['type'] + '-' + k1]:
                 i += 1
-        elif e1[k1] == e1[k1]:
+        elif e1[k1] == e2[k1]:
             i += 1
     return 1 - i / n
 
@@ -81,6 +81,9 @@ def build_eventgraph(subjects, events, join_rules):
         j = i + 1
         for e2 in events[i + 1:]:
             if e1['type'] != e2['type']:
+                break
+            # Prevents over counting which happens if events with max PI stage connect with each other
+            elif e1['pi_stage'] == e2['pi_stage'] and e1['pi_stage'] == join_rules['max_pi_stage']:
                 break
             if e2['t'] > e1['t'] + join_rules['t_max']:
                 break
