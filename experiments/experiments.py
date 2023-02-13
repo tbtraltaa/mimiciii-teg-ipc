@@ -18,11 +18,11 @@ from teg.apercolation import algebraic_PC_with_paths
 
 # Experiment configuration
 conf = {
-    'max_hours': 168,
+    'max_hours': 720,
     'max_age': 89,
     'min_age': 15,
     'starttime': '2143-01-14',
-    'endtime': '2143-01-21',
+    'endtime': '2143-02-14',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -33,7 +33,8 @@ conf = {
     'duration': False,
     'PC_percentile': [90, 100],
     'PI_vitals': False,
-    'Skip_repeat': False
+    'skip_repeat': True,
+    'percentiles': range(10, 101, 10)
 }
 
 # Event graph configuration
@@ -68,6 +69,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
 
     PC_vals, V, paths = algebraic_PC_with_paths(A, states=states)
+    plot_PC(events, PC_vals)
     PC = dict()
     for i, val in enumerate(PC_vals):
         PC[i] = float(val)
@@ -329,6 +331,55 @@ def build_networkx_graph_example(A, events, patients, PC, paths, conf):
     return G
 
 
+def plot_PC(events, PC_vals):
+    PC_nz = [v for v in PC_vals if v > 0]
+    plt.hist(np.array(PC_nz), bins=10, rwidth=0.7)
+    plt.title("PC value distribution")
+    plt.xlabel("Nonzero PC values")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.show()
+    plt.hist(np.log10(np.array(PC_nz)), rwidth=0.7)
+    plt.title("PC value distribution after Log transformation")
+    plt.xlabel("Nonzero PC values")
+    plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.show()
+    PC_n = len(PC_nz)
+    PC_freq = dict()
+    PC_sum = dict()
+    for i in range(len(events)):
+        if PC_vals[i] <= 0:
+            continue
+        if events[i]['type'] not in PC_freq:
+            PC_freq[events[i]['type']] = 1
+            PC_sum[events[i]['type']] = PC_vals[i]
+        else:
+            PC_freq[events[i]['type']] += 1
+            PC_freq[events[i]['type']] += PC_vals[i]
+    PC_freq = dict(sorted(PC_freq.items(), key=lambda x: x[1], reverse=True))
+    plt.bar(PC_freq.keys(), PC_freq.values(), width=0.5, align='center')
+    plt.xticks(rotation='vertical')
+    plt.title("PC event types frequency")
+    plt.xlabel("Event types")
+    plt.ylabel("Frequency")
+    plt.tight_layout()
+    plt.show()
+    PC_weighted = dict()
+    for k, v in PC_freq.items():
+        PC_weighted[k] = PC_sum[k]* v/PC_n
+    PC_weighted = dict(sorted(PC_weighted.items(), key=lambda x: x[1], reverse=True))
+    plt.bar(PC_weighted.keys(), PC_weighted.values(), width=0.5, align='center')
+    plt.xticks(rotation='vertical')
+    plt.title("PC event types weighted by frequency")
+    plt.xlabel("Event types")
+    plt.ylabel("Weighted average PC")
+    plt.yscale("log")
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     fname_keys = [
         'max_hours',
@@ -339,7 +390,8 @@ if __name__ == "__main__":
         'vitals_agg',
         't_min',
         't_max',
-        'PC_percentile']
+        'PC_percentile',
+        'skip_repeat']
     fname_LF = 'output/TEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])

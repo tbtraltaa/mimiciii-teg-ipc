@@ -65,7 +65,7 @@ def get_events_interventions(conn, conf):
             time = timedelta(days=h + 1)
         elif conf['vitals_agg'] == 'hourly':
             time = timedelta(hours=h)
-        if e['t'] + time >= timedelta(hours=conf['max_hours']):
+        if e['t'] + time > timedelta(hours=conf['max_hours']):
             continue
         for i, col in enumerate(interventions.columns):
             count = interventions.loc[(subject_id,
@@ -74,6 +74,14 @@ def get_events_interventions(conn, conf):
                                      h), col]
             val = 1 if count >= 1 else 0
             if val == 0:
+                continue
+            if not conf['skip_repeat']:
+                events.append({'id': e['id'],
+                               'type': 'intervention-' + col,
+                               't': e['t'] + time,
+                               'icu-time': time,
+                               'intervention-count': count,
+                               'intervention': 1})
                 continue
             if i not in prev:
                 prev[i] = [val, h, event_idx, count]
@@ -110,6 +118,7 @@ def get_events_interventions(conn, conf):
                 event_idx += 1
             elif not conf['duration']:
                 skip_count += 1
+
     events.sort(key=lambda x: (x['type'], x['t']))
     print("Interventions skipped: ", skip_count)
     return events
@@ -135,8 +144,6 @@ def get_events_vitals_X_mean(conn, conf):
     else:
         vitals_included = vitals.columns.levels[0]
     for subject_id, hadm_id, icustay_id, h in vitals.index:
-        if h == 0:
-            prev = dict()
         e = icustays[icustay_id]
         if conf['vitals_agg'] == 'daily':
             time = timedelta(days=h + 1)
@@ -144,51 +151,62 @@ def get_events_vitals_X_mean(conn, conf):
         elif conf['vitals_agg'] == 'hourly':
             time = timedelta(hours=h)
             time_unit = timedelta(hours=1)
-
-        if e['t'] + time >= timedelta(hours=conf['max_hours']):
+        if e['t'] + time > timedelta(hours=conf['max_hours']):
             continue
+        if h == 0:
+            prev = dict()
         for i, col in enumerate(vitals_included):
             print(['%s'%col for col in vitals.columns])
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
-            if not pd.isnull(val) and \
+            if pd.isnull(val) or \
                 vitals_stats.loc[col, 'missing percent'] \
-                    >= conf['min_missing_percent']:
-                stat = vitals_stats.loc[col]
-                Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
-                if i not in prev:
-                    prev[i] = [Q, h, event_idx]
-                    icu_events.append({'id': e['id'],
-                                       'type': col,
-                                       't': e['t'] + time,
-                                       'icu-time': time,
-                                       'vitals-mean': val,
-                                       'Q': Q,
-                                       'duration': zero_duration})
-                    event_idx += 1
-                elif conf['duration'] and prev[i][0] == Q and prev[i][1] == h - 1:
-                    icu_events[prev[i][2]]['duration'] += time_unit
-                elif conf['duration'] and prev[i][0] == Q and prev[i][1] != h - 1:
-                    prev[i] = [Q, h, event_idx]
-                    icu_events.append({'id': e['id'],
-                                       'type': col,
-                                       't': e['t'] + time,
-                                       'icu-time': time,
-                                       'vitals-mean': val,
-                                       'Q': Q,
-                                       'duration': zero_duration})
-                    event_idx += 1
-                elif Q != prev[i][0]:
-                    prev[i] = [Q, h, event_idx]
-                    icu_events.append({'id': e['id'],
-                                       'type': col,
-                                       't': e['t'] + time,
-                                       'icu-time': time,
-                                       'vitals-mean': val,
-                                       'Q': Q,
-                                       'duration': zero_duration})
-                    event_idx += 1
-                elif not conf['duration']:
-                    skip_count += 1
+                    < conf['min_missing_percent']:
+                continue
+            stat = vitals_stats.loc[col]
+            Q = get_quartile(val, stat['Q1'], stat['mean'], stat['Q3'])
+            if not conf['skip_repeat']:
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-mean': val,
+                                   'Q': Q})
+                continue
+
+            if i not in prev:
+                prev[i] = [Q, h, event_idx]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-mean': val,
+                                   'Q': Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif conf['duration'] and prev[i][0] == Q and prev[i][1] == h - 1:
+                icu_events[prev[i][2]]['duration'] += time_unit
+            elif conf['duration'] and prev[i][0] == Q and prev[i][1] != h - 1:
+                prev[i] = [Q, h, event_idx]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-mean': val,
+                                   'Q': Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif Q != prev[i][0]:
+                prev[i] = [Q, h, event_idx]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-mean': val,
+                                   'Q': Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif not conf['duration']:
+                skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
     print("Vitals skipped: ", skip_count)
     return icu_events
@@ -219,81 +237,96 @@ def get_events_vitals_X(conn, conf):
     else:
         vitals_included = vitals.columns.levels[0]
     for subject_id, hadm_id, icustay_id, h in vitals.index:
-        if h == 0:
-            prev = dict()
         e = icustays[icustay_id]
         if conf['vitals_agg'] == 'daily':
             time = timedelta(days=h + 1)
         elif conf['vitals_agg'] == 'hourly':
             time = timedelta(hours=h)
-        if e['t'] + time <= timedelta(hours=conf['max_hours']):
+        if e['t'] + time > timedelta(hours=conf['max_hours']):
+            continue
             # print(vitals.columns.levels[0])
-            for i, col in enumerate(vitals_included):
-                count, mean, std = vitals.loc[(
-                    subject_id, hadm_id, icustay_id, h), (col, slice(None))]
-                if count != 0 and \
-                    missing_percents.loc[col, 'missing percent'] \
-                        >= conf['min_missing_percent']:
-                    count_Q = get_quartile(count,
-                                           Q1.loc[(col, 'count')],
-                                           Q2.loc[(col, 'count')],
-                                           Q3.loc[(col, 'count')])
-                    mean_Q = get_quartile(mean,
-                                          Q1.loc[(col, 'mean')],
-                                          Q2.loc[(col, 'mean')],
-                                          Q3.loc[(col, 'mean')])
-                    # std is NaN sometimes
-                    std_Q = get_quartile(std,
-                                         Q1.loc[(col, 'std')],
-                                         Q2.loc[(col, 'std')],
-                                         Q3.loc[(col, 'std')])
-                    if i not in prev:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
-                        icu_events.append({'id': e['id'],
-                                           'type': col,
-                                           't': e['t'] + time,
-                                           'icu-time': time,
-                                           'vitals-count': count,
-                                           'vitals-mean': mean,
-                                           'vitals-std': std,
-                                           'count_Q': count_Q,
-                                           'mean_Q': mean_Q,
-                                           'std_Q': std_Q,
-                                           'duration': zero_duration})
-                        event_idx += 1
-                    elif conf['duration'] and prev[i][1] == mean_Q and prev[i][3] == h - 1:
-                        icu_events[prev[i][4]]['duration'] += time_unit
-                        icu_events[prev[i][4]]['vitals-count'] += count
-                    elif conf['duration'] and prev[i][1] == mean_Q and prev[i][1] != h - 1:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
-                        icu_events.append({'id': e['id'],
-                                           'type': col,
-                                           't': e['t'] + time,
-                                           'icu-time': time,
-                                           'vitals-count': count,
-                                           'vitals-mean': mean,
-                                           'vitals-std': std,
-                                           'count_Q': count_Q,
-                                           'mean_Q': mean_Q,
-                                           'std_Q': std_Q,
-                                           'duration': zero_duration})
-                        event_idx += 1
-                    elif mean_Q != prev[i][1]:
-                        prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
-                        icu_events.append({'id': e['id'],
-                                           'type': col,
-                                           't': e['t'] + time,
-                                           'icu-time': time,
-                                           'vitals-count': count,
-                                           'vitals-mean': mean,
-                                           'vitals-std': std,
-                                           'count_Q': count_Q,
-                                           'mean_Q': mean_Q,
-                                           'std_Q': std_Q,
-                                           'duration': zero_duration})
-                        event_idx += 1
-                    elif not conf['duration']:
-                        skip_count += 1
+        if h == 0:
+            prev = dict()
+        for i, col in enumerate(vitals_included):
+            count, mean, std = vitals.loc[(
+                subject_id, hadm_id, icustay_id, h), (col, slice(None))]
+            if count == 0 or \
+                missing_percents.loc[col, 'missing percent'] \
+                    < conf['min_missing_percent']:
+                continue
+            count_Q = get_quartile(count,
+                                   Q1.loc[(col, 'count')],
+                                   Q2.loc[(col, 'count')],
+                                   Q3.loc[(col, 'count')])
+            mean_Q = get_quartile(mean,
+                                  Q1.loc[(col, 'mean')],
+                                  Q2.loc[(col, 'mean')],
+                                  Q3.loc[(col, 'mean')])
+            # Todo: std is NaN sometimes
+            std_Q = get_quartile(std,
+                                 Q1.loc[(col, 'std')],
+                                 Q2.loc[(col, 'std')],
+                                 Q3.loc[(col, 'std')])
+
+            if not conf['skip_repeat']:
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-count': count,
+                                   'vitals-mean': mean,
+                                   'vitals-std': std,
+                                   'count_Q': count_Q,
+                                   'mean_Q': mean_Q,
+                                   'std_Q': std_Q})
+                continue
+            if i not in prev:
+                prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-count': count,
+                                   'vitals-mean': mean,
+                                   'vitals-std': std,
+                                   'count_Q': count_Q,
+                                   'mean_Q': mean_Q,
+                                   'std_Q': std_Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif conf['duration'] and prev[i][1] == mean_Q and prev[i][3] == h - 1:
+                icu_events[prev[i][4]]['duration'] += time_unit
+                icu_events[prev[i][4]]['vitals-count'] += count
+            elif conf['duration'] and prev[i][1] == mean_Q and prev[i][1] != h - 1:
+                prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-count': count,
+                                   'vitals-mean': mean,
+                                   'vitals-std': std,
+                                   'count_Q': count_Q,
+                                   'mean_Q': mean_Q,
+                                   'std_Q': std_Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif mean_Q != prev[i][1]:
+                prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
+                icu_events.append({'id': e['id'],
+                                   'type': col,
+                                   't': e['t'] + time,
+                                   'icu-time': time,
+                                   'vitals-count': count,
+                                   'vitals-mean': mean,
+                                   'vitals-std': std,
+                                   'count_Q': count_Q,
+                                   'mean_Q': mean_Q,
+                                   'std_Q': std_Q,
+                                   'duration': zero_duration})
+                event_idx += 1
+            elif not conf['duration']:
+                skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
     print('Vitals skipped: ', skip_count)
     return icu_events
