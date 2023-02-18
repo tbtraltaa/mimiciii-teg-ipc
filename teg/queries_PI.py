@@ -27,7 +27,9 @@ def get_all_PI_events(conn, event_name, conf):
     label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
     ignored_values = ignored_values + ignored_values_MV
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
+    cols += f", tb.subject_id, tb.hadm_id"
     cols += f", '{event_name}' as type, tb.{time_col} - a.admittime as t"
+    cols += f", 'tb.{time_col} as datetime"
     cols += f', tb.value, d.label as itemid_label'
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
@@ -59,9 +61,9 @@ def get_all_PI_events(conn, event_name, conf):
     df = pd.read_sql_query(query, conn)
     # each row is converted into a dictionary indexed by column names
     df = df.to_dict('records')
-    if event_name == 'PI stage':
+    if event_name == 'PI Stage':
         for i, e in enumerate(df):
-            e['stage'] = PI_VALUE_MAP['PI stage'][e['value']]
+            e['stage'] = PI_VALUE_MAP['PI Stage'][e['value']]
     return df
 
 
@@ -82,12 +84,16 @@ def get_unique_PI_events(conn, event_name, conf):
         label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
         labels.append(label_MV)
         ignored_values += ignored_values_MV
-    #if event_name == 'PI stage':
+    if event_name in BRADEN_EVENTS:
+        labels = BRADEN_EVENTS[event_name]
+    #if event_name == 'PI Stage':
     #    ignored_values += [k for k, v in PI_STAGE_MAP.items() if v not in conf['PI_states']]
 
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
+    cols += f"tb.subject_id, tb.hadm_id, "
     cols += f"'{event_name}' as type, "
     cols += f"tb.{time_col} - a.admittime as t, "
+    cols += f"tb.{time_col} as datetime, "
     cols += f"tb.value as pi_value, "
     cols += f"regexp_replace(d.label, '\\D+', '', 'g') as pi_number, "
     cols += f"tb.icustay_id, d.dbsource, "  # extra info
@@ -119,8 +125,9 @@ def get_unique_PI_events(conn, event_name, conf):
     where += f' AND tb.{time_col} <= a.dischtime'
     where += f' AND tb.value is NOT NULL'
     where += f" AND (d.label similar to '{labels[0]}'"
-    for label in labels[1:]:
-        where += f" OR d.label SIMILAR TO '{label}'"
+    if len(labels) > 1:
+        for label in labels[1:]:
+            where += f" OR d.label SIMILAR TO '{label}'"
     where += ")"
     for value in ignored_values:
         where += f" AND tb.value not similar to '{value}'"
@@ -133,10 +140,10 @@ def get_unique_PI_events(conn, event_name, conf):
     df['duration'] = timedelta(days=0)
     # pi_value is used for event comparision
     # pi_info is extra information on pi_value, not used for comparison
-    # pi_stage is PI stage of PI stage event.
+    # pi_stage is PI Stage of PI Stage event.
     if event_name in PI_EVENTS_NUMERIC:
         df['pi_value'] = df['pi_value'].apply(lambda x: float(x.strip().split()[0]))
-    elif event_name == 'PI stage':
+    elif event_name == 'PI Stage':
         df['pi_value'] = df['pi_value'] \
                             .apply(lambda x: PI_STAGE_MAP[x])
         df['pi_stage'] = df['pi_value']
@@ -147,9 +154,11 @@ def get_unique_PI_events(conn, event_name, conf):
     else:
         df['pi_value'] = df['pi_value'].apply(lambda x: x.strip().title())
         df['pi_info'] = df['pi_value']
-    if event_name == 'PI skin type':
+    if event_name == 'PI Skin Type':
         df[df['pi_value'] == 'Subq Emphysema']['pi_value'] = 'Sub Q Emphysema'
 
+    # Decoupling events by their value
+    df['type'] = df['type'] + '-' + df['pi_value'].astype(str)
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')
     if conf['duration']:
@@ -181,5 +190,5 @@ def get_unique_PI_events(conn, event_name, conf):
         for i in del_list:
             del events[i - del_count]
             del_count += 1
-    events.sort(key = lambda x: x['t'])
+    events.sort(key = lambda x: (x['type'], x['t']))
     return events

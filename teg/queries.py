@@ -6,6 +6,7 @@ import pprint
 from datetime import timedelta
 import warnings
 
+
 warnings.filterwarnings('ignore')
 
 from teg.schemas import *
@@ -65,7 +66,7 @@ def get_events(conn, event_name, conf):
     '''
     Returns events within the given time window.
     '''
-    event_type, table, time_col = EVENTS[event_name]
+    event_type, table, time_col, main_attr = EVENTS[event_name]
     t_table = 'tb'  # time table
     if event_name in EVENT_COLS_INCLUDE:
         cols = 'tb.' + ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_name]))
@@ -75,9 +76,9 @@ def get_events(conn, event_name, conf):
                 f'SELECT * FROM {schema}.{table} WHERE false',
                 conn).astype(str))
         all_cols.sort()
-        all_cols.remove('row_id')
         all_cols.remove('subject_id')
         all_cols.remove('hadm_id')
+        all_cols.remove('row_id')
         if time_col in all_cols:
             all_cols.remove(time_col)
         else:
@@ -87,9 +88,12 @@ def get_events(conn, event_name, conf):
             cols = [col for col in all_cols if col not in
                     EVENT_COLS_EXCLUDE[event_name]]
             cols = 'tb.' + ', tb.'.join(cols)
-    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id," + \
-        f"'{event_name}' as type" + \
-        f", {t_table}.{time_col} - a.admittime as t, " + cols
+    ID_cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
+    ID_cols += f", tb.subject_id as subject_id, tb.hadm_id as hadm_id"
+    ID_cols += f", CONCAT('{event_name}', '-', tb.{main_attr}) as type"
+    ID_cols += f", {t_table}.{time_col} - a.admittime as t"
+    ID_cols += f", {t_table}.{time_col} as datetime, "
+    cols = ID_cols + cols
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
@@ -123,12 +127,29 @@ def get_events(conn, event_name, conf):
     elif event_name == 'noteevents':
         where += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
     '''
-    if event_name == 'transfer_in' or event_name == 'transfer_out':
+    if event_name == 'Transfer In' or event_name == 'Transfer Out':
         # transfers contain admissions and discharge, we exclude them
         # we only take transfers with previous and current care unit
         where += ' AND tb.curr_careunit IS NOT NULL'
         where += ' AND tb.prev_careunit IS NOT NULL'
         where += " AND tb.eventtype='transfer'"
+    if 'presc' in event_name:
+        q = f'''SELECT * from 
+            (SELECT RTRIM(INITCAP(drug), '.'), 
+            count(*) as count
+            FROM {schema}.prescriptions
+            GROUP BY RTRIM(INITCAP(drug), '.')) as tb
+            ORDER BY tb.count DESC;'''
+        drug_freq = pd.read_sql_query(q, conn)
+        min_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][0])
+        max_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][1])
+        presc = f"(SELECT RTRIM(INITCAP(p.drug), '.') as drug, count(*) as count" + \
+            f' from {schema}.prescriptions p GROUP BY p.drug) AS q'
+        table += f" INNER JOIN {presc} ON RTRIM(INITCAP(tb.drug), '.')=q.drug"
+        where += f' AND q.count >= {min_count}'
+        where += f' AND q.count <= {max_count}'
+        where += f' AND tb.drug IS NOT NULL'
+
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
     if conf['duration']:
@@ -137,7 +158,7 @@ def get_events(conn, event_name, conf):
     events = df.to_dict('records')
     # delete the same cpt code events of same patients happening within the same day
     # aggregate the same cpt code events of duration is true
-    if event_name == 'cptevents':
+    if 'CPT' in event_name:
         events.sort(key=lambda x: (x['id'],
                                    x['cpt_cd'],
                                    x['t']))
@@ -169,8 +190,7 @@ def get_events(conn, event_name, conf):
                 prev_id = e['id']
         for i in sorted(del_list, reverse=True):
             del events[i]
-
-    events.sort(key = lambda x: x['t'])
+        events.sort(key = lambda x: (x['type'], x['t']))
     return events
 
     '''
@@ -187,6 +207,7 @@ def get_icustays(conn, conf):
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
     cols += f",tb.subject_id, tb.hadm_id"
     cols += f", tb.{time_col} - a.admittime as t, tb.icustay_id"
+    cols += f", tb.{time_col} as datetime "
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'

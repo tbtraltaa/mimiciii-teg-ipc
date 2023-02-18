@@ -42,14 +42,14 @@ def subject_difference(s1, s2, join_rules):
     return 1 - i / n
 
 
-def weight_same_subject(e1, e2, join_rules):
+def weight_same_subject(e1, e2, join_rules, t_max):
     '''
     Returns the weight for events of the same subject
     '''
     # time difference
     # TODO incorporate t_min
     w_t = (e2['t'] - e1['t']).total_seconds() / \
-        join_rules['t_max'].total_seconds()
+        t_max.total_seconds()
     if e1['type'] == e2['type']:
         w_e = event_difference(e1, e2, join_rules)
     else:
@@ -57,9 +57,9 @@ def weight_same_subject(e1, e2, join_rules):
     return w_t, w_e, 0
 
 
-def weight(s1, s2, e1, e2, join_rules):
+def weight(s1, s2, e1, e2, join_rules, t_max):
     w_t = (e2['t'] - e1['t']).total_seconds() / \
-        join_rules['t_max'].total_seconds()
+        t_max.total_seconds()
     w_e = event_difference(e1, e2, join_rules)
     w_s = subject_difference(s1, s2, join_rules)
     return w_t, w_e, w_s
@@ -85,13 +85,18 @@ def build_eventgraph(subjects, events, join_rules):
             # Prevents over counting which happens if events with max PI stage connect with each other
             elif e1['pi_stage'] == e2['pi_stage'] and e1['pi_stage'] == join_rules['max_pi_stage']:
                 break
-            if e2['t'] > e1['t'] + join_rules['t_max']:
+            vals = [v for  k, v in join_rules['t_max'].items() if e1['type'] in k]
+            if vals:
+                t_max = vals[0]
+            else:
+                t_max = join_rules['t_max']['other']
+            if e2['t'] > e1['t'] + t_max:
                 break
             elif e2['t'] >= e1['t'] + join_rules['t_min'] \
                     and e1['id'] != e2['id']:
                 s1 = subjects[e1['id']]
                 s2 = subjects[e2['id']]
-                w_t, w_e, w_s = weight(s1, s2, e1, e2, join_rules)
+                w_t, w_e, w_s = weight(s1, s2, e1, e2, join_rules, t_max)
                 if w_e <= join_rules['w_e_max']:
                     A[i, j] = w_t + w_e + w_s
                     c1 += 1
@@ -113,7 +118,15 @@ def build_eventgraph(subjects, events, join_rules):
             for i, t in enumerate(times[:-1]):
                 for e1 in s_events_dict[t]:
                     for e2 in s_events_dict[times[i + 1]]:
-                        w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules)
+                        if e1['type'] == e2['type']:
+                            vals = [v for  k, v in join_rules['t_max'].items() if e1['type'] in k]
+                            if vals:
+                                t_max = vals[0]
+                            else:
+                                t_max = join_rules['t_max']['other']
+                        else:
+                            t_max = join_rules['t_max']['diff_type_same_patient']
+                        w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules, t_max)
                         A[e1['i'], e2['i']] = w_t + w_e + w_s
                         c2 += 1
             '''
@@ -131,13 +144,21 @@ def build_eventgraph(subjects, events, join_rules):
             events.sort(key=lambda x: (x['id'], x['t']))
             for i, e1 in enumerate(events):
                 for e2 in events[i + 1:]:
+                    if e1['type'] == e2['type']:
+                        vals = [v for  k, v in join_rules['t_max'].items() if e1['type'] in k]
+                        if vals:
+                            t_max = vals[0]
+                        else:
+                            t_max = join_rules['t_max']['other']
+                    else:
+                        t_max = join_rules['t_max']['diff_type_same_patient']
                     if e2['t'] < e1['t'] + join_rules['t_min']:
                         continue
-                    elif e2['t'] > e1['t'] + join_rules['t_max']:
+                    elif e2['t'] > e1['t'] + t_max:
                         break
                     elif e2['id'] != e1['id']:
                         break
-                    w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules)
+                    w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules, t_max)
                     A[e1['i'], e2['i']] = w_t + w_e + w_s
                     c2 += 1
         print("Edges connecting events of different patients: ", c1)

@@ -1,25 +1,61 @@
-PI_EVENTS = [
-                    'PI stage',
-                    'PI site',
-                    'PI wound base',
-                    'PI drainage',
-                    'PI odor',
-                    'PI cleansing',
-                    'PI treatment',
-                    'PI pressure-reduce',
-                    #'PI position',
-                    'PI skin type',
-                    'PI drainage amount',
-                    'PI surrounding tissue',
-                    'PI tunneling',
-                    'PI undermining',
-                    'PI dressing status',
-                    ]
 
-PI_EVENTS_NUMERIC = [
-                    'PI depth',
-                    'PI width',
-                    'PI length']
+PI_EVENTS = [
+    'PI Stage',
+    'PI Site',
+    'PI Wound Base',
+    'PI Drainage',
+    'PI Odor',
+    'PI Cleansing',
+    'PI Treatment',
+    'PI Pressure-Reduce',
+    #'PI position',
+    'PI Skin Type',
+    'PI Drainage Amount',
+    'PI Surrounding Tissue',
+    'PI Tunneling',
+    'PI Undermining',
+    'PI Dressing Status',
+    'Braden Activity',
+    'Braden Friction/Shear',
+    'Braden Mobility',
+    'Braden Moisture',
+    'Braden Nutrition',
+    'Braden Sensory Perception']
+
+#{<event_name>: [<table>, <value_col>, <where>]
+PI_EVENTS_NUMERIC = {
+    'PI Depth':[
+        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
+        'c.value',
+        '''
+        WHERE d.label similar to 'Impaired Skin Depth #%'
+        OR d.label similar to 'PressSore Depth #%'
+        '''
+        ],
+    'PI Width':[
+        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
+        'c.value',
+        '''
+        WHERE d.label similar to 'Impaired Skin Width #%'
+        OR d.label similar to 'Pressure Sore #\d+ \[Width\]'
+        '''
+        ],
+    'PI Length':[
+        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
+        'c.value',
+        '''
+        WHERE d.label similar to 'Impaired Skin Length #%'
+        '''
+        ],
+    'Braden Score':[
+        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
+        'c.value',
+        '''
+        WHERE d.label similar to '%Braden Score%'
+        '''
+        ],
+    }
+
 UOM = 'cm'
 
 '''
@@ -30,6 +66,15 @@ mimic=# select count(*) from mimiciii.chartevents
  1728768
 (1 row)
 '''
+# {event_name: d_items.label}
+BRADEN_EVENTS = {
+    'Braden Activity': ['%Braden Activity%'],
+    'Braden Friction/Shear': ['%Braden Frict%'],
+    'Braden Mobility': ['%Braden Mobility%'],
+    'Braden Moisture': ['%Braden Moisture%'],
+    'Braden Nutrition': ['%Braden Nutrition%'],
+    'Braden Sensory Perception': ['%Braden Sensory%']}
+
 # {event_name: d_items.label}, total: 30 types of chart events
 # 1728768 chart events related to PI in CareVue
 # The number of PIs per patient at a time is 3 in Carevue
@@ -38,30 +83,33 @@ mimic=# select count(*) from mimiciii.chartevents
 # \s* - zero or more white space
 # % - any characters
 # TODO strip and uppercase before comparing
+
+
 PI_EVENTS_CV = {
-    'PI stage': ['Pressure Sore #\\d+ \\[Stage\\]',
+    'PI Stage': ['Pressure Sore #\\d+ \\[Stage\\]',
                  ['\\s*Other\/Remarks\\s*', '\\s*Unable to Stage\\s*']],
-    'PI site': ['Press Sore Site #%', []],
+    'PI Site': ['Press Sore Site #%', []],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
-    'PI depth': ['PressSore Depth #%',
+    'PI Depth': ['PressSore Depth #%',
                  ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
-    'PI width': ['Pressure Sore #\\d+ \\[Width\\]',
+    'PI Width': ['Pressure Sore #\\d+ \\[Width\\]',
                  ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
-    'PI wound base': ['PressSoreWoundBase#%', ['\\s*Other\/Remarks\\s*']],
-    'PI drainage': ['Pressure Sore #\\d+ \\[Drainage\\]',
+    'PI Wound Base': ['PressSoreWoundBase#%', ['\\s*Other\/Remarks\\s*']],
+    'PI Drainage': ['Pressure Sore #\\d+ \\[Drainage\\]',
                         ['\\s*Other\/Remarks\\s*']],
-    'PI odor': ['Pressure Sore Odor#%',
+    'PI Odor': ['Pressure Sore Odor#%',
                     ['\\s*Other\/Remarks\\s*', '\\s*Not Applicable\\s*']],
     # 'Other/Remarks' included
-    'PI cleansing': ['PressSoreCleansing#%', []],
-    'PI treatment': ['PressSoreTreatment#%', []],
+    'PI Cleansing': ['PressSoreCleansing#%', []],
+    'PI Treatment': ['PressSoreTreatment#%', []],
     # 'Other/Remarks' included
-    'PI pressure-reduce': ['PressureReduceDevice', []],
+    'PI Pressure-Reduce': ['PressureReduceDevice', []],
     # TODO strip and uppercase before comparing
-    'PI position': ['Position', []]}
+    'PI Position': ['Position', []],
+    }
 
 '''
 select count(*) from mimiciii.chartevents c
@@ -81,35 +129,35 @@ where d.category='Skin - Impairment';
 # % - any characters
 # TODO strip and uppercase before comparing values
 PI_EVENTS_MV = {
-    'PI stage': ['Pressure Ulcer Stage #%',
+    'PI Stage': ['Pressure Ulcer Stage #%',
                  [
                      'Not applicable',
                      'Unable to assess; dressing not removed',
                      'Unable to stage; wound is covered with eschar'
                  ]],
-    'PI site': ['Impaired Skin Site #%',
+    'PI Site': ['Impaired Skin Site #%',
                 ['\\s*Not applicable\\s*',
                  '\\s*Resolved\\s*']],
     # numeric value as string
-    'PI depth': ['Impaired Skin Depth #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
+    'PI Depth': ['Impaired Skin Depth #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
     # numeric value as string
-    'PI width': ['Impaired Skin Width #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
-    'PI wound base': ['Impaired Skin Wound Base #%', ['\\s*Not assessed\\s*']],
-    'PI drainage': ['Impaired Skin Drainage #%', ['\\s*Not assessed\\s*']],
-    'PI odor': ['Impaired Skin Odor #%', ['\\s*Not applicable\\s*']],
-    'PI cleansing': ['Impaired Skin Cleanse #%', ['\\s*Not applicable\\s*']],
-    'PI treatment': ['Impaired Skin Treatment #%', ['\\s*Not applicable\\s*']],
+    'PI Width': ['Impaired Skin Width #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
+    'PI Wound Base': ['Impaired Skin Wound Base #%', ['\\s*Not assessed\\s*']],
+    'PI Drainage': ['Impaired Skin Drainage #%', ['\\s*Not assessed\\s*']],
+    'PI Odor': ['Impaired Skin Odor #%', ['\\s*Not applicable\\s*']],
+    'PI Cleansing': ['Impaired Skin Cleanse #%', ['\\s*Not applicable\\s*']],
+    'PI Treatment': ['Impaired Skin Treatment #%', ['\\s*Not applicable\\s*']],
     # TODO Replace 'SubQ Emphysema' with 'Sub Q emphysema'
-    'PI skin type': ['Impaired Skin Type #%', ['\\s*Not applicable\\s*']],
+    'PI Skin Type': ['Impaired Skin Type #%', ['\\s*Not applicable\\s*']],
     # numeric value as string
-    'PI length': ['Impaired Skin Length #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
-    'PI drainage amount': ['Impaired Skin Drainage Amount #%',
+    'PI Length': ['Impaired Skin Length #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
+    'PI Drainage Amount': ['Impaired Skin Drainage Amount #%',
                            ['\\s*Not assessed\\s*']],
-    'PI surrounding tissue': ['Surrounding Tissue #%',
+    'PI Surrounding Tissue': ['Surrounding Tissue #%',
                               ['\\s*Not assessed\\s*']],
-    'PI tunneling': ['Tunneling Present #%', ['\\s*Not assessed\\s*']],
-    'PI undermining': ['Undermining Present #%', ['\\s*Not assessed\\s*']],
-    'PI dressing status': ['Impaired Skin  - Dressing Status #%',
+    'PI Tunneling': ['Tunneling Present #%', ['\\s*Not assessed\\s*']],
+    'PI Undermining': ['Undermining Present #%', ['\\s*Not assessed\\s*']],
+    'PI Dressing Status': ['Impaired Skin  - Dressing Status #%',
                            ['\\s*Not assessed\\s*']]
     # The following are the itemid labels not used in Metavision
     # 'type': 'Impaired Skin #N- Type',
@@ -143,7 +191,286 @@ PI_STAGE_MAP = {
         'Deep Tiss Injury': 5}
 
 PI_VALUE_MAP = {
-    'PI site': {
+    'PI Site': {
+        'Abdomen': 'Abdomen',
+        'Ankle, Left': 'Ankle',
+        'Ankle, Right': 'Ankle',
+        'Back': 'Back',
+        'Back, Lower': 'Back, Lower',
+        'Back, Upper': 'Back, Upper',
+        'Body, Upper': 'Body, Upper',
+        'Breast': 'Breast',
+        'Chest': 'Chest',
+        'Coccyx': 'Coccyx',
+        'Ear, Left': 'Ear',
+        'Ear, Right': 'Ear',
+        'Elbow, Left': 'Elbow',
+        'Elbow, Right': 'Elbow',
+        'Extremities, Lo': 'Extremities, Lower',
+        'Facial': 'Facial' ,
+        'Foot, Left': 'Foot',
+        'Foot, Right': 'Foot',
+        'Gluteal, Left': 'Gluteal',
+        'Gluteal, Right': 'Gluteal',
+        'Hand, Right': 'Hand',
+        'Head': 'Head',
+        'Heel, Left': 'Heal',
+        'Heel, Right': 'Heal',
+        'Hip, Left': 'Hip',
+        'Hip, Right': 'Hip',
+        'Labia': 'Labia',
+        'Left knee': 'Knee',
+        'Right knee': 'Knee',
+        'Leg, Left Lower': 'Leg, Lower',
+        'Leg, Left Upper': 'Leg, Upper',
+        'Leg, Right Lower': 'Leg, Lower',
+        'Leg, Right Upper': 'Leg, Upper',
+        'Mouth, Left': 'Mouth',
+        'Mouth, Right': 'Mouth',
+        'Nare, Left': 'Nare',
+        'Nare, Right': 'Nare',
+        'Neck': 'Neck',
+        'Occiput': 'Occiput',
+        'Oral': 'Oral',
+        'Penis': 'Penis',
+        'PeriAnal': 'Perianal',
+        'Perineum': 'Perineum',
+        'Scrotom': 'Scrotom',
+        'Shoulder, Right': 'Shoulder',
+        'Thoracotomy, L': 'Thoracotomy',
+        'Toes': 'Toes',
+        # MV
+        'Abdominal': 'Abdomen',
+        'Ankle, Lateral-L': 'Ankle',
+        'Ankle, Lateral-R': 'Ankle',
+        'Ankle, Medial-L': 'Ankle',
+        'Ankle, Medial-R': 'Ankle',
+        'Arm, Left Lower': 'Arm',
+        'Arm, Left Upper': 'Arm',
+        'Arm, Right Lower': 'Arm',
+        'Arm, Right Upper': 'Arm',
+        # 'Back': 'Back',
+        # 'Back, Lower': 'Back, Lower',
+        # 'Back, Upper': 'Back, Upper',
+        'Body, Lower': 'Body, Lower',
+        # 'Body, Upper': 'Body, Upper',
+        # 'Breast': 'Breast',
+        # 'Chest': 'Chest',
+        'Chest Tube #1': 'Chest Tube',
+        'Chest Tube #2': 'Chest Tube',
+        'Chest Tube #3': 'Chest Tube',
+        'Chest Tube #4': 'Chest Tube',
+        # 'Coccyx': 'Coccyx',
+        # 'Ear, Left': 'Ear',
+        # 'Ear, Right': 'Ear',
+        # 'Elbow, Left': 'Elbow',
+        # 'Elbow, Right': 'Elbow',
+        'Extremities, Lower': 'Extremities, Lower',
+        'Extremities, Upper': 'Extremities, Upper',
+        'Eye, Left': 'Eye',
+        'Eye, Right': 'Eye',
+        # 'Facial': 'Facial',
+        'Fingers': 'Fingers',
+        'Fingers, L': 'Fingers',
+        'Fingers, Left': 'Fingers',
+        'Fingers, R': 'Fingers',
+        'Fingers, Right': 'Fingers',
+        'Fingers,L': 'Fingers',
+        # 'Foot, Left': 'Foot',
+        # 'Foot, Right': 'Foot',
+        'Front': 'Front',
+        # 'Gluteal, Left': 'Foot',
+        # 'Gluteal, Right': 'Foot',
+        'Groin, Left': 'Groin',
+        'Groin, Right': 'Groin',
+        'Hand, Left': 'Hand',
+        # 'Hand, Right': 'Hand',
+        # 'Head': 'Head',
+        # 'Heel, Left': 'Heel',
+        # 'Heel, Right': 'Heel',
+        'Heel,Left': 'Hand',
+        # 'Hip, Left': 'Hip',
+        # 'Hip, Right': 'Hip',
+        'Ischial, Left': 'Ischial',
+        'Ischial, Right': 'Ischial',
+        'Knee, Left': 'Knee',
+        'Knee, Right': 'Knee',
+        # 'Labia': 'Labia',
+        #'Leg, Left Lower': 'Leg, Lower',
+        #'Leg, Left Upper': 'Leg, Upper',
+        #'Leg, Right Lower': 'Leg, Lower',
+        #'Leg, Right Upper': 'Leg, Upper',
+        'Mastoid': 'Mastoid',
+        # 'Mouth, Left': 'Mouth',
+        # 'Mouth, Right': 'Mouth',
+        # 'Nare, Left': 'Nare',
+        # 'Nare, Right': 'Nare',
+        # 'Neck': 'Neck',
+        'Nose': 'Nose',
+        # Not applicable
+        # 'Occiput': 'Occiput',
+        # 'Oral': 'Oral',
+        # 'Penis': 'Penis',
+        'Perianal': 'Perianal',
+        # 'Perineum': 'Perineum',
+        'Resolved': 'Resolved',
+        'Sacrum': 'Sacrum',
+        'Scapula, Left': 'Scapula',
+        'Scapula, Right': 'Scapula',
+        'Scrotum': 'Scrotum',
+        'Shoulder, Left': 'Shoulder',
+        # 'Shoulder, Right': 'Shoulder',
+        'Sternal': 'Sternal',
+        'Thigh, Left': 'Thigh',
+        'Thigh, Right': 'Thigh',
+        'Thorocotomy, Left': 'Thorocotomy',
+        'Thorocotomy, Right': 'Thorocotomy',
+        'Toes, Left': 'Toes',
+        'Toes, Right': 'Toes',
+        'Torso': 'Torso'},
+    'PI Odor': {
+        'Negative': 'Negative',
+        'Positive': 'Positive',
+        '0': 'Negative',
+        '1': 'Positive'},
+    'PI Treatment': {
+        # CV
+        'Accuzyme': 1,
+        'Ace Wrap': 2,
+        'Adaptic': 3,
+        'Alginate/Kalstat': 4,
+        'Allevyn': 'Allevyn Foam Dressing',
+        'Allevyn Trach': 5,
+        'Antifungal Oint': 'Antifungal Oint',
+        'Antifungal Powde': 'Antifungal Oint',
+        'Aquacel': 'Aquacel',
+        'Aquacel AG': 'Aquacel',
+        'Aquaphor': 'Aquaphor',
+        'Collagenase': 'Collagenase',
+        'Coloplast': 'Coloplast',
+        'Dermagran': 'Dermagran',
+        'Dry Sterile Dsg': 'Dry Sterile Dressing',
+        'Duoderm': 'Duoderm',
+        'Hydrogel/Vigilon': 'Hydrogel/Vigilon',
+        'Open to Air': 'Open to Air',
+        'Other/Remarks': 'Other/Remarks',
+        'Transparent': 'Transparent',
+        'Wet to Dry': 'Wet to Dry',
+        'Wnd Gel/Allevyn': 'Wound Gel',
+        'Wound Gel': 'Wound Gel',
+        'Wound Gel/Adapti': 'Wound Gel',
+        # MV
+        'Accuzyme (enzymatic debrider)': 'Accuzyme',
+        'Adaptic': 'Adaptic',
+        'Allevyn Foam Dressing': 'Allevyn Foam Dressing',
+        'Aloe Vesta Anti-Fungal': 'Antifungal Oint',
+        'Aloe Vesta Anti-Fungal Ointment': 'Antifungal Oint',
+        'Aquacel AG Rope': 'Aquacel',
+        'Aquacel AG Sheet': 'Aquacel',
+        'Aquacel Rope': 'Aquacel',
+        'Aquacel Sheet 4 x 4': 'Aquacel',
+        'Aquacel Sheet 6 x 6': 'Aquacel',
+        'Aquaphor': 'Aquaphor',
+        'Collagenese (Santyl-enzymatic)': 'Collagenase',
+        'Dakins Solution': 'Dakins Solution',
+        'Double Guard Ointment': 'Double Guard Ointment',
+        'Drainage Bag': 'Drainage Bag',
+        #'Drainage Bag',
+        'Dry Sterile Dressing': 'Dry Sterile Dressing',
+        'Duoderm CGF': 'Duoderm',
+        'Duoderm Extra Thin': 'Duoderm',
+        'Duoderm Gel': 'Duoderm',
+        'Iodoform': 'Iodoform',
+        'Iodoform Gauze': 'Iodoform',
+        'Mepilex Foam Dressing': 'Mepilex Foam Dressing',
+        'Mesait': 'Mesait',
+        'NU-Gauze': 'NU-Gauze',
+        'None-Open to Air': 'Open to Air',
+        #'Not applicable',
+        #'Not applicable ',
+        'Softsorb': 'Softsorb',
+        'Telfa': 'Telfa',
+        'Therapeutic  Ointment': 'Therapeutic Ointment',
+        'Therapeutic Ointment': 'Therapeutic Ointment',
+        'Transparent': 'Transparent',
+        'VAC-White Foam': 'VAC-White Foam',
+        'VAC-black dsg': 'VAC-Black Dsg',
+        'VAC-white foam': 'VAC-White Foam',
+        'Vaseline Gauze': 'Vaseline Gauze',
+        'Vigilon Sheet Gel': 'Vigilon Sheet Gel',
+        'Wet to Dry': 'Wet to Dry',
+        'Xeroform': 'Xeroform'},
+    'Braden Activity': {
+        # CV
+        'Bedfast': 'Bedfast',
+        'Chairfast': 'Chairfast',
+        'Walks Frequently': 'Walks Frequently',
+        'Walks Occasional': 'Walks Occasional',
+        # MV
+        'Bedfast': 'Bedfast',
+        'Chairfast': 'Chairfast',
+        'Walks Frequently': 'Walks Frequently',
+        'Walks Occasionally': 'Walks Occasional',},
+    'Braden Friction/Shear': {
+        # CV
+        'No Apparent Prob': 'No Apparent Problem',
+        'Potential Prob': 'Potential Problem',
+        'Problem': 'Problem',
+        # MV
+        'No Apparent Problem': 'No Apparent Problem',
+        'Potential Problem': 'Potential Problem',
+        #'Problem': 3
+        },
+    'Braden Mobility': {
+        # CV
+        'No Limitations': 'No Limitations',
+        'Sl. Limited': 'Slight Limitations',
+        'Very Limited': 'Very Limited',
+        'Comp. Immobile': 'Completely Immobile',
+        # MV
+        #'No Limitations': 'No Limitations',
+        'Slight Limitations': 'Slight Limitations',
+        #'Very Limited': 'Very Limited',
+        'Completely Immobile': 'Completely Immobile'},
+    'Braden Moisture': {
+        # CV
+        'Consist. Moist': 'Consistently Moist',
+        'Moist': 'Moist',
+        'Occ. Moist': 'Occasionally Moist',
+        'Rarely Moist': 'Rarely Moist',
+        # MV
+        'Consistently Moist': 'Consistently Moist',
+        #'Moist': 'Moist',
+        'Occasionally Moist': 'Occasionally Moist',
+        #'Rarely Moist': 'Rarely Moist',
+        },
+    'Braden Nutrition': {
+        # CV
+        'Adequate': 'Adequate',
+        'Excellent': 'Excellent',
+        'Prob. Inadequate': 'Probably Inadequate',
+        'Very Poor': 'Very Poor',
+        # MV
+        #'Adequate': 'Adequate',
+        #'Excellent': 'Excellent',
+        'Probably Inadequate': 'Probably Inadequate',
+        #'Very Poor': 'Very Poor',
+        },
+    'Braden Sensory Perception': {
+        'Comp. Limited': 'Completely Limited',
+        'No Impairment': 'No Impairment',
+        'Sl. Limited': 'Slight Impairment',
+        'Very Limited': 'Very Limited',
+        # MV
+        'Completely Limited': 'Completely Limited',
+        #'No Impairment': 'No Impairment',
+        'Slight Impairment': 'Slight Impairment',
+        #'Very Limited': 'Very Limited'
+        }
+}
+
+PI_VALUE_MAP_OLD = {
+    'PI Site': {
         # CV
         'Abdomen': 1,
         'Ankle, Left': 2,
@@ -281,12 +608,12 @@ PI_VALUE_MAP = {
         'Toes, Left': 35,
         'Toes, Right': 36,
         'Torso': 52},
-    'PI odor': {
+    'PI Odor': {
         'Negative': 0,
         'Positive': 1,
         '0': 0,
         '1': 1},
-    'PI treatment': {
+    'PI Treatment': {
         # CV
         'Accuzyme': 1,
         'Ace Wrap': 2,
@@ -354,4 +681,71 @@ PI_VALUE_MAP = {
         'Vigilon Sheet Gel': 34,
         'Wet to Dry': 18,
         'Xeroform': 35},
+    'Braden Activity': {
+        # CV
+        'Bedfast': 1,
+        'Chairfast': 2,
+        'Walks Frequently': 3,
+        'Walks Occasional': 4,
+        # MV
+        #'Bedfast': 1,
+        #'Chairfast': 2,
+        #'Walks Frequently': 3,
+        'Walks Occasionally': 4,},
+    'Braden Friction/Shear': {
+        # CV
+        'No Apparent Prob': 1,
+        'Potential Prob': 2,
+        'Problem': 3,
+        # MV
+        'No Apparent Problem': 1,
+        'Potential Problem': 2,
+        #'Problem': 3
+        },
+    'Braden Mobility': {
+        # CV
+        'No Limitations': 1,
+        'Sl. Limited': 2,
+        'Very Limited': 3,
+        'Comp. Immobile': 4,
+        # MV
+        'No Limitations': 1,
+        'Slight Limitations': 2,
+        #'Very Limited': 3,
+        'Completely Immobile': 4},
+    'Braden Moisture': {
+        # CV
+        'Consist. Moist': 1,
+        'Moist': 2,
+        'Occ. Moist': 3,
+        'Rarely Moist': 4,
+        # MV
+        'Consistently Moist': 1,
+        #'Moist': 2,
+        'Occasionally Moist': 3,
+        #'Rarely Moist': 4
+        },
+    'Braden Nutrition': {
+        # CV
+        'Adequate': 1,
+        'Excellent': 2,
+        'Prob. Inadequate': 3,
+        'Very Poor': 4,
+        # MV
+        #'Adequate': 1,
+        #'Excellent': 2,
+        'Probably Inadequate': 3,
+        #'Very Poor': 4,
+        },
+    'Braden Sensory Perception': {
+        'Comp. Limited': 1,
+        'No Impairment': 2,
+        'Sl. Limited': 3,
+        'Very Limited': 4,
+        # MV
+        'Completely Limited': 1,
+        #'No Impairment': 2,
+        'Slight Impairment': 3,
+        #'Very Limited': 4
+        }
 }
