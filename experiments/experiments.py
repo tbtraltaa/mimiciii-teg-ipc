@@ -380,7 +380,7 @@ def plot_PC(events, PC_vals, V):
             PC_freq[etype] += 1
             PC_freq[etype] += PC_vals[i]
     PC_freq = dict(sorted(PC_freq.items(), key=lambda x: x[1]))
-    y_pos  =  range(0, 2*len(list(PC_w.keys())), 2)
+    y_pos  =  range(0, 2*len(list(PC_freq.keys())), 2)
     plt.barh(y_pos, PC_freq.values(), align='center')
     plt.yticks(y_pos, labels=list(PC_freq.keys()))
     plt.title("PC Event Type Distribution")
