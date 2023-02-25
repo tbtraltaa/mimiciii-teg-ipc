@@ -10,6 +10,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from teg.schemas import *
+from teg.queries_utils import *
+from teg.utils import *
 
 # Database configuration
 username = 'postgres'
@@ -54,6 +56,10 @@ def get_patient_demography(conn, conf):
     # age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
     # df['age'] = round(age, 2)
     # df.drop(['admittime'], axis=1, inplace=True)
+    # compute the age interval
+    left = df['age']//conf['age_interval'] * conf['age_interval'] 
+    right  = left + conf['age_interval']
+    df['age'] = left.astype(str) + '-' + right.astype(str)
     # creates a dictionary with <id> as a key.
     df = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
@@ -62,14 +68,14 @@ def get_patient_demography(conn, conf):
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
-def get_events(conn, event_name, conf):
+def get_events(conn, event_key, conf):
     '''
     Returns events within the given time window.
     '''
-    event_type, table, time_col, main_attr = EVENTS[event_name]
+    event_name, table, time_col, main_attr = EVENTS[event_key]
     t_table = 'tb'  # time table
-    if event_name in EVENT_COLS_INCLUDE:
-        cols = 'tb.' + ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_name]))
+    if event_key in EVENT_COLS_INCLUDE:
+        cols = 'tb.' + ', tb.'.join(sorted(EVENT_COLS_INCLUDE[event_key]))
     else:
         all_cols = list(
             pd.read_sql_query(
@@ -88,16 +94,22 @@ def get_events(conn, event_name, conf):
             cols = [col for col in all_cols if col not in
                     EVENT_COLS_EXCLUDE[event_name]]
             cols = 'tb.' + ', tb.'.join(cols)
-    ID_cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
-    ID_cols += f", tb.subject_id as subject_id, tb.hadm_id as hadm_id"
-    ID_cols += f", CONCAT('{event_name}', '-', tb.{main_attr}) as type"
-    ID_cols += f", {t_table}.{time_col} - a.admittime as t"
-    ID_cols += f", {t_table}.{time_col} as datetime, "
+    ID_cols = f'''
+        CONCAT(tb.subject_id, '-', tb.hadm_id) as id,
+        tb.subject_id as subject_id, tb.hadm_id as hadm_id,
+        CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,
+        RTRIM(INITCAP({main_attr}), '.') as item_col,
+        {t_table}.{time_col} - a.admittime as t,
+        {t_table}.{time_col} as datetime,
+        '''
     cols = ID_cols + cols
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
+    if event_name == 'Input':
+        table += f' INNER JOIN {schema}.d_items d'
+        table += f' ON tb.itemid = d.itemid'
     where = 'tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
@@ -133,25 +145,111 @@ def get_events(conn, event_name, conf):
         where += ' AND tb.curr_careunit IS NOT NULL'
         where += ' AND tb.prev_careunit IS NOT NULL'
         where += " AND tb.eventtype='transfer'"
-    if 'presc' in event_name:
-        q = f'''SELECT * from 
-            (SELECT RTRIM(INITCAP(drug), '.'), 
+    if 'Presc' in event_name:
+        # filter by frequency percentile range
+        q = f'''SELECT RTRIM(INITCAP(drug), '.') as drug, 
             count(*) as count
             FROM {schema}.prescriptions
-            GROUP BY RTRIM(INITCAP(drug), '.')) as tb
-            ORDER BY tb.count DESC;'''
+            WHERE drug is NOT NULL
+            AND dose_val_rx is NOT NULL
+            AND TRIM(dose_val_rx) != '0'
+            AND TRIM(dose_val_rx) != '0.0'
+            GROUP BY RTRIM(INITCAP(drug), '.')
+            '''
         drug_freq = pd.read_sql_query(q, conn)
         min_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][0])
         max_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][1])
         presc = f"(SELECT RTRIM(INITCAP(p.drug), '.') as drug, count(*) as count" + \
             f' from {schema}.prescriptions p GROUP BY p.drug) AS q'
         table += f" INNER JOIN {presc} ON RTRIM(INITCAP(tb.drug), '.')=q.drug"
-        where += f' AND q.count >= {min_count}'
-        where += f' AND q.count <= {max_count}'
-        where += f' AND tb.drug IS NOT NULL'
+        where += f''' AND q.count >= {min_count}
+            AND q.count <= {max_count}
+            AND tb.drug IS NOT NULL
+            AND tb.dose_val_rx is NOT NULL
+            AND tb.dose_unit_rx is NOT NULL
+            AND TRIM(tb.dose_val_rx) != '0'
+            AND TRIM(tb.dose_val_rx) != '0.0'
+            '''
+    if 'Input' in event_name:
+        # filter by frequency percentile range
+        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
+            count(*) as count
+            FROM {schema}.inputevents_cv i
+            INNER JOIN {schema}.d_items d
+            ON i.itemid = d.itemid
+            WHERE i.amount is NOT NULL
+            AND i.amount > 0
+            AND TRIM(i.stopped) != 'D/C''d'
+            AND TRIM(i.stopped) != 'Stopped'
+            GROUP BY RTRIM(INITCAP(d.label), '.')
+            '''
+        freq_cv = pd.read_sql_query(q, conn)
+        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
+            count(*) as count
+            FROM {schema}.inputevents_mv i
+            INNER JOIN {schema}.d_items d
+            ON i.itemid = d.itemid
+            WHERE i.amount is NOT NULL
+            AND i.amount > 0
+            AND TRIM(i.statusdescription) = 'FinishedRunning'
+            GROUP BY RTRIM(INITCAP(d.label), '.')
+            '''
+        freq_mv = pd.read_sql_query(q, conn)
+        freq = pd.concat([freq_cv, freq_mv])
+        freq = freq.groupby('input').sum()
+        min_count = np.nanpercentile(freq['count'], conf['input_percentile'][0])
+        max_count = np.nanpercentile(freq['count'], conf['input_percentile'][1])
+        freq = freq[freq['count']>= min_count]
+        freq = freq[freq['count'] <= max_count]
+        inputs = tuple([v for v in freq.index])
+        where += f''' 
+            AND RTRIM(INITCAP(d.label), '.') in {inputs}
+            AND tb.amount is NOT NULL
+            AND tb.amountuom is NOT NULL
+            AND tb.amount > 0
+            '''
+        if event_key == 'Input MV':
+            where += "AND TRIM(tb.statusdescription) = 'FinishedRunning'"
+        elif event_key == 'Input CV':
+            where += "AND TRIM(tb.stopped) != 'D/C''d'"
+            where += "AND TRIM(tb.stopped) != 'Stopped'"
 
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
+    for col in df.columns:
+        uom_col = None
+        if f'{event_name}-{col}' not in NUMERIC_COLS:
+            continue
+        if event_name == 'Input':
+            args = NUMERIC_COLS[f'{event_name}-{col}']
+            Q  = query_quantiles_Input(conn, conf['quantiles'], args) 
+            uom_col = 'amountuom'
+        else:
+            args = NUMERIC_COLS[f'{event_name}-{col}']
+            Q  = query_quantiles(conn, conf['quantiles'], **args) 
+            if args['uom_col']:
+                uom_col = args['uom_col']
+        # compute percentiles for numeric values withuom
+        if uom_col and conf['include_numeric']:
+            df['value_test'] = df[col]
+            # due to apply error in pandas, a loop is used
+            vals = list()
+            for idx, row in df.iterrows():
+                vals.append(get_quantile_uom(row, 'item_col', col, uom_col, Q))
+            df[col] = vals
+        # compute percentiles for numeric values without uom
+        elif conf['include_numeric']:
+            df['value_test'] = df[col]
+            df[col] = df[col].apply(lambda x: get_quantile(x, Q))
+        # add uom to numeric values
+        # drop unit of measure column
+        if uom_col:
+            df[col] = df[col].astype(str) + ' ' + df[uom_col]
+            df.drop([uom_col], axis=1)
+        # include percentiles in event type
+        if conf['include_numeric']:
+            df['type'] = df['type'] + ' ' + df[col]
+    df.drop(['item_col'], axis=1)
     if conf['duration']:
         df['duration'] = timedelta(days=0)
     # each row is converted into a dictionary indexed by column names

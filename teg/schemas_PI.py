@@ -1,59 +1,70 @@
+from teg.schemas import *
 
 PI_EVENTS = [
     'PI Stage',
-    'PI Site',
-    'PI Wound Base',
-    'PI Drainage',
-    'PI Odor',
-    'PI Cleansing',
-    'PI Treatment',
-    'PI Pressure-Reduce',
+    #'PI Site',
+    #'PI Wound Base',
+    #'PI Drainage',
+    #'PI Odor',
+    #'PI Cleansing',
+    #'PI Treatment',
+    #'PI Pressure-Reduce',
     #'PI position',
-    'PI Skin Type',
-    'PI Drainage Amount',
-    'PI Surrounding Tissue',
-    'PI Tunneling',
-    'PI Undermining',
-    'PI Dressing Status',
-    'Braden Activity',
-    'Braden Friction/Shear',
-    'Braden Mobility',
-    'Braden Moisture',
-    'Braden Nutrition',
-    'Braden Sensory Perception']
+    #'PI Skin Type',
+    #'PI Drainage Amount',
+    #'PI Surrounding Tissue',
+    #'PI Tunneling',
+    #'PI Undermining',
+    #'PI Dressing Status',
+    #'PI Depth',
+    #'PI Width',
+    #'PI Length'
+    ]
 
-#{<event_name>: [<table>, <value_col>, <where>]
+#{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>, <cast to dtype>, <where>]
 PI_EVENTS_NUMERIC = {
-    'PI Depth':[
-        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
-        'c.value',
-        '''
-        WHERE d.label similar to 'Impaired Skin Depth #%'
-        OR d.label similar to 'PressSore Depth #%'
-        '''
-        ],
-    'PI Width':[
-        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
-        'c.value',
-        '''
-        WHERE d.label similar to 'Impaired Skin Width #%'
-        OR d.label similar to 'Pressure Sore #\d+ \[Width\]'
-        '''
-        ],
-    'PI Length':[
-        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
-        'c.value',
-        '''
-        WHERE d.label similar to 'Impaired Skin Length #%'
-        '''
-        ],
-    'Braden Score':[
-        'chartevents c INNER JOIN d_items d ON c.itemid=d.itemid',
-        'c.value',
-        '''
-        WHERE d.label similar to '%Braden Score%'
-        '''
-        ],
+    'PI Depth':{
+        'table': f'{schema}.chartevents c INNER JOIN {schema}.d_items d ON c.itemid=d.itemid',
+        'item_col': None,
+        'value_col': 'c.value',
+        'uom_col': None,
+        'dtype': float,
+        'where': '''
+            AND (d.label similar to 'Impaired Skin Depth #%'
+            OR d.label similar to 'PressSore Depth #%')
+            AND TRIM(c.value) not similar to '\\s*Other\/Remarks\\s*'
+            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
+            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            '''
+        },
+    'PI Width':{
+        'table': f'{schema}.chartevents c INNER JOIN {schema}.d_items d ON c.itemid=d.itemid',
+        'item_col': None,
+        'value_col': 'c.value',
+        'uom_col': None,
+        'dtype': float,
+        'where':
+            '''
+            AND (d.label similar to 'Impaired Skin Width #%'
+            OR d.label similar to 'Pressure Sore #\d+ \[Width\]')
+            AND TRIM(c.value) not similar to '\\s*Other\/Remarks\\s*'
+            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
+            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            '''
+            },
+    'PI Length':{
+        'table': f'{schema}.chartevents c INNER JOIN {schema}.d_items d ON c.itemid=d.itemid',
+        'item_col': None,
+        'value_col': 'c.value',
+        'uom_col': None,
+        'dtype': float,
+        'where':
+            '''
+            AND d.label similar to 'Impaired Skin Length #%'
+            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
+            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            '''
+        },
     }
 
 UOM = 'cm'
@@ -66,15 +77,6 @@ mimic=# select count(*) from mimiciii.chartevents
  1728768
 (1 row)
 '''
-# {event_name: d_items.label}
-BRADEN_EVENTS = {
-    'Braden Activity': ['%Braden Activity%'],
-    'Braden Friction/Shear': ['%Braden Frict%'],
-    'Braden Mobility': ['%Braden Mobility%'],
-    'Braden Moisture': ['%Braden Moisture%'],
-    'Braden Nutrition': ['%Braden Nutrition%'],
-    'Braden Sensory Perception': ['%Braden Sensory%']}
-
 # {event_name: d_items.label}, total: 30 types of chart events
 # 1728768 chart events related to PI in CareVue
 # The number of PIs per patient at a time is 3 in Carevue
@@ -158,7 +160,8 @@ PI_EVENTS_MV = {
     'PI Tunneling': ['Tunneling Present #%', ['\\s*Not assessed\\s*']],
     'PI Undermining': ['Undermining Present #%', ['\\s*Not assessed\\s*']],
     'PI Dressing Status': ['Impaired Skin  - Dressing Status #%',
-                           ['\\s*Not assessed\\s*']]
+                           ['\\s*Not assessed\\s*']],
+    'PI Length': ['Impaired Skin Length #%', []],
     # The following are the itemid labels not used in Metavision
     # 'type': 'Impaired Skin #N- Type',
     # 'other': ['Dressing Status'],
@@ -400,73 +403,6 @@ PI_VALUE_MAP = {
         'Vigilon Sheet Gel': 'Vigilon Sheet Gel',
         'Wet to Dry': 'Wet to Dry',
         'Xeroform': 'Xeroform'},
-    'Braden Activity': {
-        # CV
-        'Bedfast': 'Bedfast',
-        'Chairfast': 'Chairfast',
-        'Walks Frequently': 'Walks Frequently',
-        'Walks Occasional': 'Walks Occasional',
-        # MV
-        'Bedfast': 'Bedfast',
-        'Chairfast': 'Chairfast',
-        'Walks Frequently': 'Walks Frequently',
-        'Walks Occasionally': 'Walks Occasional',},
-    'Braden Friction/Shear': {
-        # CV
-        'No Apparent Prob': 'No Apparent Problem',
-        'Potential Prob': 'Potential Problem',
-        'Problem': 'Problem',
-        # MV
-        'No Apparent Problem': 'No Apparent Problem',
-        'Potential Problem': 'Potential Problem',
-        #'Problem': 3
-        },
-    'Braden Mobility': {
-        # CV
-        'No Limitations': 'No Limitations',
-        'Sl. Limited': 'Slight Limitations',
-        'Very Limited': 'Very Limited',
-        'Comp. Immobile': 'Completely Immobile',
-        # MV
-        #'No Limitations': 'No Limitations',
-        'Slight Limitations': 'Slight Limitations',
-        #'Very Limited': 'Very Limited',
-        'Completely Immobile': 'Completely Immobile'},
-    'Braden Moisture': {
-        # CV
-        'Consist. Moist': 'Consistently Moist',
-        'Moist': 'Moist',
-        'Occ. Moist': 'Occasionally Moist',
-        'Rarely Moist': 'Rarely Moist',
-        # MV
-        'Consistently Moist': 'Consistently Moist',
-        #'Moist': 'Moist',
-        'Occasionally Moist': 'Occasionally Moist',
-        #'Rarely Moist': 'Rarely Moist',
-        },
-    'Braden Nutrition': {
-        # CV
-        'Adequate': 'Adequate',
-        'Excellent': 'Excellent',
-        'Prob. Inadequate': 'Probably Inadequate',
-        'Very Poor': 'Very Poor',
-        # MV
-        #'Adequate': 'Adequate',
-        #'Excellent': 'Excellent',
-        'Probably Inadequate': 'Probably Inadequate',
-        #'Very Poor': 'Very Poor',
-        },
-    'Braden Sensory Perception': {
-        'Comp. Limited': 'Completely Limited',
-        'No Impairment': 'No Impairment',
-        'Sl. Limited': 'Slight Impairment',
-        'Very Limited': 'Very Limited',
-        # MV
-        'Completely Limited': 'Completely Limited',
-        #'No Impairment': 'No Impairment',
-        'Slight Impairment': 'Slight Impairment',
-        #'Very Limited': 'Very Limited'
-        }
 }
 
 PI_VALUE_MAP_OLD = {

@@ -20,11 +20,12 @@ from teg.apercolation import algebraic_PC_with_paths
 conf = {
     #'max_hours': 720,
     'max_hours': 168,
-    'max_age': 89,
     'min_age': 15,
+    'max_age': 89,
+    'age_interval': 5, # in years, for patients
     'starttime': '2143-01-14',
-    'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
+    'endtime': '2143-01-21',
     'min_missing_percent': 0,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -33,29 +34,34 @@ conf = {
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
     'duration': False,
-    'PC_percentile': [80, 100],
+    'PC_percentile': [90, 100],
     'PI_vitals': False,
     'skip_repeat': True,
     'quantiles': np.arange(0, 1.01, 0.1),
     'drug_percentile': [40, 50],
-    'Q_in_type': True,
+    'input_percentile': [40, 50],
+    'include_numeric': True,
+    'Q_in_type': True
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
 t_max = {
-    'admissions': timedelta(days=20, hours=0),
-    'discharges': timedelta(days=7, hours=0),
-    'icu_in': timedelta(days=7, hours=0),
-    'icu_out': timedelta(days=7, hours=0),
-    'callout': timedelta(days=7, hours=0),
-    'transfer_in': timedelta(days=7, hours=0),
-    'transfer_out': timedelta(days=7, hours=0),
-    'cpt': timedelta(days=7, hours=0),
-    'presc': timedelta(days=7, hours=0),
-    'services': timedelta(days=7, hours=0),
+    'Admissions': timedelta(days=7, hours=0),
+    'Discharges': timedelta(days=7, hours=0),
+    'Icu In': timedelta(days=7, hours=0),
+    'Icu_Out': timedelta(days=7, hours=0),
+    'Callout': timedelta(days=7, hours=0),
+    'Transfer In': timedelta(days=7, hours=0),
+    'Transfer Out': timedelta(days=7, hours=0),
+    'CPT': timedelta(days=7, hours=0),
+    'Presc': timedelta(days=7, hours=0),
+    'Services': timedelta(days=7, hours=0),
     'other': timedelta(days=2, hours=0),
     'diff_type_same_patient': timedelta(days=2, hours=0),
+    'PI': timedelta(days=7, hours=0),
+    'Braden': timedelta(days=7, hours=0),
 }
+
 join_rules = {
     'IDs': EVENT_IDs if not conf['duration'] else EVENT_IDs + ['duration'],
     "t_min": timedelta(days=0, hours=0, minutes=5),
@@ -64,13 +70,11 @@ join_rules = {
     # default event difference for different types of events
     'w_e_default': 1,
     'join_by_subject': True,
-    'age_similarity': 3,  # years
-    'icustays-los': 3,  # los similarity in days
-    'transfer-los': 3,  # los similarity in days
     'duration': conf['duration'],
     'duration_similarity': timedelta(days=2),
     'sequential_join': True,
     'max_pi_stage':1,
+    'include_numeric': True
 }
 
 
@@ -428,7 +432,7 @@ if __name__ == "__main__":
         'vitals_agg',
         'PC_percentile',
         'skip_repeat',]
-    fname_LF = 'output/Presc-TEG'
+    fname_LF = 'output/Presc1-TEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])
     fname_LF += '_' + '_'.join([k + '-' + str(v)

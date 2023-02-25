@@ -11,11 +11,158 @@ warnings.filterwarnings('ignore')
 
 
 from teg.schemas_PI import *
+from teg.schemas_chart_events import *
+from teg.queries_utils import *
+from teg.utils import *
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
 
+def get_unique_chart_events(conn, event_name, conf):
+    '''
+    Returns PI events within the given time window.
+    '''
+    schema = 'mimiciii'
+    table = 'chartevents'
+    time_col = 'charttime'
+    labels = []
+    ignored_values = []
+    if event_name in PI_EVENTS_CV:
+        label_CV, ignored_values_CV = PI_EVENTS_CV[event_name]
+        labels.append(label_CV)
+        ignored_values += ignored_values_CV
+    if event_name in PI_EVENTS_MV:
+        label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
+        labels.append(label_MV)
+        ignored_values += ignored_values_MV
+    if event_name in CHART_EVENTS:
+        labels = [CHART_EVENTS[event_name][0]]
+    #if event_name == 'PI Stage':
+    #    ignored_values += [k for k, v in PI_STAGE_MAP.items() if v not in conf['PI_states']]
+    print(event_name)
+    print(labels)
 
+    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
+    cols += f"tb.subject_id, tb.hadm_id, "
+    cols += f"'{event_name}' as type, "
+    cols += f"tb.{time_col} - a.admittime as t, "
+    cols += f"tb.{time_col} as datetime, "
+    cols += f"tb.value as value, "
+    if event_name in PI_EVENTS:
+        cols += f"regexp_replace(d.label, '\\D+', '', 'g') as pi_number, "
+    cols += f"tb.icustay_id, d.dbsource, "  # extra info
+    # Take the first occurance of the chart event for a day
+    cols += 'row_number() over (partition by ' + \
+        f'tb.subject_id, tb.hadm_id, tb.icustay_id, tb.value, d.label' + \
+        f', EXTRACT(DAY FROM tb.{time_col} - a.admittime)' + \
+        f' order by tb.charttime )'
+
+    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
+    table += f' INNER JOIN {schema}.patients p'
+    table += f' ON tb.subject_id = p.subject_id'
+    table += f' INNER JOIN {schema}.d_items d'
+    table += f' ON tb.itemid = d.itemid'
+    where = 'tb.hadm_id is NOT NULL'
+    where += " AND a.diagnosis != 'NEWBORN'"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f">= {conf['min_age']}"
+    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
+        f"<= {conf['max_age']}"
+    where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    if conf['starttime'] and conf['endtime']:
+        where += f" AND tb.{time_col} >= '{conf['starttime']}'"
+        where += f" AND tb.{time_col} < '{conf['endtime']}'"
+    # Some events occur before the admisson date, but have the correct hadm_id.
+    # Those events are ignored.
+    where += f' AND tb.{time_col} >= a.admittime'
+    where += f' AND tb.{time_col} <= a.dischtime'
+    where += f' AND tb.value is NOT NULL'
+    where += f" AND (d.label similar to '{labels[0]}'"
+    if len(labels) > 1:
+        for label in labels[1:]:
+            where += f" OR d.label SIMILAR TO '{label}'"
+    where += ")"
+    for value in ignored_values:
+        where += f" AND tb.value not similar to '{value}'"
+    order_by = f'ORDER BY t ASC'
+    query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
+    query += f" WHERE row_number=1 {order_by}"
+
+    df = pd.read_sql_query(query, conn)
+    df.drop(['row_number'], axis=1, inplace=True)
+    UOM = ""
+    if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
+        if event_name in PI_EVENTS_NUMERIC:
+            UOM = 'cm'
+            if PI_EVENTS_NUMERIC[event_name]['dtype']:
+                df['value'] = df['value'].astype(PI_EVENTS_NUMERIC[event_name]['dtype'])
+            df = df[df['value'] > 0]
+            Q  = query_quantiles(conn, conf['quantiles'], **PI_EVENTS_NUMERIC[event_name]) 
+        else:
+            UOM = ""
+            if CHART_EVENTS_NUMERIC[event_name]['dtype']:
+                df['value'] = df['value'].astype(CHART_EVENTS_NUMERIC[event_name]['dtype'])
+                df = df[df['value'] > 0]
+            Q  = query_quantiles(conn, conf['quantiles'], **CHART_EVENTS_NUMERIC[event_name]) 
+        print(Q)
+        print(event_name)
+        df['value_test'] = df['value']
+        df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
+    # value is used for event comparision
+    # pi_stage is PI Stage of PI Stage event.
+    #if event_name in PI_EVENTS_NUMERIC:
+    #    df['value'] = df['value'].apply(lambda x: float(x.strip().split()[0]))
+    elif event_name == 'PI Stage':
+        df['value'] = df['value'] \
+                            .apply(lambda x: PI_STAGE_MAP[x])
+        df['pi_stage'] = df['value']
+    elif event_name in PI_VALUE_MAP:
+        df['value'] = df['value'] \
+                                .apply(lambda x: PI_VALUE_MAP[event_name][x])
+    else:
+        df['value'] = df['value'].apply(lambda x: x.strip().title())
+    if event_name == 'PI Skin Type':
+        df[df['value'] == 'Subq Emphysema']['value'] = 'Sub Q Emphysema'
+
+    # Decoupling events by their value
+    df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
+    df['duration'] = timedelta(days=0)
+    # each row is converted into a dictionary indexed by column names
+    events = df.to_dict('records')
+    if conf['duration']:
+        # calculating event duration for each PI
+        events.sort(key=lambda x: (x['id'], x['pi_number'], x['value'], x['t']))
+        key = 'value'
+        prev_val = None
+        prev_t = np.inf
+        prev_id = None
+        prev_num = None
+        start = None
+        t_unit = timedelta(days=1)
+        del_list = []
+        for i, e in enumerate(events):
+            if e[key] == prev_val and \
+                e['t'].days - prev_t == 1 and \
+                e['id'] == prev_id and \
+                e['pi_number'] == prev_num:
+                events[start]['duration'] += t_unit 
+                prev_t = e['t'].days
+                del_list.append(i)
+            else:
+                start = i
+                prev_val = e[key]
+                prev_t = e['t'].days
+                prev_id = e['id']
+                prev_num = e['pi_number']
+        del_count=0
+        for i in del_list:
+            del events[i - del_count]
+            del_count += 1
+    events.sort(key = lambda x: (x['type'], x['t']))
+    return events
+
+# old draft
 def get_all_PI_events(conn, event_name, conf):
     '''
     Returns PI events within the given time window.
@@ -65,130 +212,3 @@ def get_all_PI_events(conn, event_name, conf):
         for i, e in enumerate(df):
             e['stage'] = PI_VALUE_MAP['PI Stage'][e['value']]
     return df
-
-
-def get_unique_PI_events(conn, event_name, conf):
-    '''
-    Returns PI events within the given time window.
-    '''
-    schema = 'mimiciii'
-    table = 'chartevents'
-    time_col = 'charttime'
-    labels = []
-    ignored_values = []
-    if event_name in PI_EVENTS_CV:
-        label_CV, ignored_values_CV = PI_EVENTS_CV[event_name]
-        labels.append(label_CV)
-        ignored_values += ignored_values_CV
-    if event_name in PI_EVENTS_MV:
-        label_MV, ignored_values_MV = PI_EVENTS_MV[event_name]
-        labels.append(label_MV)
-        ignored_values += ignored_values_MV
-    if event_name in BRADEN_EVENTS:
-        labels = BRADEN_EVENTS[event_name]
-    #if event_name == 'PI Stage':
-    #    ignored_values += [k for k, v in PI_STAGE_MAP.items() if v not in conf['PI_states']]
-
-    cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
-    cols += f"tb.subject_id, tb.hadm_id, "
-    cols += f"'{event_name}' as type, "
-    cols += f"tb.{time_col} - a.admittime as t, "
-    cols += f"tb.{time_col} as datetime, "
-    cols += f"tb.value as pi_value, "
-    cols += f"regexp_replace(d.label, '\\D+', '', 'g') as pi_number, "
-    cols += f"tb.icustay_id, d.dbsource, "  # extra info
-    # Take the first occurance of PI event for a day
-    cols += 'row_number() over (partition by ' + \
-        f'tb.subject_id, tb.hadm_id, tb.icustay_id, tb.value, d.label' + \
-        f', EXTRACT(DAY FROM tb.{time_col} - a.admittime)' + \
-        f' order by tb.charttime )'
-
-    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
-    table += f' ON tb.hadm_id = a.hadm_id'
-    table += f' INNER JOIN {schema}.patients p'
-    table += f' ON tb.subject_id = p.subject_id'
-    table += f' INNER JOIN {schema}.d_items d'
-    table += f' ON tb.itemid = d.itemid'
-    where = 'tb.hadm_id is NOT NULL'
-    where += " AND a.diagnosis != 'NEWBORN'"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f">= {conf['min_age']}"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f"<= {conf['max_age']}"
-    where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
-    if conf['starttime'] and conf['endtime']:
-        where += f" AND tb.{time_col} >= '{conf['starttime']}'"
-        where += f" AND tb.{time_col} < '{conf['endtime']}'"
-    # Some events occur before the admisson date, but have the correct hadm_id.
-    # Those events are ignored.
-    where += f' AND tb.{time_col} >= a.admittime'
-    where += f' AND tb.{time_col} <= a.dischtime'
-    where += f' AND tb.value is NOT NULL'
-    where += f" AND (d.label similar to '{labels[0]}'"
-    if len(labels) > 1:
-        for label in labels[1:]:
-            where += f" OR d.label SIMILAR TO '{label}'"
-    where += ")"
-    for value in ignored_values:
-        where += f" AND tb.value not similar to '{value}'"
-    order_by = f'ORDER BY t ASC'
-    query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
-    query += f" WHERE row_number=1 {order_by}"
-
-    df = pd.read_sql_query(query, conn)
-    df.drop(['row_number'], axis=1, inplace=True)
-    df['duration'] = timedelta(days=0)
-    # pi_value is used for event comparision
-    # pi_info is extra information on pi_value, not used for comparison
-    # pi_stage is PI Stage of PI Stage event.
-    if event_name in PI_EVENTS_NUMERIC:
-        df['pi_value'] = df['pi_value'].apply(lambda x: float(x.strip().split()[0]))
-    elif event_name == 'PI Stage':
-        df['pi_value'] = df['pi_value'] \
-                            .apply(lambda x: PI_STAGE_MAP[x])
-        df['pi_stage'] = df['pi_value']
-    elif event_name in PI_VALUE_MAP:
-        df['pi_info'] = df['pi_value']
-        df['pi_value'] = df['pi_value'] \
-                                .apply(lambda x: PI_VALUE_MAP[event_name][x])
-    else:
-        df['pi_value'] = df['pi_value'].apply(lambda x: x.strip().title())
-        df['pi_info'] = df['pi_value']
-    if event_name == 'PI Skin Type':
-        df[df['pi_value'] == 'Subq Emphysema']['pi_value'] = 'Sub Q Emphysema'
-
-    # Decoupling events by their value
-    df['type'] = df['type'] + '-' + df['pi_value'].astype(str)
-    # each row is converted into a dictionary indexed by column names
-    events = df.to_dict('records')
-    if conf['duration']:
-        # calculating event duration for each PI
-        events.sort(key=lambda x: (x['id'], x['pi_number'], x['pi_value'], x['t']))
-        key = 'pi_value'
-        prev_val = None
-        prev_t = np.inf
-        prev_id = None
-        prev_num = None
-        start = None
-        t_unit = timedelta(days=1)
-        del_list = []
-        for i, e in enumerate(events):
-            if e[key] == prev_val and \
-                e['t'].days - prev_t == 1 and \
-                e['id'] == prev_id and \
-                e['pi_number'] == prev_num:
-                events[start]['duration'] += t_unit 
-                prev_t = e['t'].days
-                del_list.append(i)
-            else:
-                start = i
-                prev_val = e[key]
-                prev_t = e['t'].days
-                prev_id = e['id']
-                prev_num = e['pi_number']
-        del_count=0
-        for i in del_list:
-            del events[i - del_count]
-            del_count += 1
-    events.sort(key = lambda x: (x['type'], x['t']))
-    return events

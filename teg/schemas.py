@@ -1,8 +1,9 @@
-# {<table_name>: [<columns>]}
+schema = 'mimiciii'
 
 # attributes of an event, not used for comparison
-EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'time', 'adm_num']
+EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime', 'adm_num']
 
+# {<table_name>: [<columns>]}
 PATIENTS = {
     # p for patients
     'p': [
@@ -17,24 +18,23 @@ PATIENTS = {
         'ethnicity',
         'diagnosis']}
 
-
 # {<event_name>: [<event_number>, <event_table>, <time_column>, <main attr>]}
 EVENTS = {
     # Patient tracking events
-    'Admissions': [1, 'admissions', 'admittime', 'admission_location'],
-    'Discharges': [2, 'admissions', 'dischtime', 'discharge_location'],
-    'ICU In': [3, 'icustays', 'intime', 'first_careunit'],
-    'ICU Out': [3, 'icustays', 'outtime', 'last_careunit'],
-    'Callout': [5, 'callout', 'outcometime', 'callout_service'],
-    'Transfer In': [6, 'transfers', 'intime', 'curr_careunit'],
-    'Transfer Out': [7, 'transfers', 'outtime', 'curr_careunit'],
+    'Admissions': ['Admissions', 'admissions', 'admittime', 'tb.admission_location'],
+    'Discharges': ['Discharges', 'admissions', 'dischtime', 'tb.discharge_location'],
+    #'ICU In': ['ICU In', 'icustays', 'intime', 'tb.first_careunit'],
+    #'ICU Out': ['ICU Out', 'icustays', 'outtime', 'tb.last_careunit'],
+    #'Callout': ['Callout', 'callout', 'outcometime', 'tb.callout_service'],
+    #'Transfer In': ['Transfer In', 'transfers', 'intime', 'tb.curr_careunit'],
+    #'Transfer Out': ['Transfer Out', 'transfers', 'outtime', 'tb.curr_careunit'],
 
     # ICU Events
     #'Chart': [8, 'chartevents', 'charttime'],
     # charttime preferred over storetime
-    #'Input CV': [9, 'inputevents_cv', 'charttime', None],
     # ignored endtime
-    #'Input MV': [9, 'inputevents_mv', 'starttime', None],
+    'Input CV': [ 'Input', 'inputevents_cv', 'charttime', 'd.label'],
+    'Input MV': [ 'Input', 'inputevents_mv', 'starttime', 'd.label'],
     # 'datatimeevents',
     # charttime preferred over storetime
     #'Output': [10, 'outputevents', 'charttime'],
@@ -42,7 +42,7 @@ EVENTS = {
 
     # Hospital Data
     # Current Procedural Terminology
-    'CPT': [11, 'cptevents', 'chartdate', 'cpt_cd'],
+    'CPT': ['CPT', 'cptevents', 'chartdate', 'tb.cpt_cd'],
     # at the end after discharge, take discharge time from admissions table
     #'Diagnoses ICD': [12, 'diagnoses_icd', 'dischtime'],
     # at the end after discharge, take discharge time from admissions table
@@ -55,55 +55,54 @@ EVENTS = {
     # 886 ISERROR=1 out of 2083180, that is, around 0.04%
     # charttime preferred over storetime
     # 'notevents': [16, 'noteevents', 'charttime'],
-    'Presc Start': [17, 'prescriptions', 'startdate', 'drug'],
-    'Presc End': [18, 'prescriptions', 'enddate', 'drug'],
+    'Presc Start': ['Presc Start', 'prescriptions', 'startdate', 'tb.drug'],
+    'Presc End': ['Presc End', 'prescriptions', 'enddate', 'tb.drug'],
     # at the end after discharge, take discharge time from admissions table
     #'Procedures ICD': [19, 'procedures_icd', 'dischtime'],
-    'Services': [20, 'services', 'transfertime', 'curr_service']}
+    'Services': ['Services', 'services', 'transfertime', 'tb.curr_service']}
 
-#{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>, <where>]
+#{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>, <cast to dtype>, <where>]
 NUMERIC_COLS = {
-    'Input-amount':
-        [
-            [
-                'inputevents_CV t INNER JOIN d_items d on c.itemid=d.itemid',
-                'd.label',
-                't.amount',
-                't.amountuom',
-                'WHERE t.amount is NOT NULL AND t.amountuom is NOT NULL'
-            ],
-            [
-                'inputevents_MV t INNER JOIN d_items d on t.itemid=d.itemid',
-                'd.label',
-                't.amount',
-                't.amountuom',
-                'WHERE t.amount is NOT NULL AND t.amountuom is NOT NULL'
-            ],
-        ],
-    'Presc-dose_val_rx':
-        [
-            'prescriptions',
-            'drug',
-            'dose_val_rx',
-            'dose_unit_rx',
-            'WHERE dose_val_rx is NOT NULL AND dose_unit_rx is NOT NULL'
-        ],
-    'ICU Out-los': 
-        [
-            'icustays',
-            None,
-            'los',
-            None,
-            'WHERE los is NOT NULL AND los !=0'
-        ],
-    'Transfer Out-los': 
-        [
-            'icustays',
-            None,
-            'los',
-            None,
-            'WHERE los is NOT NULL AND los !=0'
-        ]
+    #{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>]
+    'Input-amount':[[
+        f'{schema}.inputevents_CV t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
+        'd.label',
+        't.amount',
+        't.amountuom',],
+        [f'{schema}.inputevents_MV t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
+        'd.label',
+        't.amount',
+        't.amountuom',
+        ],],
+    'Presc Start-dose_val_rx':{
+        'table': f'{schema}.prescriptions',
+        'item_col': 'drug',
+        'value_col': 'dose_val_rx',
+        'uom_col': 'dose_unit_rx',
+        'dtype': float, # cast varchar float
+        'where': ''},
+    'Presc End-dose_val_rx':{
+        'table': f'{schema}.prescriptions',
+        'item_col': 'drug',
+        'value_col': 'dose_val_rx',
+        'uom_col': 'dose_unit_rx',
+        'dtype': float, # cast varchar types
+        'where': ''},
+    'ICU Out-los': {
+        'table': f'{schema}.icustays',
+        'item_col': None,
+        'value_col': 'los',
+        'uom_col': None,
+        'dtype': None,
+        'where': ''
+        },
+    'Transfer Out-los':{
+        'table': f'{schema}.transfers',
+        'item_col': None,
+        'value_col': 'los',
+        'uom_col': None,
+        'dtype': None,
+        'where': ''}
 }
 
 # {event_name : [[<include_columns>], [<exclude_columns>]]}
@@ -205,69 +204,47 @@ EVENT_COLS_INCLUDE = {
         'subject_id',
         'hadm_id',
         'icustay_id',
-        'itemid',
         'amount',
         'amountuom',
-        'rate',
-        'rateuom',
-        'charttime',
-        'stopped'
+        # filter by positive amount
+        # exclude if "D/C'd" or "Stopped"
     ],
     # stopped - D/C'd, Stopped, NotStopd, Restart, NULL
     # TODO whether to keep all
     'Input MV': [
+        'subject_id',
+        'hadm_id',
         'icustay_id',
-        'itemid',
         'amount',
         'amountuom',
-        'rate',
-        'rateuom',
-        'starttime',
         # Metavision specific
-        'statusdescription'
+        # only include if statusdescription is
+        # 'FinishedRunning'
     ],
     # TODO whether to keep all
     # statusdescription: Changed, Paused, FinishedRunning,
     # Stopped, Rewritten, Flushed
     'Presc Start': [
-        'startdate',
-        #'drug_type',
-        'drug'],
+        'drug',
+        'dose_val_rx',
+        'dose_unit_rx'
+        # take only positive values
+        # exclude NULL
+        ],
     'Presc End': [
-        'enddate',
-        #'drug_type',
-        'drug']
+        'drug',
+        'dose_val_rx',
+        'dose_unit_rx'
+        # take only positive values
+        # exclude NULL
+        ]
 }
 
-TABLES = {
-    # Patient tracking events
-    'admissions',
-    'icustays',
-    'callout',
-    'transfers',
-    # ICU Events
-    'chartevents',
-    'inputevents_cv',
-    'inputevents_mv',
-    'datatimeevents',
-    'outputevents',
-    'procedureevents_mv',
-    # Hospital Data
-    'cptevents',
-    'diagnoses_icd',  # at the end
-    'drgcodes',  # at the end
-    'labevents',
-    'microbiologyevents',
-    'notevents',
-    'prescriptions',  # start and end date
-    'procedures_icd',  # at the end
-    'services'}
-
 IGNORE_COLS = [
+    'value_test'
     'dbsource',
     'icustay_id',
     'pi_number',
-    'pi_info',
     'pi_stage',
     # labs and inteventions
     'intervention-count'

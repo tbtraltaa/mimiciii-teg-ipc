@@ -7,9 +7,12 @@ import copy
 import warnings
 warnings.filterwarnings('ignore')
 
+from teg.schemas import *
+from teg.schemas_PI import *
+from teg.schemas_chart_events import *
 from teg.eventgraphs import *
 from teg.queries_mimic_extract import *
-from teg.queries_PI import *
+from teg.queries_chart_events import *
 from teg.queries import *
 
 def mimic_events(event_list, join_rules, conf):
@@ -18,7 +21,18 @@ def mimic_events(event_list, join_rules, conf):
     all_events = list()
     n = 0
     for event_name in PI_EVENTS:
-        events = get_unique_PI_events(conn, event_name, conf)
+        if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
+            continue
+        events = get_unique_chart_events(conn, event_name, conf)
+        for i, e in enumerate(events):
+            e['i'] = i + n
+        n += len(events)
+        print(event_name, len(events))
+        all_events += events
+    for event_name in CHART_EVENTS:
+        if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
+            continue
+        events = get_unique_chart_events(conn, event_name, conf)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
@@ -39,8 +53,9 @@ def mimic_events(event_list, join_rules, conf):
     n += len(events)
     print('Vitals', len(events))
     all_events += events
-    for event_name in event_list:
-        events = get_events(conn, event_name, conf)
+    for event_key in event_list:
+        event_name, table, time_col, main_attr = EVENTS[event_key]
+        events = get_events(conn, event_key, conf)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
