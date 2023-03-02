@@ -1,18 +1,29 @@
 import pandas as pd
+import os.path
 
-def query_quantiles(conn, quantiles, table, item_col, value_col, uom_col, dtype, where):
+def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom_col, dtype, where):
+    if 'Presc' in event_name:
+        event_name = 'Presc'
+    fname = f'''data/Q{len(quantiles)}-{event_name}-{item_col}-{value_col}-{uom_col}.h5'''
+    if os.path.exists(fname):
+        return pd.read_hdf(fname) 
     if item_col and uom_col:
         if dtype:
+            # if value is 100-500, only taking the minimum amount, 100.
             q = f'''SELECT  RTRIM(INITCAP({item_col}), '.'), {uom_col} 
                 FROM {table}
                 WHERE {item_col} IS NOT NULL
                 AND {uom_col} IS NOT NULL
                 AND {value_col} IS NOT NULL
-                AND split_part({value_col}, ' ', 1) != '0'
-                AND split_part({value_col}, ' ', 1) != '0.0'
-                AND split_part({value_col}, ' ', 1) != '-0.0'
+                AND {value_col} != ''
+                AND split_part(TRIM({value_col}), ' ', 1) != '0'
+                AND split_part(TRIM({value_col}), ' ', 1) != '0.0'
+                AND split_part(TRIM({value_col}), '-', 1) != '0'
+                AND split_part(TRIM({value_col}), '-', 1) != '0.0'
+                AND split_part(TRIM({value_col}), ' ', 1) similar to '\+?\d*\.?\d*'
+                AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
                 {where}
-                GROUP BY RTRIM(INITCAP({item_col}), '.')), {uom_col}'''
+                GROUP BY RTRIM(INITCAP({item_col}), '.'), {uom_col}'''
         else:
             q = f'''SELECT  RTRIM(INITCAP({item_col}), '.'), {uom_col} 
                 FROM {table}
@@ -21,7 +32,7 @@ def query_quantiles(conn, quantiles, table, item_col, value_col, uom_col, dtype,
                 AND {value_col} IS NOT NULL
                 AND {value_col} > 0.0
                 {where}
-                GROUP BY RTRIM(INITCAP({item_col}), '.')), {uom_col}'''
+                GROUP BY RTRIM(INITCAP({item_col}), '.'), {uom_col}'''
         index= pd.read_sql_query(q, conn)
         index = pd.MultiIndex.from_frame(index)
         df = pd.DataFrame(index=index, columns=quantiles, dtype=float)
@@ -38,9 +49,17 @@ def query_quantiles(conn, quantiles, table, item_col, value_col, uom_col, dtype,
                     WHERE RTRIM(INITCAP({item_col}), '.') = '{item_q}'
                     AND {uom_col} = '{uom_q}'
                     AND {value_col} IS NOT NULL
+                    AND {value_col} != ''
+                    AND split_part(TRIM({value_col}), ' ', 1) != '0'
+                    AND split_part(TRIM({value_col}), ' ', 1) != '0.0'
+                    AND split_part(TRIM({value_col}), '-', 1) != '0'
+                    AND split_part(TRIM({value_col}), '-', 1) != '0.0'
+                    AND split_part(TRIM({value_col}), ' ', 1) similar to '\+?\d*\.?\d*'
+                    AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
                     {where}'''
                 item_vals = pd.read_sql_query(q, conn)
-                item_vals['value'] = item_vals.astype(dtype)
+                item_vals = item_vals[item_vals['value'] != '']
+                item_vals['value'] = item_vals['value'].astype(dtype)
                 item_vals = item_vals[item_vals['value'] > 0]
             else:
                 q = f'''SELECT {value_col} FROM {table}
@@ -51,15 +70,17 @@ def query_quantiles(conn, quantiles, table, item_col, value_col, uom_col, dtype,
                     {where}'''
                 item_vals = pd.read_sql_query(q, conn)
             quantile_vals = item_vals.quantile(quantiles, numeric_only=True)
-            df.loc[(item, uom), :] = quantile_vals
+            df.loc[(item, uom), :] = quantile_vals.values.reshape(-1,)
     elif not item_col and not uom_col:
         if dtype:
             q = f'''SELECT split_part({value_col}, ' ', 1) as value 
                 FROM {table}
                 WHERE {value_col} IS NOT NULL
+                AND split_part({value_col}, ' ', 1) similar to '\\s*[+-]?\d*\.?\d*\\s*'
                 {where}
                 '''
             df = pd.read_sql_query(q, conn)
+            df = df[df['value'] != '']
             df['value'] = df['value'].astype(dtype)
             df = df[df['value'] > 0]
         else:
@@ -71,10 +92,17 @@ def query_quantiles(conn, quantiles, table, item_col, value_col, uom_col, dtype,
                 '''
             df = pd.read_sql_query(q, conn)
         df = df.quantile(quantiles, numeric_only=True)
+    dfna = pd.isna(df)
+    print('Any NaN in Qs', dfna.any())
+    if not os.path.exists(fname):
+        df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     return df
 
 
 def query_quantiles_Input(conn, quantiles, attrs):
+    fname = f'''data/Q{len(quantiles)}-Input.h5'''
+    if os.path.exists(fname):
+        return pd.read_hdf(fname) 
     # CV
     table, item_col, value_col, uom_col = attrs[0]
     q1 = f'''SELECT  RTRIM(INITCAP({item_col}), '.') as input, {uom_col} 
@@ -99,7 +127,7 @@ def query_quantiles_Input(conn, quantiles, attrs):
         GROUP BY RTRIM(INITCAP({item_col}), '.'), {uom_col}'''
     index2 = pd.read_sql_query(q2, conn)
     index =  pd.concat([index1, index2])
-    index.drop_duplicates()
+    index = index.drop_duplicates()
     index = pd.MultiIndex.from_frame(index)
     df = pd.DataFrame(index=index, columns=quantiles, dtype=float)
     for item, uom in df.index:
@@ -132,5 +160,9 @@ def query_quantiles_Input(conn, quantiles, attrs):
         item_vals2 = pd.read_sql_query(q, conn)
         item_vals = pd.concat([item_vals1, item_vals2])
         quantile_vals = item_vals.quantile(quantiles, numeric_only=True)
-        df.loc[(item, uom), :] = quantile_vals
+        df.loc[(item, uom), :] = quantile_vals.values.reshape(-1,)
+    dfna = pd.isna(df)
+    print('Any NaN in Qs', dfna.any())
+    if not os.path.exists(fname):
+        df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     return df

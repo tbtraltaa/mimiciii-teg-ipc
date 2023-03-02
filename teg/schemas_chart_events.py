@@ -2,13 +2,13 @@ from teg.schemas import *
 
 # {event_name: d_items.label}
 CHART_EVENTS = {
-    #'Braden Activity': ['%Braden Activity%', []],
-    #'Braden Friction/Shear': ['%Braden Frict%', []],
-    #'Braden Mobility': ['%Braden Mobility%', []],
-    #'Braden Moisture': ['%Braden Moisture%', []],
-    #'Braden Nutrition': ['%Braden Nutrition%', []],
-    #'Braden Sensory Perception': ['%Braden Sensory%', []],
-    #'Braden Score': ['%Braden Score%', []],
+    'Braden Activity': ['%Braden Activity%', []],
+    'Braden Friction/Shear': ['%Braden Frict%', []],
+    'Braden Mobility': ['%Braden Mobility%', []],
+    'Braden Moisture': ['%Braden Moisture%', []],
+    'Braden Nutrition': ['%Braden Nutrition%', []],
+    'Braden Sensory Perception': ['%Braden Sensory%', []],
+    'Braden Score': ['%Braden Score%', []],
     }
 
 CHART_EVENTS_NUMERIC = {
@@ -17,7 +17,7 @@ CHART_EVENTS_NUMERIC = {
         'item_col': None,
         'value_col': 'c.value',
         'uom_col': None,
-        'dtype':float,
+        'dtype': float,
         'where': 
             '''
             AND d.label similar to '%Braden Score%'

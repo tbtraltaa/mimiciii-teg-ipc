@@ -2,23 +2,23 @@ from teg.schemas import *
 
 PI_EVENTS = [
     'PI Stage',
-    #'PI Site',
-    #'PI Wound Base',
-    #'PI Drainage',
-    #'PI Odor',
-    #'PI Cleansing',
-    #'PI Treatment',
-    #'PI Pressure-Reduce',
+    'PI Site',
+    'PI Wound Base',
+    'PI Drainage',
+    'PI Odor',
+    'PI Cleansing',
+    'PI Treatment',
+    'PI Pressure-Reduce',
     #'PI position',
-    #'PI Skin Type',
-    #'PI Drainage Amount',
-    #'PI Surrounding Tissue',
-    #'PI Tunneling',
-    #'PI Undermining',
-    #'PI Dressing Status',
-    #'PI Depth',
-    #'PI Width',
-    #'PI Length'
+    'PI Skin Type',
+    'PI Drainage Amount',
+    'PI Surrounding Tissue',
+    'PI Tunneling',
+    'PI Undermining',
+    'PI Dressing Status',
+    'PI Depth',
+    'PI Width',
+    'PI Length'
     ]
 
 #{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>, <cast to dtype>, <where>]

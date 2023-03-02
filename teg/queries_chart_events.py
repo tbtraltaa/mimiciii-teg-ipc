@@ -39,8 +39,6 @@ def get_unique_chart_events(conn, event_name, conf):
         labels = [CHART_EVENTS[event_name][0]]
     #if event_name == 'PI Stage':
     #    ignored_values += [k for k, v in PI_STAGE_MAP.items() if v not in conf['PI_states']]
-    print(event_name)
-    print(labels)
 
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id, "
     cols += f"tb.subject_id, tb.hadm_id, "
@@ -98,15 +96,14 @@ def get_unique_chart_events(conn, event_name, conf):
             if PI_EVENTS_NUMERIC[event_name]['dtype']:
                 df['value'] = df['value'].astype(PI_EVENTS_NUMERIC[event_name]['dtype'])
             df = df[df['value'] > 0]
-            Q  = query_quantiles(conn, conf['quantiles'], **PI_EVENTS_NUMERIC[event_name]) 
+            Q  = query_quantiles(conn, conf['quantiles'], event_name, **PI_EVENTS_NUMERIC[event_name]) 
         else:
             UOM = ""
             if CHART_EVENTS_NUMERIC[event_name]['dtype']:
                 df['value'] = df['value'].astype(CHART_EVENTS_NUMERIC[event_name]['dtype'])
                 df = df[df['value'] > 0]
-            Q  = query_quantiles(conn, conf['quantiles'], **CHART_EVENTS_NUMERIC[event_name]) 
+            Q  = query_quantiles(conn, conf['quantiles'], event_name, **CHART_EVENTS_NUMERIC[event_name]) 
         print(Q)
-        print(event_name)
         df['value_test'] = df['value']
         df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
     # value is used for event comparision
@@ -120,6 +117,9 @@ def get_unique_chart_events(conn, event_name, conf):
     elif event_name in PI_VALUE_MAP:
         df['value'] = df['value'] \
                                 .apply(lambda x: PI_VALUE_MAP[event_name][x])
+    elif event_name in CHART_VALUE_MAP:
+        df['value'] = df['value'] \
+                                .apply(lambda x: CHART_VALUE_MAP[event_name][x])
     else:
         df['value'] = df['value'].apply(lambda x: x.strip().title())
     if event_name == 'PI Skin Type':
@@ -127,10 +127,12 @@ def get_unique_chart_events(conn, event_name, conf):
 
     # Decoupling events by their value
     df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
-    df['duration'] = timedelta(days=0)
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')
     if conf['duration']:
+        df['duration'] = timedelta(days=0)
+        # each row is converted into a dictionary indexed by column names
+        events = df.to_dict('records')
         # calculating event duration for each PI
         events.sort(key=lambda x: (x['id'], x['pi_number'], x['value'], x['t']))
         key = 'value'

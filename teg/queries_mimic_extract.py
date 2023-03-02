@@ -173,7 +173,6 @@ def get_events_vitals_X_mean(conn, conf):
         if h == 0:
             prev = dict()
         for i, col in enumerate(vitals_included):
-            print(['%s'%col for col in vitals.columns])
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
             if pd.isnull(val) or \
                 vitals_stats.loc[col, 'missing percent'] \
@@ -182,7 +181,7 @@ def get_events_vitals_X_mean(conn, conf):
             Q = get_quantile_mimic_extract(val, Qs.loc[:, col])
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -195,7 +194,7 @@ def get_events_vitals_X_mean(conn, conf):
             if i not in prev:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -210,7 +209,7 @@ def get_events_vitals_X_mean(conn, conf):
             elif conf['duration'] and prev[i][0] == Q and prev[i][1] != h - 1:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -223,7 +222,7 @@ def get_events_vitals_X_mean(conn, conf):
             elif Q != prev[i][0]:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -251,7 +250,6 @@ def get_events_vitals_X(conn, conf):
     icu_events = []
     vitals = vitals.loc[(slice(None), slice(
         None), icustays_ids, slice(None)), :]
-    print(vitals.index)
     skip_count = 0
     event_idx = 0
     zero_duration = timedelta(days=0)
@@ -287,7 +285,7 @@ def get_events_vitals_X(conn, conf):
             std_Q = get_quantile_mimic_extract(std, Qs.loc[:, (col, 'std')])
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {mean_Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -303,7 +301,7 @@ def get_events_vitals_X(conn, conf):
             if i not in prev:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {mean_Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -323,7 +321,7 @@ def get_events_vitals_X(conn, conf):
             elif conf['duration'] and prev[i][1] == mean_Q and prev[i][1] != h - 1:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {mean_Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -340,7 +338,7 @@ def get_events_vitals_X(conn, conf):
             elif mean_Q != prev[i][1]:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}' if conf['Q_in_type'] else col,
+                                   'type': col + f' {mean_Q}',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,

@@ -7,6 +7,8 @@ import pprint
 import networkx as nx
 
 from teg.schemas import *
+from teg.schemas_PI import *
+from teg.schemas_chart_events import *
 
 
 def event_difference(e1, e2, join_rules):
@@ -18,6 +20,10 @@ def event_difference(e1, e2, join_rules):
         elif k1 == 'duration' and e2[k1] - e1[k1] <= join_rules['duration_similarity']:
             i += 1
         elif e1['type'] + '-' + k1 in NUMERIC_COLS and not join_rules['include_numeric']:
+            n -= 1
+        elif e1['type'] in CHART_EVENTS_NUMERIC and not join_rules['include_numeric']:
+            n -= 1
+        elif e1['type'] in PI_EVENTS_NUMERIC and not join_rules['include_numeric']:
             n -= 1
         elif k1 in IGNORE_COLS:
             n -= 1
@@ -37,8 +43,6 @@ def subject_difference(s1, s2, join_rules):
     for k1 in s1:
         if k1 == 'dob':
             continue
-        elif k1 == 'age' and abs(s1[k1] - s2[k1]) <= join_rules['age_similarity']:
-            i += 1
         elif s1[k1] == s2[k1]:
             i += 1
     return 1 - i / n

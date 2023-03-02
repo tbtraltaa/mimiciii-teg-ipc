@@ -2,6 +2,7 @@
 #
 data/
 experiments/data/
+experiments/data-incomplete/
 experiments/output/
 .DS_Store
 .*

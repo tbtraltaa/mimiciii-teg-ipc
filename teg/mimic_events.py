@@ -44,6 +44,7 @@ def mimic_events(event_list, join_rules, conf):
     n += len(events)
     print('Interventions', len(events))
     all_events += events
+    '''
     if conf['vitals_X_mean']:
         events = get_events_vitals_X_mean(conn, conf)
     else:
@@ -53,13 +54,14 @@ def mimic_events(event_list, join_rules, conf):
     n += len(events)
     print('Vitals', len(events))
     all_events += events
+    '''
     for event_key in event_list:
         event_name, table, time_col, main_attr = EVENTS[event_key]
         events = get_events(conn, event_key, conf)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
-        print(event_name, len(events))
+        print(event_key, len(events))
         all_events += events
     # Add stage to all events
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
@@ -92,52 +94,53 @@ def mimic_events(event_list, join_rules, conf):
             prev_stage = 0
     for i in sorted(exclude_indices, reverse=True):
         del all_events[i]
-    # join repeated admissions to the first admission as a duplicate
-    p_events = sorted(all_events, key=lambda x: (x['subject_id'], x['datetime']))
-    e1 = None
-    t_0 = None
-    idd = None
-    adm_num = 1
-    sub_adm_events = []
-    duplicate = False
-    for e2 in p_events:
-        if e1 is not None:
-            if e1['subject_id'] != e2['subject_id']:
-                t_0 = None
-                idd = None
-                adm_num = 1
-                duplicate = False
-        # first admission of a patient
-        if e2['type'] == 'admissions' and t_0 is None and idd is None:
-            t_0 = e2['datetime']
-            idd = e2['id']
-            e2['adm_num'] = adm_num
-            e1 = e2
-            duplicate = False
-        # subsequent admission of a patient
-        elif e2['type'] == 'admissions' and t_0 is not None and idd is not None:
-            e_tmp = copy.deepcopy(e2)
-            e_tmp['id'] = idd
-            e_tmp['t'] = e_tmp['datetime'] - t_0
-            adm_num += 1
-            e_tmp['adm_num'] = adm_num
-            sub_adm_events.append(e_tmp)
-            e1 = e2
-            duplicate = True
-        # events after a subsequent admission
-        elif duplicate and t_0 is not None and idd is not None:
-            e_tmp = copy.deepcopy(e2)
-            e_tmp['id'] = idd
-            e_tmp['t'] = e_tmp['datetime'] - t_0
-            e_tmp['adm_num'] = adm_num
-            sub_adm_events.append(e_tmp)
-            e1 = e2
-        # events during the first admission
-        else:
-            e2['adm_num'] = adm_num
 
-    print("Subsequent admission events: ", len(sub_adm_events))
-    all_events += sub_adm_events
+    if conf['subsequent_adm']:
+        # join repeated admissions to the first admission as a duplicate
+        p_events = sorted(all_events, key=lambda x: (x['subject_id'], x['datetime']))
+        e1 = None
+        t_0 = None
+        idd = None
+        adm_num = 1
+        sub_adm_events = []
+        duplicate = False
+        for e2 in p_events:
+            if e1 is not None:
+                if e1['subject_id'] != e2['subject_id']:
+                    t_0 = None
+                    idd = None
+                    adm_num = 1
+                    duplicate = False
+            # first admission of a patient
+            if 'Admissions' in e2['type'] and t_0 is None and idd is None:
+                t_0 = e2['datetime']
+                idd = e2['id']
+                e2['adm_num'] = adm_num
+                e1 = e2
+                duplicate = False
+            # subsequent admission of a patient
+            elif 'Admissions' in e2['type'] and t_0 is not None and idd is not None:
+                e_tmp = copy.deepcopy(e2)
+                e_tmp['id'] = idd
+                e_tmp['t'] = e_tmp['datetime'] - t_0
+                adm_num += 1
+                e_tmp['adm_num'] = adm_num
+                sub_adm_events.append(e_tmp)
+                e1 = e2
+                duplicate = True
+            # events after a subsequent admission
+            elif duplicate and t_0 is not None and idd is not None:
+                e_tmp = copy.deepcopy(e2)
+                e_tmp['id'] = idd
+                e_tmp['t'] = e_tmp['datetime'] - t_0
+                e_tmp['adm_num'] = adm_num
+                sub_adm_events.append(e_tmp)
+                e1 = e2
+            # events during the first admission
+            else:
+                e2['adm_num'] = adm_num
+        print("Subsequent admission events: ", len(sub_adm_events))
+        all_events += sub_adm_events
     all_events.sort(key=lambda x: (x['type'], x['t']))
     for i in range(len(all_events)):
         all_events[i]['i'] = i

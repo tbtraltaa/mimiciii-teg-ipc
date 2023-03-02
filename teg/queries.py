@@ -97,11 +97,19 @@ def get_events(conn, event_key, conf):
     ID_cols = f'''
         CONCAT(tb.subject_id, '-', tb.hadm_id) as id,
         tb.subject_id as subject_id, tb.hadm_id as hadm_id,
-        CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,
         RTRIM(INITCAP({main_attr}), '.') as item_col,
         {t_table}.{time_col} - a.admittime as t,
         {t_table}.{time_col} as datetime,
         '''
+    # Not to initcap care unit and services abbreviations
+    initcap = True
+    for e in LOGISTIC_EVENTS:
+        if e in event_name:
+            initcap = False
+    if initcap:
+        ID_cols += f"CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,"
+    else:
+        ID_cols += f"CONCAT('{event_name}', '-', RTRIM({main_attr}, '.')) as type,"
     cols = ID_cols + cols
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
@@ -152,8 +160,12 @@ def get_events(conn, event_key, conf):
             FROM {schema}.prescriptions
             WHERE drug is NOT NULL
             AND dose_val_rx is NOT NULL
-            AND TRIM(dose_val_rx) != '0'
-            AND TRIM(dose_val_rx) != '0.0'
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0.0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0.0'
+            AND split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            AND split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*'
             GROUP BY RTRIM(INITCAP(drug), '.')
             '''
         drug_freq = pd.read_sql_query(q, conn)
@@ -167,8 +179,12 @@ def get_events(conn, event_key, conf):
             AND tb.drug IS NOT NULL
             AND tb.dose_val_rx is NOT NULL
             AND tb.dose_unit_rx is NOT NULL
-            AND TRIM(tb.dose_val_rx) != '0'
-            AND TRIM(tb.dose_val_rx) != '0.0'
+            AND split_part(TRIM(tb.dose_val_rx), ' ', 1) != '0'
+            AND split_part(TRIM(tb.dose_val_rx), ' ', 1) != '0.0'
+            AND split_part(TRIM(tb.dose_val_rx), '-', 1) != '0'
+            AND split_part(TRIM(tb.dose_val_rx), '-', 1) != '0.0'
+            AND split_part(TRIM(tb.dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            AND split_part(TRIM(tb.dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*'
             '''
     if 'Input' in event_name:
         # filter by frequency percentile range
@@ -201,7 +217,9 @@ def get_events(conn, event_key, conf):
         max_count = np.nanpercentile(freq['count'], conf['input_percentile'][1])
         freq = freq[freq['count']>= min_count]
         freq = freq[freq['count'] <= max_count]
-        inputs = tuple([v for v in freq.index])
+        # escaping ' with '' for querying
+        inputs = str(tuple([v.replace("'", "''") if "'" in v else v for v in freq.index]))
+        inputs = inputs.replace('"', "'")
         where += f''' 
             AND RTRIM(INITCAP(d.label), '.') in {inputs}
             AND tb.amount is NOT NULL
@@ -220,35 +238,39 @@ def get_events(conn, event_key, conf):
         uom_col = None
         if f'{event_name}-{col}' not in NUMERIC_COLS:
             continue
+        args = NUMERIC_COLS[f'{event_name}-{col}']
         if event_name == 'Input':
-            args = NUMERIC_COLS[f'{event_name}-{col}']
-            Q  = query_quantiles_Input(conn, conf['quantiles'], args) 
             uom_col = 'amountuom'
+        elif args['uom_col']:
+            uom_col = args['uom_col']
+        if not conf['include_numeric'] and uom_col:
+            df[col] = df[col].astype(str) + ' ' + df[uom_col]
+            df = df.drop([uom_col], axis=1)
+            continue
+        if not conf['include_numeric']:
+            continue
+        if event_name == 'Input':
+            Q  = query_quantiles_Input(conn, conf['quantiles'], args) 
         else:
-            args = NUMERIC_COLS[f'{event_name}-{col}']
-            Q  = query_quantiles(conn, conf['quantiles'], **args) 
-            if args['uom_col']:
-                uom_col = args['uom_col']
+            Q  = query_quantiles(conn, conf['quantiles'], event_name, **args) 
         # compute percentiles for numeric values withuom
-        if uom_col and conf['include_numeric']:
+        if uom_col:
             df['value_test'] = df[col]
             # due to apply error in pandas, a loop is used
             vals = list()
             for idx, row in df.iterrows():
                 vals.append(get_quantile_uom(row, 'item_col', col, uom_col, Q))
             df[col] = vals
+            # add uom to numeric values
+            # drop unit of measure column
+            df[col] = df[col].astype(str) + ' ' + df[uom_col]
+            df = df.drop([uom_col], axis=1)
         # compute percentiles for numeric values without uom
-        elif conf['include_numeric']:
+        else:
             df['value_test'] = df[col]
             df[col] = df[col].apply(lambda x: get_quantile(x, Q))
-        # add uom to numeric values
-        # drop unit of measure column
-        if uom_col:
-            df[col] = df[col].astype(str) + ' ' + df[uom_col]
-            df.drop([uom_col], axis=1)
         # include percentiles in event type
-        if conf['include_numeric']:
-            df['type'] = df['type'] + ' ' + df[col]
+        df['type'] = df['type'] + ' ' + df[col]
     df.drop(['item_col'], axis=1)
     if conf['duration']:
         df['duration'] = timedelta(days=0)

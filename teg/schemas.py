@@ -1,7 +1,9 @@
 schema = 'mimiciii'
 
 # attributes of an event, not used for comparison
-EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime', 'adm_num']
+EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime']
+
+LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services']
 
 # {<table_name>: [<columns>]}
 PATIENTS = {
@@ -23,11 +25,11 @@ EVENTS = {
     # Patient tracking events
     'Admissions': ['Admissions', 'admissions', 'admittime', 'tb.admission_location'],
     'Discharges': ['Discharges', 'admissions', 'dischtime', 'tb.discharge_location'],
-    #'ICU In': ['ICU In', 'icustays', 'intime', 'tb.first_careunit'],
-    #'ICU Out': ['ICU Out', 'icustays', 'outtime', 'tb.last_careunit'],
-    #'Callout': ['Callout', 'callout', 'outcometime', 'tb.callout_service'],
-    #'Transfer In': ['Transfer In', 'transfers', 'intime', 'tb.curr_careunit'],
-    #'Transfer Out': ['Transfer Out', 'transfers', 'outtime', 'tb.curr_careunit'],
+    'ICU In': ['ICU In', 'icustays', 'intime', 'tb.first_careunit'],
+    'ICU Out': ['ICU Out', 'icustays', 'outtime', 'tb.last_careunit'],
+    'Callout': ['Callout', 'callout', 'outcometime', 'tb.callout_service'],
+    'Transfer In': ['Transfer In', 'transfers', 'intime', 'tb.curr_careunit'],
+    'Transfer Out': ['Transfer Out', 'transfers', 'outtime', 'tb.curr_careunit'],
 
     # ICU Events
     #'Chart': [8, 'chartevents', 'charttime'],
@@ -65,11 +67,11 @@ EVENTS = {
 NUMERIC_COLS = {
     #{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>]
     'Input-amount':[[
-        f'{schema}.inputevents_CV t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
+        f'{schema}.inputevents_cv t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
         'd.label',
         't.amount',
         't.amountuom',],
-        [f'{schema}.inputevents_MV t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
+        [f'{schema}.inputevents_mv t INNER JOIN {schema}.d_items d on t.itemid=d.itemid',
         'd.label',
         't.amount',
         't.amountuom',
@@ -227,16 +229,12 @@ EVENT_COLS_INCLUDE = {
     'Presc Start': [
         'drug',
         'dose_val_rx',
-        'dose_unit_rx'
-        # take only positive values
-        # exclude NULL
+        'dose_unit_rx',
         ],
     'Presc End': [
         'drug',
         'dose_val_rx',
-        'dose_unit_rx'
-        # take only positive values
-        # exclude NULL
+        'dose_unit_rx',
         ]
 }
 
@@ -246,6 +244,7 @@ IGNORE_COLS = [
     'icustay_id',
     'pi_number',
     'pi_stage',
+    'pi_state',
     # labs and inteventions
     'intervention-count'
     'vitals-mean',
@@ -255,6 +254,7 @@ IGNORE_COLS = [
     'count_Q',
     'std_Q',
     'cptdesc',
+    'adm_num'
 ]
 
 FLOAT_COLS = [  # 'chartevents-valuenum',

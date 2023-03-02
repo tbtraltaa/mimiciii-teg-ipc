@@ -5,8 +5,6 @@ def get_quantile(val, Q):
         val = float(val)
     prev_q = 0
     prev_idx = 0
-    print(val)
-    print(Q)
     for idx in Q.index:
         if Q.loc[prev_q][0] <= val and val < Q.loc[idx][0]:
             break
@@ -21,7 +19,6 @@ def get_quantile(val, Q):
     #    val1 = ''
     if q == 100:
         val2 = ''
-    print(f'{prev_q}-{q}P, {val1}-{val2}')
     return f'{prev_q}-{q}P, {val1}-{val2}'
 
 def get_quantile_mimic_extract(val, Q):
@@ -29,8 +26,6 @@ def get_quantile_mimic_extract(val, Q):
         val = float(val)
     prev_q = 0
     prev_idx = 0
-    print('Q', Q)
-    print('Value', val)
     for idx in Q.index:
         if Q.loc[prev_q] <= val and val < Q.loc[idx]:
             break
@@ -45,15 +40,12 @@ def get_quantile_mimic_extract(val, Q):
     #    val1 = ''
     if q == 100:
         val2 = ''
-    print(f'{prev_q}-{q}P, {val1}-{val2}')
     return f'{prev_q}-{q}P, {val1}-{val2}'
 
 def get_quantile_uom(row, item_col, val_col, uom_col, Q):
-    print('Hi')
     val = row[val_col]
     uom = row[uom_col]
     item = row[item_col]
-    Q_item = pd.DataFrame(Q.loc[(item, uom), :], index=Q.columns)
-    print('Q_item', Q_item)
+    Q_item = pd.DataFrame(Q.loc[(item, uom), :].values, index=Q.columns)
     val_P = get_quantile(val, Q_item)
     return val_P
