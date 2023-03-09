@@ -2,7 +2,10 @@ import pandas as pd
 
 def get_quantile(val, Q):
     if type(val) == str:
-        val = float(val)
+        if '-' in val:
+            val = float(val.split('-')[0])
+        else:
+            val = float(val)
     prev_q = 0
     prev_idx = 0
     for idx in Q.index:

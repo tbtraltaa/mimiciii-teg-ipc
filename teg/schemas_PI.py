@@ -193,6 +193,23 @@ PI_STAGE_MAP = {
         'To Bone': 4,
         'Deep Tiss Injury': 5}
 
+STAGE_PI_MAP = {
+    # CV, MV
+    1: ['Red; unbroken', 'Red, Unbroken', 'Intact,Color Chg'],
+    2: ['Partial thickness skin loss through epidermis and/or dermis; '\
+    'ulcer may present as an abrasion, blister, or shallow crater',
+    'Partial thickness skin loss through epidermis and/or dermis; '\
+    'ulcer may present as  an abrasion, blister, or shallow crater',
+    'Part. Thickness',
+    'Through Dermis'],
+    3: ['Full thickness skin loss that may extend down to underlying fascia; '\
+    'ulcer may have tunneling or undermining',
+    'Full Thickness'],
+    4: ['Full thickness skin loss with damage to muscle, bone, or supporting '\
+    'structures; tunneling or undermining may be present',
+    'To Bone'],
+    5: ['Deep tissue injury', 'Deep Tiss Injury']}
+
 PI_VALUE_MAP = {
     'PI Site': {
         'Abdomen': 'Abdomen',

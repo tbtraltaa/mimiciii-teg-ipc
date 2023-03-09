@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import sys
-import psycopg2
 import pprint
 from datetime import timedelta
 import copy
@@ -18,7 +17,7 @@ from teg.utils import *
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
 
-def get_unique_chart_events(conn, event_name, conf):
+def get_chart_events(conn, event_name, conf):
     '''
     Returns PI events within the given time window.
     '''
@@ -45,22 +44,55 @@ def get_unique_chart_events(conn, event_name, conf):
     cols += f"'{event_name}' as type, "
     cols += f"tb.{time_col} - a.admittime as t, "
     cols += f"tb.{time_col} as datetime, "
-    cols += f"tb.value as value, "
+    if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
+        cols += f"split_part(tb.value, ' ', 1) as value, " 
+        if conf['distinct_chart']:
+            # Take max value events for a day
+            # Ignoring PI numbers
+            cols += f''' row_number() over (partition by 
+                tb.subject_id, tb.hadm_id,
+                cast(split_part(tb.value, ' ', 1) as double precision),
+                EXTRACT(DAY FROM tb.{time_col} - a.admittime)
+                order by cast(split_part(tb.value, ' ', 1) as double precision) DESC), '''
+    else:
+        cols += f"tb.value as value, "
+        if conf['distinct_chart']:
+            # Take unique value events for a day
+            # Ignoring PI numbers
+            cols += f''' row_number() over (partition by 
+                tb.subject_id, tb.hadm_id, tb.value,
+                EXTRACT(DAY FROM tb.{time_col} - a.admittime)
+                order by tb.charttime), '''
     if event_name in PI_EVENTS:
         cols += f"regexp_replace(d.label, '\\D+', '', 'g') as pi_number, "
-    cols += f"tb.icustay_id, d.dbsource, "  # extra info
-    # Take the first occurance of the chart event for a day
-    cols += 'row_number() over (partition by ' + \
-        f'tb.subject_id, tb.hadm_id, tb.icustay_id, tb.value, d.label' + \
-        f', EXTRACT(DAY FROM tb.{time_col} - a.admittime)' + \
-        f' order by tb.charttime )'
-
+    cols += f"tb.icustay_id, d.dbsource "  # extra info
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
     table += f' INNER JOIN {schema}.d_items d'
     table += f' ON tb.itemid = d.itemid'
+    if conf['PI_only']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        values = STAGE_PI_MAP[conf['PI_states'][1]]
+        pi_where = f"(TRIM(value)='{values[0]}'"
+        if len(values) > 1:
+            for value in values[1:]:
+                pi_where += f" OR TRIM(value)='{value}'"
+        pi_where += ")"
+        pi_where += ' AND value is NOT NULL'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
+        table += f''' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'''
     where = 'tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
@@ -70,12 +102,20 @@ def get_unique_chart_events(conn, event_name, conf):
     where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
     if conf['starttime'] and conf['endtime']:
         where += f" AND tb.{time_col} >= '{conf['starttime']}'"
-        where += f" AND tb.{time_col} < '{conf['endtime']}'"
+        where += f" AND tb.{time_col} <= '{conf['endtime']}'"
+        where += f" AND a.admittime >= '{conf['starttime']}'"
+        where += f" AND a.admittime < '{conf['endtime']}'"
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
     where += f' AND tb.{time_col} >= a.admittime'
     where += f' AND tb.{time_col} <= a.dischtime'
     where += f' AND tb.value is NOT NULL'
+    if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
+        where += f'''
+            AND split_part(TRIM(tb.value), ' ', 1) != '0'
+            AND split_part(TRIM(tb.value), ' ', 1) != '0.0'
+            AND split_part(TRIM(tb.value), ' ', 1) similar to '\+?\d*\.?\d*'
+            ''' 
     where += f" AND (d.label similar to '{labels[0]}'"
     if len(labels) > 1:
         for label in labels[1:]:
@@ -84,11 +124,14 @@ def get_unique_chart_events(conn, event_name, conf):
     for value in ignored_values:
         where += f" AND tb.value not similar to '{value}'"
     order_by = f'ORDER BY t ASC'
-    query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
-    query += f" WHERE row_number=1 {order_by}"
-
-    df = pd.read_sql_query(query, conn)
-    df.drop(['row_number'], axis=1, inplace=True)
+    if conf['distinct_chart']:
+        query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
+        query += f" WHERE row_number=1 {order_by}"
+        df = pd.read_sql_query(query, conn)
+        df.drop(['row_number'], axis=1, inplace=True)
+    else:
+        query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
+        df = pd.read_sql_query(query, conn)
     UOM = ""
     if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
         if event_name in PI_EVENTS_NUMERIC:
@@ -112,14 +155,14 @@ def get_unique_chart_events(conn, event_name, conf):
     #    df['value'] = df['value'].apply(lambda x: float(x.strip().split()[0]))
     elif event_name == 'PI Stage':
         df['value'] = df['value'] \
-                            .apply(lambda x: PI_STAGE_MAP[x])
+            .apply(lambda x: PI_STAGE_MAP[x])
         df['pi_stage'] = df['value']
     elif event_name in PI_VALUE_MAP:
         df['value'] = df['value'] \
-                                .apply(lambda x: PI_VALUE_MAP[event_name][x])
+                                .apply(lambda x: PI_VALUE_MAP[event_name][x.strip()])
     elif event_name in CHART_VALUE_MAP:
         df['value'] = df['value'] \
-                                .apply(lambda x: CHART_VALUE_MAP[event_name][x])
+                                .apply(lambda x: CHART_VALUE_MAP[event_name][x.strip()])
     else:
         df['value'] = df['value'].apply(lambda x: x.strip().title())
     if event_name == 'PI Skin Type':
@@ -129,6 +172,18 @@ def get_unique_chart_events(conn, event_name, conf):
     df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')
+    if event_name == 'PI Stage':
+        # take maximum stage of a day
+        sorted_events = sorted(events, key=lambda x: (x['id'], x['t'].days, -x['pi_stage']))
+        id_ = None
+        day = None
+        events_daily_max = []
+        for e in sorted_events:
+            if e['id'] != id_ or e['t'].days!= day:
+                events_daily_max.append(e)
+                id_ = e['id']
+                day = e['t'].days
+        events = events_daily_max
     if conf['duration']:
         df['duration'] = timedelta(days=0)
         # each row is converted into a dictionary indexed by column names

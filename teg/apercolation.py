@@ -143,17 +143,12 @@ def algebraic_PC_with_paths(Adj, states, normalize=False):
                     w = delta / S_exclude_v
                     if (s, t) not in paths:
                         paths[(s,t)] = st_paths(pred[s], s, t)
+                        for p in paths[(s, t)]:
+                            V.update(p)
                     for p in paths[(s, t)]:
                         if v in p:
                             v_paths[v].append(p)
-                            V.update(p)
                     PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
-                    if v in PC.indices:
-                        PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    else:
-                        PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
     return PC, V, v_paths
 
 def st_paths(pred, s, t):

@@ -14,20 +14,21 @@ from teg.schemas import *
 from teg.mimic_events import *
 from teg.eventgraphs import *
 from teg.percolation import PC_with_target, percolation_centrality_with_target
-from teg.apercolation import algebraic_PC_with_paths
+from teg.apercolation import *
 
 # Experiment configuration
 conf = {
     'duration': False,
-    #'max_hours': 720,
-    'max_hours': 168,
+    'max_hours': 720,
+    #'max_hours': 168,
+    #'max_hours': 336,
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
     'starttime': '2143-01-14',
-    'endtime': '2143-01-21',
-    #'endtime': '2143-02-14',
-    'min_missing_percent': 0,
+    #'endtime': '2143-01-21',
+    'endtime': '2143-02-14',
+    'min_missing_percent': 80,
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -35,14 +36,19 @@ conf = {
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [90, 100],
-    'Top_n_PC': 15,
-    'PI_vitals': False,
-    'skip_repeat': True,
+    'PI_only': False, # PI patients slow to query chartevents
+    'PI_patients': True, # Delete non PI patients after querying all events
+    'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
+    'distinct_chart': True, # Take chart events with distinct values per day
+    'scale_PC': False, # scale by max_PC
+    'Top_n_PC': 20,
+    'PI_vitals': False, # Use a list of vitals related to PI
+    'skip_repeat': False,
     'quantiles': np.arange(0, 1.01, 0.1),
     'drug_percentile': [40, 50],
-    'input_percentile': [40, 100],
+    'input_percentile': [40, 50],
     'include_numeric': True,
-    'subsequent_adm': False
+    'subsequent_adm': False,
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
@@ -87,16 +93,27 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     states = np.zeros(n)
     for e in events:
         states[e['i']] = e['pi_state']
-    start = time.time()
     #G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
-
-    PC_vals, V, paths = algebraic_PC_with_paths(A, states=states)
-    PC = dict()
-    for i, val in enumerate(PC_vals):
-        PC[i] = float(val)
+    #start = time.time()
+    #PC_vals = algebraic_PC(A, states=states)
+    #print("Time for PC without paths", float(time.time() - start)/60.0)
+    start = time.time()
+    PC_values, V, paths = algebraic_PC_with_paths(A, states=states)
     print(float(time.time() - start)/60.0)
-    PC_sorted_events = [[k, v, events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True) if v > 0]
+    print('PC_values', PC_values)
+    PC = dict()
+    PC_all = dict()
+    max_PC = float(max(PC_values))
+    min_PC = float(min(PC_values))
+    PC_vals = []
+    for i, val in enumerate(PC_values):
+        v = float(val) / max_PC if conf['scale_PC'] else float(val)
+        PC_vals.append(v)
+        PC_all[i] = v
+        if val > 0:
+            PC[i] = v
+    PC_sorted_events = [[k, v, events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True)]
     pprint.pprint(PC_sorted_events[:11])
     '''
     PC_top = dict()
@@ -110,31 +127,30 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     pprint.pprint([e for e in events if e['type']=='admissions' or e['type'] =='discharges'])
     pprint.pprint(PC_top, sort_dicts=False)
     '''
-    V_nz = [i for i, v in enumerate(PC_vals) if v > 0]
-    plot_PC(events, PC_vals, V_nz, conf)
-    print("Nodes with nonzero PC", len(V_nz))
+    plot_PC(events, PC, conf, nbins=30)
+    print("Nodes with nonzero PC", len(PC))
 
-    PC_nz = [v for v in PC.values() if v > 0]
-    _min = np.min(PC_nz)
-    _max = np.max(PC_nz)
+    PC_nz = list(PC.values())
     P_min = np.percentile(PC_nz, conf['PC_percentile'][0])
     P_max = np.percentile(PC_nz, conf['PC_percentile'][1])
     print("Nonzero PC", len(PC_nz))
-    print("Min, Max PC", _min, _max)
+    print("Min, Max PC", min_PC, max_PC)
+    print("Min, Max PC scaled", min(PC_nz), max(PC_nz))
     print("Percentile", P_min, P_max)
-    V_percentile = [i for i, v in enumerate(PC_vals) if v >= P_min and v <= P_max and v != 0]
-    print("Nodes above percentile", len(V_percentile))
-    plot_PC(events, PC_vals, V_percentile, conf, conf['PC_percentile'])
+    PC_P = dict([(i, v) for i, v in PC.items() if v >= P_min and v <= P_max])
+    print("Nodes above percentile", len(PC_P))
+    plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
 
     if vis:
-        G = build_networkx_graph(A, events, patients, PC, paths, conf)
+        G = build_networkx_graph(A, events, patients, PC_all, paths, conf)
         file_name += "_Q" + str(len(conf['quantiles']))
         visualize_SP_tree(G, V, paths, file_name+"SP")
-        visualize_SP_tree(G, V_percentile, paths, file_name+"SP_percentile")
+        visualize_SP_tree(G, list(PC_P.keys()), paths, file_name+"SP_percentile")
         attrs = dict([(e['i'], e['type']) for e in events])
-        visualize_graph(G, V, paths, file_name+"all")
+        if conf['max_hours'] <= 168 or conf['PI_patients']:
+            visualize_graph(G, V, paths, file_name+"all")
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, V_percentile, file_name+"V_percentile")
+        visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
 
 
 def build_networkx_graph(A, events, patients, PC, paths, conf):
@@ -153,8 +169,11 @@ def build_networkx_graph(A, events, patients, PC, paths, conf):
     shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
     shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
     nx.set_node_attributes(G, shapes, 'shape')
-    max_PC = max(PC.values())
-    PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v/max_PC * 120) for i, v in PC.items()])
+    if not conf['scale_PC']:
+        max_PC = max(PC.values())
+        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v/max_PC * 120) for i, v in PC.items()])
+    else:
+        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v * 120) for i, v in PC.items()])
     nx.set_node_attributes(G, PC_scaled, 'size')
     #nx.set_node_attributes(G, PC_scaled, 'value')
     attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
@@ -184,23 +203,6 @@ def visualize_SP_tree(G, V, paths, file_name):
     g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=False)
     # g.barnes_hut()
     g.toggle_physics(True)
-    '''
-    options = {
-                    "font": {
-                      "size": 35
-                    },
-                    "selfReference": {
-                      "angle": 0.7853981633974483
-                    },
-                  "physics": {
-                    "barnesHut": {
-                      "springLength": 175
-                    },
-                    "minVelocity": 0.75
-                  }
-                }
-    g.set_options(options)
-    '''
     g.show_buttons()
 
     print(nx.is_directed_acyclic_graph(G))
@@ -358,31 +360,64 @@ def build_networkx_graph_example(A, events, patients, PC, paths, conf):
     return G
 
 
-def plot_PC(events, PC_vals, V, conf, percentile=''):
+def plot_PC(events, PC, conf, percentile='', nbins=30):
+    PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
+    #df = pd.DataFrame({'type': list(PC_type.keys()), 'val': list(PC_type.values())})
+    #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
     plt.figure(figsize=(10, 6))
-    PC_V = [PC_vals[i] for i in V if PC_vals[i] > 0]
-    plt.hist(np.array(PC_V), bins=30, rwidth=0.7)
     plt.title("PC value distribution " + str(percentile))
+    plt.hist(list(PC.values()), bins=30, rwidth=0.7)
     plt.xlabel("Nonzero PC values")
     plt.xscale("log")
     plt.yscale("log")
     plt.ylabel("Frequency")
     plt.show()
+
     plt.figure(figsize=(10, 6))
-    plt.hist(np.log10(np.array(PC_V)), bins=20, rwidth=0.7)
+    #df['val_log10'] = np.log10(list(PC.values()))
+    #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
     plt.title("PC value distribution after Log transformation " + str(percentile))
+    plt.hist(np.log10(list(PC.values())), bins=20, rwidth=0.7)
     plt.xlabel("Nonzero PC values")
     #plt.yscale("log")
     plt.ylabel("Frequency")
     plt.show()
 
+    '''
+        fig = plt.figure(figsize=(10, 6))
+        ax = fig.add_subplot(111, projection='3d')
+        PC_tt = dict()
+        for t, v in PC_t.items():
+            if t not in PC_t:
+                PC_tt[t] = [v]
+            else:
+                PC_tt[t].append(v)
+        ys = []
+        cmap = plt.get_cmap('inferno')
+        for i, t in enumerate(PC_tt):
+            hist, bins = np.histogram(PC_tt[t], bins=nbins)
+            xs = (bins[:-1] + bins[1:])/2
+            ys.append(i * 10)
+            ax.bar(xs, hist, zs=i*10, zdir='y', color=cmap(i), alpha=0.8)
+        ax.set_xlabel('PC Value')
+        ax.set_ylabel('Event types')
+        ax.set_zlabel('Frequency')
+        ax.set_yticks(ys, labels=list(PC_tt.keys()), fontsize=14)
+        plt.show()
+    '''
+
     plt.figure(figsize=(10, 6))
-    PC_vals_dict = dict([(events[i]['type'], v) for i, v in enumerate(PC_vals) if v > 0])
-    PC_vals_dict = dict(sorted(PC_vals_dict.items(), key=lambda x: x[1]))
-    y_pos  =  range(0, 2*len(list(PC_vals_dict.keys())), 2)
-    plt.barh(y_pos, list(PC_vals_dict.values())[:conf['Top_n_PC']], align='center')
-    plt.yticks(y_pos, labels=list(PC_vals_dict.keys())[:conf['Top_n_PC']])
-    plt.title(f"Top {conf['Top_n_PC']} PC Events" + str(percentile))
+    PC_t_sorted = dict(sorted(PC_t.items(), key=lambda x: x[1], reverse=True))
+    top_n = conf['Top_n_PC'] if len(PC_t) > conf['Top_n_PC'] else len(PC_t)
+    vals = []
+    labels = []
+    for key in list(PC_t_sorted.keys())[:top_n]:
+        labels = [key] + labels
+        vals = [PC_t_sorted[key]] + vals
+    y_pos  =  range(0, 2*len(PC_t), 2)[:top_n]
+    plt.barh(y_pos, vals, align='center')
+    plt.yticks(y_pos, labels=labels, fontsize=14)
+    plt.title(f"Top {top_n} PC Events" + str(percentile))
     plt.xlabel("PC Value")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
@@ -391,23 +426,21 @@ def plot_PC(events, PC_vals, V, conf, percentile=''):
     plt.show()
 
     plt.figure(figsize=(10, 6))
-    PC_V_n = len(PC_V)
+    PC_n = len(PC)
     PC_freq = dict()
     PC_sum = dict()
     PC_total = 0
-    for i in V:
+    for i, val in PC.items():
         etype = events[i]['type']
-        PC_total += PC_vals[i]
-        if PC_vals[i] <= 0:
-            continue
+        PC_total += val
         if etype not in PC_freq:
             PC_freq[etype] = 1
-            PC_sum[etype] = PC_vals[i]
+            PC_sum[etype] = val
         else:
             PC_freq[etype] += 1
-            PC_sum[etype] += PC_vals[i]
+            PC_sum[etype] += val
     PC_freq = dict(sorted(PC_freq.items(), key=lambda x: x[1]))
-    y_pos  =  range(0, 2*len(list(PC_freq.keys())), 2)
+    y_pos  =  range(0, 2*len(PC_freq), 2)
     plt.barh(y_pos, PC_freq.values(), align='center')
     plt.yticks(y_pos, labels=list(PC_freq.keys()))
     plt.title("PC Event Type Distribution " + str(percentile))
@@ -421,24 +454,25 @@ def plot_PC(events, PC_vals, V, conf, percentile=''):
     PC_w = dict()
     PC_p = dict()
     for k, f in PC_freq.items():
-        PC_w[k] = PC_sum[k]* f/PC_V_n
+        PC_w[k] = PC_sum[k]* f/PC_n
         PC_p[k] = PC_sum[k]/PC_total
     PC_w = dict(sorted(PC_w.items(), key=lambda x: x[1]))
     PC_p = dict(sorted(PC_p.items(), key=lambda x: x[1]))
     #plt.bar(PC_w.keys(), PC_w.values(), width=0.5, align='center')
-    y_pos  =  range(0, 2*len(list(PC_w.keys())), 2)
-    plt.barh(y_pos, PC_w.values(), align='center')
+    y_pos  =  range(0, 2*len(PC_w), 2)
+    plt.barh(y_pos, list(PC_w.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_w.keys()))
     plt.title("Weighted Average PC " + str(percentile))
     plt.xlabel("Weighted Average PC")
     plt.xscale("log")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
-    plt.subplots_adjust(bottom=0.15)
+    #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
     plt.show()
 
-    plt.barh(y_pos, PC_p.values(), align='center')
+    plt.figure(figsize=(10, 6))
+    plt.barh(y_pos, list(PC_p.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_p.keys()))
     plt.title("Portion of total PC" + str(percentile))
     plt.xlabel("Portion of total PC")
@@ -462,14 +496,12 @@ if __name__ == "__main__":
         'max_hours',
         'starttime',
         'endtime',
-        'min_missing_percent',
-        'vitals_X_mean',
-        'vitals_agg',
         'PC_percentile',
         'drug_percentile',
         'input_percentile',
-        'skip_repeat',]
-    fname_LF = 'output/AllInputTEG'
+        'skip_repeat',
+        'PI_patients']
+    fname_LF = 'output/DebugTEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])
     fname_LF += '_' + '_'.join([k + '-' + str(v)

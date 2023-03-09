@@ -18,12 +18,13 @@ from teg.queries import *
 def mimic_events(event_list, join_rules, conf):
     conn = get_db_connection()
     patients = get_patient_demography(conn, conf)
+    print('Patients', len(patients))
     all_events = list()
     n = 0
     for event_name in PI_EVENTS:
         if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
             continue
-        events = get_unique_chart_events(conn, event_name, conf)
+        events = get_chart_events(conn, event_name, conf)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
@@ -32,7 +33,7 @@ def mimic_events(event_list, join_rules, conf):
     for event_name in CHART_EVENTS:
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
-        events = get_unique_chart_events(conn, event_name, conf)
+        events = get_chart_events(conn, event_name, conf)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
@@ -69,30 +70,45 @@ def mimic_events(event_list, join_rules, conf):
     max_stage = max(conf['PI_states'].keys())
     exclude_indices = []
     stage = 0
-    prev_stage = 0
+    PI = False
+    non_PI_ids = []
+    non_PI_events = []
     for i, e in enumerate(sorted_events):
-        # PI stage
-        if e['type'] == 'PI stage':
-            stage = e['pi_stage']
-        # PI related events before stage I is considered as stage 1
-        include = True
-        if stage < min_stage or stage > max_stage:
-            include = False
+        # consider events till the first PI stage
+        if not PI:
+            # PI stage
+            if e['type'] == 'PI stage':
+                stage = e['pi_stage']
+            # PI related events before stage I is considered as stage I
+            if stage < min_stage or stage > max_stage:
+                exclude_indices.append(e['i'])
+            elif stage == max_stage:
+                all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                PI = True
+            elif min_stage <= stage and stage < max_stage:
+                if stage == 0 and \
+                    e['type'] != 'PI stage' and \
+                    'PI' in e['type'] and \
+                    conf['PI_as_stage'] and \
+                    max_stage == 1:
+                    stage = 1
+                    PI = True
+                all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                all_events[e['i']]['pi_stage'] = stage
+        else:
+            # exlude events after maximum PI stage event
             exclude_indices.append(e['i'])
-        # exclude events after max stage
-        if stage == max_stage and stage == prev_stage:
-            include= False
-            exclude_indices.append(e['i'])
-        if include:
-            if stage == 0 and e['type'] != 'PI stage' and 'PI' in e['type']:
-                stage = 1
-            all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
-            all_events[e['i']]['pi_stage'] = stage
-        prev_stage = stage
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
+            if not PI:
+                non_PI_ids.append(e['id'])
+            PI = False
             stage = 0
-            prev_stage = 0
-    for i in sorted(exclude_indices, reverse=True):
+
+    if conf['PI_patients']:
+        for e in all_events:
+            if e['id'] in non_PI_ids:
+                non_PI_events.append(e['i'])
+    for i in sorted(set(exclude_indices + non_PI_events), reverse=True):
         del all_events[i]
 
     if conf['subsequent_adm']:

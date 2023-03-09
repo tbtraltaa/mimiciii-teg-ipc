@@ -44,6 +44,7 @@ def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom
             if "'" in uom:
                 uom_q = uom.replace("'", "''")
             if dtype:
+                # numeric values
                 q = f'''SELECT  split_part({value_col}, ' ', 1) as value
                     FROM {table}
                     WHERE RTRIM(INITCAP({item_col}), '.') = '{item_q}'
@@ -52,15 +53,29 @@ def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom
                     AND {value_col} != ''
                     AND split_part(TRIM({value_col}), ' ', 1) != '0'
                     AND split_part(TRIM({value_col}), ' ', 1) != '0.0'
-                    AND split_part(TRIM({value_col}), '-', 1) != '0'
-                    AND split_part(TRIM({value_col}), '-', 1) != '0.0'
                     AND split_part(TRIM({value_col}), ' ', 1) similar to '\+?\d*\.?\d*'
-                    AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
                     {where}'''
                 item_vals = pd.read_sql_query(q, conn)
                 item_vals = item_vals[item_vals['value'] != '']
                 item_vals['value'] = item_vals['value'].astype(dtype)
                 item_vals = item_vals[item_vals['value'] > 0]
+                # numeric values such as 100-200
+                q = f'''SELECT  split_part({value_col}, '-', 1) as value
+                    FROM {table}
+                    WHERE RTRIM(INITCAP({item_col}), '.') = '{item_q}'
+                    AND {uom_col} = '{uom_q}'
+                    AND {value_col} IS NOT NULL
+                    AND {value_col} != ''
+                    AND split_part(TRIM({value_col}), '-', 1) != '0'
+                    AND split_part(TRIM({value_col}), '-', 1) != '0.0'
+                    AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
+                    AND split_part(TRIM({value_col}), ' ', 1) not similar to '\+?\d*\.?\d*'
+                    {where}'''
+                item_vals1 = pd.read_sql_query(q, conn)
+                item_vals1 = item_vals1[item_vals1['value'] != '']
+                item_vals1['value'] = item_vals1['value'].astype(dtype)
+                item_vals1 = item_vals1[item_vals1['value'] > 0]
+                item_val =  pd.concat([item_vals, item_vals1])
             else:
                 q = f'''SELECT {value_col} FROM {table}
                     WHERE RTRIM(INITCAP({item_col}), '.') = '{item_q}'
@@ -76,13 +91,26 @@ def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom
             q = f'''SELECT split_part({value_col}, ' ', 1) as value 
                 FROM {table}
                 WHERE {value_col} IS NOT NULL
-                AND split_part({value_col}, ' ', 1) similar to '\\s*[+-]?\d*\.?\d*\\s*'
+                AND split_part(TRIM({value_col}), ' ', 1) similar to '\+?\d*\.?\d*'
+                AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
                 {where}
                 '''
             df = pd.read_sql_query(q, conn)
             df = df[df['value'] != '']
             df['value'] = df['value'].astype(dtype)
             df = df[df['value'] > 0]
+            q = f'''SELECT split_part({value_col}, '-', 1) as value 
+                FROM {table}
+                WHERE {value_col} IS NOT NULL
+                AND split_part(TRIM({value_col}), '-', 1) similar to '\+?\d*\.?\d*'
+                AND split_part(TRIM({value_col}), ' ', 1) not similar to '\+?\d*\.?\d*'
+                {where}
+                '''
+            df1 = pd.read_sql_query(q, conn)
+            df1 = df[df['value'] != '']
+            df1['value'] = df['value'].astype(dtype)
+            df1 = df[df['value'] > 0]
+            df =  pd.concat([df, df1])
         else:
             q = f'''SELECT {value_col}
                 FROM {table}

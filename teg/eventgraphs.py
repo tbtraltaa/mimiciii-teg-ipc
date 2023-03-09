@@ -14,6 +14,7 @@ from teg.schemas_chart_events import *
 def event_difference(e1, e2, join_rules):
     n = len(e1) - len(join_rules['IDs'])
     i = float(0)
+    I = dict() #intersection
     for k1 in e1:
         if k1 in join_rules['IDs']:
             continue
@@ -28,24 +29,27 @@ def event_difference(e1, e2, join_rules):
         elif k1 in IGNORE_COLS:
             n -= 1
         elif e1[k1] == e2[k1]:
+            I[k1] = e1[k1]
             i += 1
         '''
         elif e1['type'] + '-' + k1 in join_rules:
             if abs(e1[k1] - e2[k1]) <= join_rules[e1['type'] + '-' + k1]:
                 i += 1
         '''
-    return 1 - i / n
+    return 1 - i / n, I
 
 
 def subject_difference(s1, s2, join_rules):
     n = len(s1) - 1  # dob
     i = float(0)
+    I = dict() #intersection
     for k1 in s1:
         if k1 == 'dob':
             continue
         elif s1[k1] == s2[k1]:
             i += 1
-    return 1 - i / n
+            I[k1] = s1[k1]
+    return 1 - i / n, I
 
 
 def weight_same_subject(e1, e2, join_rules, t_max):
@@ -56,19 +60,20 @@ def weight_same_subject(e1, e2, join_rules, t_max):
     # TODO incorporate t_min
     w_t = (e2['t'] - e1['t']).total_seconds() / \
         t_max.total_seconds()
+    I_w = {}
     if e1['type'] == e2['type']:
-        w_e = event_difference(e1, e2, join_rules)
+        w_e, I_w = event_difference(e1, e2, join_rules)
     else:
         w_e = join_rules['w_e_default']
-    return w_t, w_e, 0
+    return w_t, w_e, 0, I_w
 
 
 def weight(s1, s2, e1, e2, join_rules, t_max):
     w_t = (e2['t'] - e1['t']).total_seconds() / \
         t_max.total_seconds()
-    w_e = event_difference(e1, e2, join_rules)
-    w_s = subject_difference(s1, s2, join_rules)
-    return w_t, w_e, w_s
+    w_e, I_e = event_difference(e1, e2, join_rules)
+    w_s, I_s = subject_difference(s1, s2, join_rules)
+    return w_t, w_e, w_s, I_e, I_s
 
 
 def build_eventgraph(subjects, events, join_rules):
@@ -102,7 +107,7 @@ def build_eventgraph(subjects, events, join_rules):
                     and e1['id'] != e2['id']:
                 s1 = subjects[e1['id']]
                 s2 = subjects[e2['id']]
-                w_t, w_e, w_s = weight(s1, s2, e1, e2, join_rules, t_max)
+                w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max)
                 if w_e <= join_rules['w_e_max']:
                     A[i, j] = w_t + w_e + w_s
                     c1 += 1
@@ -132,7 +137,7 @@ def build_eventgraph(subjects, events, join_rules):
                                 t_max = join_rules['t_max']['other']
                         else:
                             t_max = join_rules['t_max']['diff_type_same_patient']
-                        w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules, t_max)
+                        w_t, w_e, w_s, I_e = weight_same_subject(e1, e2, join_rules, t_max)
                         A[e1['i'], e2['i']] = w_t + w_e + w_s
                         c2 += 1
             '''
@@ -164,7 +169,7 @@ def build_eventgraph(subjects, events, join_rules):
                         break
                     elif e2['id'] != e1['id']:
                         break
-                    w_t, w_e, w_s = weight_same_subject(e1, e2, join_rules, t_max)
+                    w_t, w_e, w_s, I_e  = weight_same_subject(e1, e2, join_rules, t_max)
                     A[e1['i'], e2['i']] = w_t + w_e + w_s
                     c2 += 1
         print("Edges connecting events of different patients: ", c1)

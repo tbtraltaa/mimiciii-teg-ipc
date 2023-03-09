@@ -10,6 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 from teg.schemas import *
+from teg.schemas_PI import *
 from teg.queries_utils import *
 from teg.utils import *
 
@@ -37,21 +38,41 @@ def get_patient_demography(conn, conf):
         for col in PATIENTS[table]:
             cols += f'{table}.{col}, '
     cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age'
-    table = f'{schema}.admissions a INNER JOIN {schema}.patients p'
-    join_cond = f'a.subject_id = p.subject_id'
+    table = f'''{schema}.patients p INNER JOIN {schema}.admissions a
+            ON a.subject_id = p.subject_id'''
+    if conf['PI_only']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        values = STAGE_PI_MAP[conf['PI_states'][1]]
+        pi_where = f"(TRIM(value)='{values[0]}'"
+        if len(values) > 1:
+            for value in values[1:]:
+                pi_where += f" OR TRIM(value)='{value}'"
+        pi_where += ")"
+        pi_where += ' AND value is NOT NULL'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
+        table += f''' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'''
+    where = f''' a.diagnosis != 'NEWBORN'
+        AND a.hadm_id is NOT NULL
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <={conf['max_age']}
+        '''
     # patients, admitted in the hospital within the time window
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
     if conf['starttime'] and conf['endtime']:
-        where = f"(a.admittime < '{conf['endtime']}')"
-        where += f" AND (a.dischtime >= '{conf['starttime']}')"
-    where += f" AND a.diagnosis != 'NEWBORN'"
-    where += f" AND a.hadm_id is NOT NULL"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f">={conf['min_age']}"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f"<={conf['max_age']}"
-    query = f'SELECT {cols} FROM {table} ON {join_cond} WHERE {where}'
+        where += f" AND a.admittime < '{conf['endtime']}'"
+        where += f" AND a.admittime >= '{conf['starttime']}'"
+    query = f'SELECT {cols} FROM {table} WHERE {where}'
     df = pd.read_sql_query(query, conn)
     # age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
     # df['age'] = round(age, 2)
@@ -111,13 +132,34 @@ def get_events(conn, event_key, conf):
     else:
         ID_cols += f"CONCAT('{event_name}', '-', RTRIM({main_attr}, '.')) as type,"
     cols = ID_cols + cols
-    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
-    table += f' ON tb.hadm_id = a.hadm_id'
-    table += f' INNER JOIN {schema}.patients p'
-    table += f' ON tb.subject_id = p.subject_id'
+    table = f'''{schema}.{table} tb INNER JOIN {schema}.admissions a
+        ON tb.hadm_id = a.hadm_id
+        INNER JOIN {schema}.patients p
+        ON tb.subject_id = p.subject_id'''
     if event_name == 'Input':
-        table += f' INNER JOIN {schema}.d_items d'
-        table += f' ON tb.itemid = d.itemid'
+        table += f''' INNER JOIN {schema}.d_items d
+            ON tb.itemid = d.itemid'''
+    if conf['PI_only']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        values = STAGE_PI_MAP[conf['PI_states'][1]]
+        pi_where = f"(TRIM(value)='{values[0]}'"
+        if len(values) > 1:
+            for value in values[1:]:
+                pi_where += f" OR TRIM(value)='{value}'"
+        pi_where += ")"
+        pi_where += ' AND value is NOT NULL'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
+        table += f''' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'''
     where = 'tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
@@ -128,7 +170,9 @@ def get_events(conn, event_key, conf):
         f"<='{conf['max_hours']} hours'"
     if conf['starttime'] and conf['endtime']:
         where += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
-        where += f" AND {t_table}.{time_col} < '{conf['endtime']}'"
+        where += f" AND {t_table}.{time_col} <= '{conf['endtime']}'"
+        where += f" AND a.admittime >= '{conf['starttime']}'"
+        where += f" AND a.admittime < '{conf['endtime']}'"
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
     where += f' AND {t_table}.{time_col} is NOT NULL'
@@ -164,8 +208,8 @@ def get_events(conn, event_key, conf):
             AND split_part(TRIM(dose_val_rx), ' ', 1) != '0.0'
             AND split_part(TRIM(dose_val_rx), '-', 1) != '0'
             AND split_part(TRIM(dose_val_rx), '-', 1) != '0.0'
-            AND split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
-            AND split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*'
+            AND (split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            OR split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
             GROUP BY RTRIM(INITCAP(drug), '.')
             '''
         drug_freq = pd.read_sql_query(q, conn)
@@ -183,8 +227,8 @@ def get_events(conn, event_key, conf):
             AND split_part(TRIM(tb.dose_val_rx), ' ', 1) != '0.0'
             AND split_part(TRIM(tb.dose_val_rx), '-', 1) != '0'
             AND split_part(TRIM(tb.dose_val_rx), '-', 1) != '0.0'
-            AND split_part(TRIM(tb.dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
-            AND split_part(TRIM(tb.dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*'
+            AND (split_part(TRIM(tb.dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            OR split_part(TRIM(tb.dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
             '''
     if 'Input' in event_name:
         # filter by frequency percentile range
@@ -271,7 +315,7 @@ def get_events(conn, event_key, conf):
             df[col] = df[col].apply(lambda x: get_quantile(x, Q))
         # include percentiles in event type
         df['type'] = df['type'] + ' ' + df[col]
-    df.drop(['item_col'], axis=1)
+    df = df.drop(['item_col'], axis=1)
     if conf['duration']:
         df['duration'] = timedelta(days=0)
     # each row is converted into a dictionary indexed by column names
@@ -332,6 +376,27 @@ def get_icustays(conn, conf):
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
+    if conf['PI_only']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        values = STAGE_PI_MAP[conf['PI_states'][1]]
+        pi_where = f"(TRIM(value)='{values[0]}'"
+        if len(values) > 1:
+            for value in values[1:]:
+                pi_where += f" OR TRIM(value)='{value}'"
+        pi_where += ")"
+        pi_where += ' AND value is NOT NULL'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
+        table += f''' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'''
     where = 'tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
@@ -342,6 +407,8 @@ def get_icustays(conn, conf):
     if conf['starttime'] and conf['endtime']:
         where += f" AND tb.{time_col} >= '{conf['starttime']}'"
         where += f" AND tb.{time_col} < '{conf['endtime']}'"
+        where += f" AND a.admittime >= '{conf['starttime']}'"
+        where += f" AND a.admittime < '{conf['endtime']}'"
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
     where += f' AND tb.{time_col} >= a.admittime'
