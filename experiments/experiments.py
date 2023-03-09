@@ -127,6 +127,16 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     pprint.pprint([e for e in events if e['type']=='admissions' or e['type'] =='discharges'])
     pprint.pprint(PC_top, sort_dicts=False)
     '''
+    if vis:
+        G = build_networkx_graph(A, events, patients, PC_all, paths, conf)
+        file_name += "_Q" + str(len(conf['quantiles']))
+        visualize_SP_tree(G, V, paths, file_name+"SP")
+        visualize_SP_tree(G, list(PC_P.keys()), paths, file_name+"SP_percentile")
+        attrs = dict([(e['i'], e['type']) for e in events])
+        if conf['max_hours'] <= 168:
+            visualize_graph(G, V, paths, file_name+"all")
+        nx.set_node_attributes(G, attrs, 'group')
+        visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
     plot_PC(events, PC, conf, nbins=30)
     print("Nodes with nonzero PC", len(PC))
 
@@ -140,18 +150,6 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     PC_P = dict([(i, v) for i, v in PC.items() if v >= P_min and v <= P_max])
     print("Nodes above percentile", len(PC_P))
     plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
-
-    if vis:
-        G = build_networkx_graph(A, events, patients, PC_all, paths, conf)
-        file_name += "_Q" + str(len(conf['quantiles']))
-        visualize_SP_tree(G, V, paths, file_name+"SP")
-        visualize_SP_tree(G, list(PC_P.keys()), paths, file_name+"SP_percentile")
-        attrs = dict([(e['i'], e['type']) for e in events])
-        if conf['max_hours'] <= 168 or conf['PI_patients']:
-            visualize_graph(G, V, paths, file_name+"all")
-        nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
-
 
 def build_networkx_graph(A, events, patients, PC, paths, conf):
     n = len(events)
