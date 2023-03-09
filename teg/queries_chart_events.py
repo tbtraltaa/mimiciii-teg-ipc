@@ -44,9 +44,10 @@ def get_chart_events(conn, event_name, conf):
     cols += f"'{event_name}' as type, "
     cols += f"tb.{time_col} - a.admittime as t, "
     cols += f"tb.{time_col} as datetime, "
+    cols += f"EXTRACT(DAY FROM tb.{time_col} - a.admittime) as day,"
     if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
         cols += f"split_part(tb.value, ' ', 1) as value, " 
-        if conf['distinct_chart']:
+        if conf['unique_chartvalue_per_day_sql']:
             # Take max value events for a day
             # Ignoring PI numbers
             cols += f''' row_number() over (partition by 
@@ -56,7 +57,7 @@ def get_chart_events(conn, event_name, conf):
                 order by cast(split_part(tb.value, ' ', 1) as double precision) DESC), '''
     else:
         cols += f"tb.value as value, "
-        if conf['distinct_chart']:
+        if conf['unique_chartvalue_per_day_sql']:
             # Take unique value events for a day
             # Ignoring PI numbers
             cols += f''' row_number() over (partition by 
@@ -72,7 +73,7 @@ def get_chart_events(conn, event_name, conf):
     table += f' ON tb.subject_id = p.subject_id'
     table += f' INNER JOIN {schema}.d_items d'
     table += f' ON tb.itemid = d.itemid'
-    if conf['PI_only']:
+    if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
         ignored_values += ignored_values_CV
@@ -110,6 +111,7 @@ def get_chart_events(conn, event_name, conf):
     where += f' AND tb.{time_col} >= a.admittime'
     where += f' AND tb.{time_col} <= a.dischtime'
     where += f' AND tb.value is NOT NULL'
+    where += f" AND coalesce(TRIM(tb.value), '') != ''"
     if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
         where += f'''
             AND split_part(TRIM(tb.value), ' ', 1) != '0'
@@ -124,7 +126,7 @@ def get_chart_events(conn, event_name, conf):
     for value in ignored_values:
         where += f" AND tb.value not similar to '{value}'"
     order_by = f'ORDER BY t ASC'
-    if conf['distinct_chart']:
+    if conf['unique_chartvalue_per_day_sql']:
         query = f"SELECT * FROM (SELECT {cols} FROM {table} WHERE {where}) AS tmp"
         query += f" WHERE row_number=1 {order_by}"
         df = pd.read_sql_query(query, conn)
@@ -132,6 +134,7 @@ def get_chart_events(conn, event_name, conf):
     else:
         query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
         df = pd.read_sql_query(query, conn)
+
     UOM = ""
     if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
         if event_name in PI_EVENTS_NUMERIC:
@@ -146,14 +149,28 @@ def get_chart_events(conn, event_name, conf):
                 df['value'] = df['value'].astype(CHART_EVENTS_NUMERIC[event_name]['dtype'])
                 df = df[df['value'] > 0]
             Q  = query_quantiles(conn, conf['quantiles'], event_name, **CHART_EVENTS_NUMERIC[event_name]) 
-        print(Q)
+        if conf['unique_chartvalue_per_day']:
+            # gets the maximum value per day
+            df['row_number'] = df.sort_values(['value', 't'], ascending=[False, True]) \
+                 .groupby(['id', 'day']) \
+                 .cumcount() + 1
+            df = df[df['row_number'] == 1]
         df['value_test'] = df['value']
         df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
+        df.drop(['row_number'], axis=1, inplace=True)
+        df.drop(['day'], axis=1, inplace=True)
+    elif conf['unique_chartvalue_per_day']:
+        df['row_number'] = df.sort_values(['t'], ascending=[True]) \
+             .groupby(['id', 'day', 'value']) \
+             .cumcount() + 1
+        df = df[df['row_number'] == 1]
+        df.drop(['row_number'], axis=1, inplace=True)
+        df.drop(['day'], axis=1, inplace=True)
     # value is used for event comparision
     # pi_stage is PI Stage of PI Stage event.
     #if event_name in PI_EVENTS_NUMERIC:
     #    df['value'] = df['value'].apply(lambda x: float(x.strip().split()[0]))
-    elif event_name == 'PI Stage':
+    if event_name == 'PI Stage':
         df['value'] = df['value'] \
             .apply(lambda x: PI_STAGE_MAP[x])
         df['pi_stage'] = df['value']

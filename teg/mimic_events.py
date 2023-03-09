@@ -18,7 +18,6 @@ from teg.queries import *
 def mimic_events(event_list, join_rules, conf):
     conn = get_db_connection()
     patients = get_patient_demography(conn, conf)
-    print('Patients', len(patients))
     all_events = list()
     n = 0
     for event_name in PI_EVENTS:
@@ -45,7 +44,6 @@ def mimic_events(event_list, join_rules, conf):
     n += len(events)
     print('Interventions', len(events))
     all_events += events
-    '''
     if conf['vitals_X_mean']:
         events = get_events_vitals_X_mean(conn, conf)
     else:
@@ -55,7 +53,6 @@ def mimic_events(event_list, join_rules, conf):
     n += len(events)
     print('Vitals', len(events))
     all_events += events
-    '''
     for event_key in event_list:
         event_name, table, time_col, main_attr = EVENTS[event_key]
         events = get_events(conn, event_key, conf)
@@ -104,7 +101,7 @@ def mimic_events(event_list, join_rules, conf):
             PI = False
             stage = 0
 
-    if conf['PI_patients']:
+    if conf['PI_only']:
         for e in all_events:
             if e['id'] in non_PI_ids:
                 non_PI_events.append(e['i'])
@@ -160,6 +157,8 @@ def mimic_events(event_list, join_rules, conf):
     all_events.sort(key=lambda x: (x['type'], x['t']))
     for i in range(len(all_events)):
         all_events[i]['i'] = i
+    print('Total patients', len(patients))
     print("Total events: ", n)
-    print("Total patients:", len(patients))
+    print('Total PI patients', len(set([e['subject_id'] for e in all_events])))
+    print("Total events of PI patients: ", len(all_events))
     return patients, all_events

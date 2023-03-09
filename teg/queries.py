@@ -40,7 +40,8 @@ def get_patient_demography(conn, conf):
     cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age'
     table = f'''{schema}.patients p INNER JOIN {schema}.admissions a
             ON a.subject_id = p.subject_id'''
-    if conf['PI_only']:
+    #if conf['PI_only_sql'] or conf['PI_only']:
+    if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
         ignored_values += ignored_values_CV
@@ -139,7 +140,7 @@ def get_events(conn, event_key, conf):
     if event_name == 'Input':
         table += f''' INNER JOIN {schema}.d_items d
             ON tb.itemid = d.itemid'''
-    if conf['PI_only']:
+    if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
         ignored_values += ignored_values_CV
@@ -376,7 +377,8 @@ def get_icustays(conn, conf):
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
-    if conf['PI_only']:
+    #if conf['PI_only_sql'] or conf['PI_only']:
+    if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
         ignored_values += ignored_values_CV

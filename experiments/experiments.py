@@ -28,7 +28,7 @@ conf = {
     'starttime': '2143-01-14',
     #'endtime': '2143-01-21',
     'endtime': '2143-02-14',
-    'min_missing_percent': 80,
+    'min_missing_percent': 0, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -36,17 +36,18 @@ conf = {
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [90, 100],
-    'PI_only': False, # PI patients slow to query chartevents
-    'PI_patients': True, # Delete non PI patients after querying all events
+    'PI_only_sql': False, # PI patients slow to query chartevents
+    'PI_only': True, # Delete non PI patients after querying all events
     'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
-    'distinct_chart': True, # Take chart events with distinct values per day
-    'scale_PC': False, # scale by max_PC
+    'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
+    'unique_chartvalue_per_day': True,
+    'scale_PC': True, # scale by max_PC
     'Top_n_PC': 20,
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': False,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 50],
-    'input_percentile': [40, 50],
+    'drug_percentile': [40, 60],
+    'input_percentile': [0, 100],
     'include_numeric': True,
     'subsequent_adm': False,
 }
@@ -101,7 +102,6 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     start = time.time()
     PC_values, V, paths = algebraic_PC_with_paths(A, states=states)
     print(float(time.time() - start)/60.0)
-    print('PC_values', PC_values)
     PC = dict()
     PC_all = dict()
     max_PC = float(max(PC_values))
@@ -501,7 +501,7 @@ if __name__ == "__main__":
         'input_percentile',
         'skip_repeat',
         'PI_patients']
-    fname_LF = 'output/DebugTEG'
+    fname_LF = 'output/DTEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])
     fname_LF += '_' + '_'.join([k + '-' + str(v)
