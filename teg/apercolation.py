@@ -149,7 +149,7 @@ def algebraic_PC_with_paths(Adj, states, normalize=False):
                         if v in p:
                             v_paths[v].append(p)
                     PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-    return PC, V, v_paths
+    return PC, list(V), v_paths, paths
 
 def st_paths(pred, s, t):
     stack = [[t, 0]]

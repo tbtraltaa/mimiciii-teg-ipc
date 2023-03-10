@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import pandas as pd
 import sys
@@ -143,7 +145,12 @@ def get_events_vitals_X_mean(conn, conf):
     vitals = get_vitals(conf)
     vitals_stats = get_stats_vitals_X_mean(vitals)
     vitals_nan = vitals.replace(0, np.NaN)
-    Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
+    fname = "data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
+    if os.path.exists(fname):
+        Qs = pd.read_hdf(fname) 
+    else:
+        Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
+        Qs.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     print(Qs)
     icu_events = []
     vitals = vitals.loc[(slice(None), slice(
@@ -244,7 +251,12 @@ def get_events_vitals_X(conn, conf):
     icustays_ids = list(icustays.keys())
     vitals = get_vitals(conf)
     vitals_nan = vitals.replace(0, np.NaN)
-    Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
+    fname = "data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
+    if os.path.exists(fname):
+        Qs = pd.read_hdf(fname) 
+    else:
+        Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
+        Qs.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     print(Qs)
     missing_percents = get_missing_percents_vitals_X(vitals)
     icu_events = []
