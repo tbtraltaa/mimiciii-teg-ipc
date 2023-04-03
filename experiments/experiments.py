@@ -13,28 +13,31 @@ from teg.eventgraphs import *
 from teg.percolation import PC_with_target, percolation_centrality_with_target
 from teg.apercolation import *
 from teg.graph_vis import *
+from teg.paths import *
 from teg.plot import *
 
 # Experiment configuration
 conf = {
     'duration': False,
-    #'max_hours': 720,
-    'max_hours': 168,
+    'max_hours': 720,
+    #'max_hours': 169,
     #'max_hours': 336,
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
     'starttime': '2143-01-14',
-    'endtime': '2143-01-21',
-    #'endtime': '2143-02-14',
+    #'endtime': '2143-01-21',
+    'endtime': '2143-02-14',
     'min_missing_percent': 0, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
-    'label': True,
+    'node label': True,
+    'edge label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
-    'PC_percentile': [90, 100],
+    'PC_percentile': [93, 100],
+    'path_percentile': [97, 100],
     'PI_only_sql': False, # PI patients slow to query chartevents
     'PI_only': True, # Delete non PI patients after querying all events
     'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
@@ -94,8 +97,10 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     for e in events:
         states[e['i']] = e['pi_state']
     #G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
+    #print(nx.is_directed_acyclic_graph(G))
     #start = time.time()
+    #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
+    #print('PC time based on networkx', float(time.time() - start)/60.0)
     #PC_vals = algebraic_PC(A, states=states)
     #print("Time for PC without paths", float(time.time() - start)/60.0)
     start = time.time()
@@ -142,7 +147,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         # use only shortest path subgraph
         A = A.toarray()
         A = dok_matrix(A[np.array(V, dtype=int)][:, np.array(V, dtype=int)])
-        PC_all= dict([(i, PC_all[v]) for i, v in enumerate(V)])
+        PC_all = dict([(i, PC_all[v]) for i, v in enumerate(V)])
         events = [events[v] for v in V]
         paths_new = dict()
         for v in paths:
@@ -155,24 +160,35 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         paths = paths_new
         PC_P = dict([(V.index(i), v) for i, v in PC_P.items()])
         V = range(len(V))
-        G = build_networkx_graph(A, events, patients, PC_all, paths, conf, join_rules)
+        G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         file_name += "_Q" + str(len(conf['quantiles']))
-        visualize_SP_tree(G, V, paths, file_name+"SP")
-        visualize_SP_tree(G, list(PC_P.keys()), paths, file_name+"SP_percentile")
-        attrs = dict([(e['i'], e['type']) for e in events])
         paths_P = dict([(i, paths[i]) for i in PC_P])
-        visualize_graph(G, list(PC_P.keys()), paths_P, file_name+"all")
+        if conf['path_percentile']:
+            paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
+            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, file_name+"PC_P_Path_P_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P_P, file_name+"all_PC_P_Path_P_P")
+        else:
+            visualize_graph(G, list(PC_P.keys()), paths_P, file_name+"all_PC_P")
+        visualize_SP_tree(G, V, paths, file_name+"SP_all")
+        visualize_SP_tree(G, list(PC_P.keys()), paths_P, file_name+"PC_P")
+        attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
     elif vis:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         file_name += "_Q" + str(len(conf['quantiles']))
-        visualize_SP_tree(G, V, paths, file_name+"SP")
-        visualize_SP_tree(G, list(PC_P.keys()), paths, file_name+"SP_percentile")
+        paths_P = dict([(i, paths[i]) for i in PC_P])
+        if conf['path_percentile']:
+            paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
+            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, file_name+"PC_P_Path_P_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P_P, file_name+"all_PC_P_Path_P_P")
+        else:
+            visualize_graph(G, list(PC_P.keys()), paths_P, file_name+"all_PC_P")
+        visualize_SP_tree(G, V, paths, file_name+"SP_all")
+        visualize_SP_tree(G, list(PC_P.keys()), paths_P, file_name+"PC_P")
         attrs = dict([(e['i'], e['type']) for e in events])
-        visualize_graph(G, V, paths, file_name+"all")
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
+        visualize_vertices(G, list(PC_P.keys()), file_name+"V_PC_P")
 
 
 if __name__ == "__main__":

@@ -165,7 +165,7 @@ def get_events_vitals_X_mean(conn, conf):
     if conf['PI_vitals']:
         vitals_included = PI_VITALS
     else:
-        vitals_included = vitals.columns.levels[0]
+        vitals_included = vitals.columns
     for subject_id, hadm_id, icustay_id, h in vitals.index:
         # icu event
         e = icustays[icustay_id]

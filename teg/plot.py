@@ -59,7 +59,7 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     y_pos  =  range(0, 2*len(PC_t), 2)[:top_n]
     plt.barh(y_pos, vals, align='center')
     plt.yticks(y_pos, labels=labels, fontsize=14)
-    plt.title(f"Top {top_n} PC Events" + str(percentile))
+    plt.title(f"Top PC Events " + str(percentile))
     plt.xlabel("PC Value")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
@@ -116,7 +116,7 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     plt.figure(figsize=(10, 6))
     plt.barh(y_pos, list(PC_p.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_p.keys()))
-    plt.title("Portion of total PC" + str(percentile))
+    plt.title("Portion of total PC " + str(percentile))
     plt.xlabel("Portion of total PC")
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)

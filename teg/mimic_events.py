@@ -74,7 +74,7 @@ def mimic_events(event_list, join_rules, conf):
         # consider events till the first PI stage
         if not PI:
             # PI stage
-            if e['type'] == 'PI stage':
+            if e['type'] == 'PI Stage':
                 stage = e['pi_stage']
             # PI related events before stage I is considered as stage I
             if stage < min_stage or stage > max_stage:
@@ -84,7 +84,7 @@ def mimic_events(event_list, join_rules, conf):
                 PI = True
             elif min_stage <= stage and stage < max_stage:
                 if stage == 0 and \
-                    e['type'] != 'PI stage' and \
+                    e['type'] != 'PI Stage' and \
                     'PI' in e['type'] and \
                     conf['PI_as_stage'] and \
                     max_stage == 1:
@@ -154,11 +154,11 @@ def mimic_events(event_list, join_rules, conf):
                 e2['adm_num'] = adm_num
         print("Subsequent admission events: ", len(sub_adm_events))
         all_events += sub_adm_events
-    all_events.sort(key=lambda x: (x['type'], x['t']))
+    all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
     for i in range(len(all_events)):
         all_events[i]['i'] = i
-    print('Total patients', len(patients))
-    print("Total events: ", n)
-    print('Total PI patients', len(set([e['subject_id'] for e in all_events])))
-    print("Total events of PI patients: ", len(all_events))
+    #print('Total patients', len(patients))
+    #print("Total events: ", n)
+    print('Total patients', len(set([e['subject_id'] for e in all_events])))
+    print("Total events: ", len(all_events))
     return patients, all_events

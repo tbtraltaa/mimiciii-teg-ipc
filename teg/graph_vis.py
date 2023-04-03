@@ -4,11 +4,13 @@ import numpy as np
 from pyvis.network import Network
 import pprint
 
-def build_networkx_graph(A, events, patients, PC, paths, conf, join_rules):
+from teg.eventgraphs import *
+
+def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     n = len(events)
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     # G.remove_nodes_from([n for n, d in G.degree if d == 0])
-    if conf['label']:
+    if conf['node label']:
         labels = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, labels, 'label')
 
@@ -31,9 +33,29 @@ def build_networkx_graph(A, events, patients, PC, paths, conf, join_rules):
         for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
-    attrs = dict([(key, {'value': val, 'title': val})
-                 for key, val in A.items()])
-    nx.set_edge_attributes(G, attrs)
+    if conf['edge label']:
+        attrs = dict()
+        for key, val in A.items():
+            attrs[key] = {}
+            e1 = events[key[0]]
+            e2 = events[key[1]]
+            s1 = patients[e1['id']]
+            s2 = patients[e2['id']]
+            t_max = get_t_max(e1, e2, join_rules)
+            if e1['id'] != e2['id'] and e1['type'] == e2['type']:
+                w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max )
+                attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
+                attrs[key] += "Similar attributes\n"
+                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
+                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_s.items()])
+            elif e1['id'] == e2['id']:
+                w_t, w_e, w_s, I_e = weight_same_subject(e1, e2, join_rules, t_max)
+                attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
+                attrs[key] += "Similar attributes\n"
+                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
+            #attrs[key]['title'] = attrs[key]['value']
+        nx.set_edge_attributes(G, values=attrs, name='title')
+    print(nx.is_directed_acyclic_graph(G))
     return G
 
 def visualize_SP_tree(G, V, paths, file_name):
@@ -61,9 +83,9 @@ def visualize_SP_tree(G, V, paths, file_name):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.repulsion()
     g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=False)
-    # g.barnes_hut()
+    g.repulsion()
+    #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
 
@@ -79,9 +101,9 @@ def visualize_vertices(G, V, file_name):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.repulsion()
     g.from_nx(G.subgraph(V), show_edge_weights=False)
-    # g.barnes_hut()
+    g.repulsion()
+    #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
     print(nx.is_directed_acyclic_graph(G))
@@ -114,9 +136,9 @@ def visualize_graph(G, V, paths, file_name):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.repulsion()
     g.from_nx(G, show_edge_weights=False)
-    # g.barnes_hut()
+    g.repulsion()
+    #g.barnes_hut()
     g.toggle_physics(True)
     '''
     options = {
@@ -202,14 +224,16 @@ def build_networkx_graph_example(A, events, patients, PC, conf, join_rules):
             'MITRAL VALVE INSUFFICENCY\\MITRAL VALVE REPLACEMENT /SDA': 'Mitral Valve Insufficency'
             }
     # G.remove_nodes_from([n for n, d in G.degree if d == 0])
-    if conf['label']:
+    if conf['node label']:
         labels = dict([(e['i'], e['type']) for e in events])
+        '''
         labels = dict([(i, names[events[i]['cpt_cd']]) if label=='cptevents' else (i, label) for i, label in labels.items()])
         labels = dict([(i, names[events[i]['first_careunit']]) if label=='icustays' else (i, label) for i, label in labels.items()])
         labels = dict([(i, "Adm Dx:"+ names[events[i]['diagnosis']]) if label=='admissions' else (i, label) for i, label in labels.items()])
         labels = dict([(i, "Disch Dx:" + events[i]['diagnosis']) if label=='discharges' else (i, label) for i, label in labels.items()])
         labels = dict([(i, "Services:" + names[events[i]['curr_service']]) if label=='services' else (i, label) for i, label in labels.items()])
         labels = dict([(i, label + ":\n" + events[i]['pi_info']) if 'PI' in label else (i, label) for i, label in labels.items()])
+        '''
         labels = dict([(i, label + '-' + names[events[i]['pi_value']]) if label == 'PI stage' else (i, label) for i, label in labels.items()])
         nx.set_node_attributes(G, labels, 'label')
 
@@ -228,6 +252,8 @@ def build_networkx_graph_example(A, events, patients, PC, conf, join_rules):
         for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
+
+        
     attrs = dict([(key, {'value': val, 'title': val})
                  for key, val in A.items()])
     nx.set_edge_attributes(G, attrs)
