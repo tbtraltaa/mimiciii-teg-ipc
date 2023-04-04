@@ -60,13 +60,13 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
 
 def visualize_SP_tree(G, V, paths, file_name):
     PC_edges = list()
-    '''
     for v in V:
         for path in paths[v]:
             i = path[0]
             for j in path[1:]:
                 PC_edges.append((i,j))
                 i = j
+    PC_edges = list(set(PC_edges))
     '''
     unique_paths = set()
     for v in V:
@@ -77,6 +77,7 @@ def visualize_SP_tree(G, V, paths, file_name):
         for j in path[1:]:
             PC_edges.append((i,j))
             i = j
+    '''
     g = Network(
         directed=True,
         height=1000,
@@ -112,7 +113,6 @@ def visualize_vertices(G, V, file_name):
 
 
 def visualize_graph(G, V, paths, file_name):
-    '''
     for v in V:
         for path in paths[v]:
             i = path[0]
@@ -129,6 +129,7 @@ def visualize_graph(G, V, paths, file_name):
         for j in path[1:]:
             G[i][j]['color']='black'
             i = j
+    '''
 
     g = Network(
         directed=True,

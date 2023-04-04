@@ -21,6 +21,24 @@ PI_EVENTS = [
     'PI Length'
     ]
 
+PI_STAGE_ITEMIDS = (
+    # CareVue
+    551,
+    552,
+    553,
+    # MetaVision
+    224631,
+    224965,
+    224966,
+    224967,
+    224968,
+    224969,
+    224970,
+    224971,
+    227618,
+    227619
+)
+
 #{<event_name>: [<table>, <item_col>, <value_col>, <uom_col>, <cast to dtype>, <where>]
 PI_EVENTS_NUMERIC = {
     'PI Depth':{

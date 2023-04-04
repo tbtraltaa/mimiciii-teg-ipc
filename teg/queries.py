@@ -41,6 +41,7 @@ def get_patient_demography(conn, conf):
     table = f'''{schema}.patients p INNER JOIN {schema}.admissions a
             ON a.subject_id = p.subject_id'''
     #if conf['PI_only_sql'] or conf['PI_only']:
+    '''
     if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
@@ -61,12 +62,50 @@ def get_patient_demography(conn, conf):
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
         pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
-        table += f''' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'''
+        table += f"INNER JOIN {pi} ON a.hadm_id=pi.hadm_id"
+    '''
+    if conf['PI_only_sql']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents'
+        pi += f' WHERE {pi_where}'
+        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     where = f''' a.diagnosis != 'NEWBORN'
         AND a.hadm_id is NOT NULL
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <={conf['max_age']}
         '''
+    '''
+    if conf['PI_only_sql']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        pi_where = f' value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
+        pi_query += f' ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
+        pi_hadms = pd.read_sql_query(pi_query, conn)
+        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
+        where += f' AND a.hadm_id IN {pi_hadms}'
+    '''
     # patients, admitted in the hospital within the time window
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
@@ -85,6 +124,7 @@ def get_patient_demography(conn, conf):
     # creates a dictionary with <id> as a key.
     df = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
+    print("Patients", len(df))
     return df
 
 
@@ -133,13 +173,6 @@ def get_events(conn, event_key, conf):
     else:
         ID_cols += f"CONCAT('{event_name}', '-', RTRIM({main_attr}, '.')) as type,"
     cols = ID_cols + cols
-    table = f'''{schema}.{table} tb INNER JOIN {schema}.admissions a
-        ON tb.hadm_id = a.hadm_id
-        INNER JOIN {schema}.patients p
-        ON tb.subject_id = p.subject_id'''
-    if event_name == 'Input':
-        table += f''' INNER JOIN {schema}.d_items d
-            ON tb.itemid = d.itemid'''
     if conf['PI_only_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
@@ -147,21 +180,47 @@ def get_events(conn, event_key, conf):
         label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
         ignored_values += ignored_values_MV
         # values of maximum stage
-        values = STAGE_PI_MAP[conf['PI_states'][1]]
-        pi_where = f"(TRIM(value)='{values[0]}'"
-        if len(values) > 1:
-            for value in values[1:]:
-                pi_where += f" OR TRIM(value)='{value}'"
-        pi_where += ")"
-        pi_where += ' AND value is NOT NULL'
+        pi_where = f'value is NOT NULL'
+        pi_where += f' AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values:
             pi_where += f" AND value not similar to '{value}'"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
-        table += f''' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'''
-    where = 'tb.hadm_id is NOT NULL'
+        pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
+        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        table = f'{schema}.{table} tb INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'
+        table += f' INNER JOIN {schema}.admissions a'
+    else:
+        table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
+    table += f' INNER JOIN {schema}.patients p'
+    table += f' ON tb.subject_id = p.subject_id'
+    if event_name == 'Input':
+        table += f''' INNER JOIN {schema}.d_items d
+            ON tb.itemid = d.itemid'''
+
+    '''
+    if conf['PI_only_sql']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
+        pi_query += f'ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
+        pi_hadms = pd.read_sql_query(pi_query, conn)
+        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
+        where += f' AND a.hadm_id IN {pi_hadms}'
+    '''
+    where = ' tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"
@@ -373,10 +432,6 @@ def get_icustays(conn, conf):
     cols += f",tb.subject_id, tb.hadm_id"
     cols += f", tb.{time_col} - a.admittime as t, tb.icustay_id"
     cols += f", tb.{time_col} as datetime "
-    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
-    table += f' ON tb.hadm_id = a.hadm_id'
-    table += f' INNER JOIN {schema}.patients p'
-    table += f' ON tb.subject_id = p.subject_id'
     #if conf['PI_only_sql'] or conf['PI_only']:
     if conf['PI_only_sql']:
         ignored_values = []
@@ -385,21 +440,47 @@ def get_icustays(conn, conf):
         label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
         ignored_values += ignored_values_MV
         # values of maximum stage
-        values = STAGE_PI_MAP[conf['PI_states'][1]]
-        pi_where = f"(TRIM(value)='{values[0]}'"
-        if len(values) > 1:
-            for value in values[1:]:
-                pi_where += f" OR TRIM(value)='{value}'"
-        pi_where += ")"
-        pi_where += ' AND value is NOT NULL'
+        pi_where = f'value is NOT NULL'
+        pi_where += f' AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values:
             pi_where += f" AND value not similar to '{value}'"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
-        table += f''' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'''
+        pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
+        pi += f"ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        table = f'{schema}.{table} tb INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'
+        table += f' INNER JOIN {schema}.admissions a'
+    else:
+        table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
+    table += f' INNER JOIN {schema}.patients p'
+    table += f' ON tb.subject_id = p.subject_id'
     where = 'tb.hadm_id is NOT NULL'
+    '''
+    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
+    table += f' ON tb.hadm_id = a.hadm_id'
+    table += f' INNER JOIN {schema}.patients p'
+    table += f' ON tb.subject_id = p.subject_id'
+    if conf['PI_only_sql']:
+        ignored_values = []
+        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
+        ignored_values += ignored_values_CV
+        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
+        ignored_values += ignored_values_MV
+        # values of maximum stage
+        pi_where = f' value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
+        for value in ignored_values:
+            pi_where += f" AND value not similar to '{value}'"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND charttime >= '{conf['starttime']}'"
+            pi_where += f" AND charttime <= '{conf['endtime']}'"
+        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
+        pi_query += f' ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
+        pi_hadms = pd.read_sql_query(pi_query, conn)
+        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
+        where += f' AND a.hadm_id IN {pi_hadms}'
+    '''
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"
