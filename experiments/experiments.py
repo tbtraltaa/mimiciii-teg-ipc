@@ -20,7 +20,7 @@ from teg.plot import *
 conf = {
     'duration': False,
     'max_hours': 720,
-    #'max_hours': 169,
+    #'max_hours': 168,
     #'max_hours': 336,
     'min_age': 15,
     'max_age': 89,
@@ -48,7 +48,7 @@ conf = {
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': False,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [0, 100],
+    'drug_percentile': [40, 60],
     'input_percentile': [0, 100],
     'include_numeric': True,
     'subsequent_adm': False,
@@ -142,6 +142,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     print("Nodes above percentile", len(PC_P))
     plot_PC(events, PC, conf, nbins=30)
     plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
+    '''
     if vis and conf['max_hours'] > 168:
         # when a graph is too large for visualization
         # use only shortest path subgraph
@@ -174,7 +175,8 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
-    elif vis:
+    '''
+    if vis:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         file_name += "_Q" + str(len(conf['quantiles']))
         paths_P = dict([(i, paths[i]) for i in PC_P])

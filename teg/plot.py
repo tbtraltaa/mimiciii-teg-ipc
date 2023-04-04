@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def plot_PC(events, PC, conf, percentile='', nbins=30):
-    PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
+    #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
     #df = pd.DataFrame({'type': list(PC_type.keys()), 'val': list(PC_type.values())})
     #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
     plt.figure(figsize=(10, 6))
@@ -49,14 +49,14 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     '''
 
     plt.figure(figsize=(10, 6))
-    PC_t_sorted = dict(sorted(PC_t.items(), key=lambda x: x[1], reverse=True))
-    top_n = conf['Top_n_PC'] if len(PC_t) > conf['Top_n_PC'] else len(PC_t)
+    PC_sorted = dict(sorted(PC.items(), key=lambda x: x[1], reverse=True))
+    top_n = conf['Top_n_PC'] if len(PC) > conf['Top_n_PC'] else len(PC)
     vals = []
     labels = []
-    for key in list(PC_t_sorted.keys())[:top_n]:
-        labels = [key] + labels
-        vals = [PC_t_sorted[key]] + vals
-    y_pos  =  range(0, 2*len(PC_t), 2)[:top_n]
+    for i in list(PC_sorted.keys())[:top_n]:
+        labels = [events[i]['type']] + labels
+        vals = [PC_sorted[i]] + vals
+    y_pos  =  range(0, 2*len(PC_sorted), 2)[:top_n]
     plt.barh(y_pos, vals, align='center')
     plt.yticks(y_pos, labels=labels, fontsize=14)
     plt.title(f"Top PC Events " + str(percentile))
