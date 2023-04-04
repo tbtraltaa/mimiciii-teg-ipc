@@ -25,9 +25,9 @@ conf = {
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
-    'starttime': '2143-01-14',
+    'starttime': None,
     #'endtime': '2143-01-21',
-    'endtime': '2143-02-14',
+    'endtime': None,
     'min_missing_percent': 0, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -36,11 +36,11 @@ conf = {
     'edge label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
-    'PC_percentile': [93, 100],
+    'PC_percentile': [95, 100],
     'path_percentile': [97, 100],
-    'PI_only_sql': False, # PI patients slow to query chartevents
-    'PI_only': True, # Delete non PI patients after querying all events
-    'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
+    'PI_only_sql': True, # PI patients slow to query chartevents
+    'PI_only': False, # Delete non PI patients after querying all events
+    'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'scale_PC': True, # scale by max_PC
@@ -48,10 +48,11 @@ conf = {
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': False,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 60],
+    'drug_percentile': [0, 100],
     'input_percentile': [0, 100],
     'include_numeric': True,
     'subsequent_adm': False,
+    'hadm_limit': 50,
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
