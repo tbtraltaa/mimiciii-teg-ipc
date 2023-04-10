@@ -50,9 +50,9 @@ PI_EVENTS_NUMERIC = {
         'where': '''
             AND (d.label similar to 'Impaired Skin Depth #%'
             OR d.label similar to 'PressSore Depth #%')
-            AND TRIM(c.value) not similar to '\\s*Other\/Remarks\\s*'
-            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
-            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            AND TRIM(c.value) not similar to '\s*Other\/Remarks\s*'
+            AND TRIM(c.value) not similar to '\s*0\s*cm'
+            AND TRIM(c.value) not similar to '\s*0.0\s*cm'
             '''
         },
     'PI Width':{
@@ -65,9 +65,9 @@ PI_EVENTS_NUMERIC = {
             '''
             AND (d.label similar to 'Impaired Skin Width #%'
             OR d.label similar to 'Pressure Sore #\d+ \[Width\]')
-            AND TRIM(c.value) not similar to '\\s*Other\/Remarks\\s*'
-            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
-            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            AND TRIM(c.value) not similar to '\s*Other\/Remarks\s*'
+            AND TRIM(c.value) not similar to '\s*0\s*cm'
+            AND TRIM(c.value) not similar to '\s*0.0\s*cm'
             '''
             },
     'PI Length':{
@@ -79,8 +79,8 @@ PI_EVENTS_NUMERIC = {
         'where':
             '''
             AND d.label similar to 'Impaired Skin Length #%'
-            AND TRIM(c.value) not similar to '\\s*0\\s*cm'
-            AND TRIM(c.value) not similar to '\\s*0.0\\s*cm'
+            AND TRIM(c.value) not similar to '\s*0\s*cm'
+            AND TRIM(c.value) not similar to '\s*0.0\s*cm'
             '''
         },
     }
@@ -106,22 +106,22 @@ mimic=# select count(*) from mimiciii.chartevents
 
 
 PI_EVENTS_CV = {
-    'PI Stage': ['Pressure Sore #\\d+ \\[Stage\\]',
-                 ['\\s*Other\/Remarks\\s*', '\\s*Unable to Stage\\s*']],
+    'PI Stage': ['Pressure Sore #\d+ \[Stage\]',
+                 ['\s*Other\/Remarks\s*', '\s*Unable to Stage\s*']],
     'PI Site': ['Press Sore Site #%', []],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
     'PI Depth': ['PressSore Depth #%',
-                 ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
+                 ['Other\/Remarks', '\s*0\s*cm', '\s*0.0\s*cm']],
     # numeric value as string such as 5 cm
     # not 0 numeric values. Checked using '\s*0\s*cm' and '\s*0.0\s*cm'
-    'PI Width': ['Pressure Sore #\\d+ \\[Width\\]',
-                 ['Other\/Remarks', '\\s*0\\s*cm', '\\s*0.0\\s*cm']],
-    'PI Wound Base': ['PressSoreWoundBase#%', ['\\s*Other\/Remarks\\s*']],
-    'PI Drainage': ['Pressure Sore #\\d+ \\[Drainage\\]',
-                        ['\\s*Other\/Remarks\\s*']],
+    'PI Width': ['Pressure Sore #\d+ \[Width\]',
+                 ['Other\/Remarks', '\s*0\s*cm', '\s*0.0\s*cm']],
+    'PI Wound Base': ['PressSoreWoundBase#%', ['\s*Other\/Remarks\s*']],
+    'PI Drainage': ['Pressure Sore #\d+ \[Drainage\]',
+                        ['\s*Other\/Remarks\s*']],
     'PI Odor': ['Pressure Sore Odor#%',
-                    ['\\s*Other\/Remarks\\s*', '\\s*Not Applicable\\s*']],
+                    ['\s*Other\/Remarks\s*', '\s*Not Applicable\s*']],
     # 'Other/Remarks' included
     'PI Cleansing': ['PressSoreCleansing#%', []],
     'PI Treatment': ['PressSoreTreatment#%', []],
@@ -149,36 +149,36 @@ where d.category='Skin - Impairment';
 # % - any characters
 # TODO strip and uppercase before comparing values
 PI_EVENTS_MV = {
-    'PI Stage': ['Pressure Ulcer Stage #%',
+    'PI Stage': ['Pressure Ulcer Stage #\d+',
                  [
                      'Not applicable',
                      'Unable to assess; dressing not removed',
                      'Unable to stage; wound is covered with eschar'
                  ]],
     'PI Site': ['Impaired Skin Site #%',
-                ['\\s*Not applicable\\s*',
-                 '\\s*Resolved\\s*']],
+                ['\s*Not applicable\s*',
+                 '\s*Resolved\\s*']],
     # numeric value as string
-    'PI Depth': ['Impaired Skin Depth #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
+    'PI Depth': ['Impaired Skin Depth #%', ['\s*0\s*', '\s*0.0\s*']],
     # numeric value as string
-    'PI Width': ['Impaired Skin Width #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
-    'PI Wound Base': ['Impaired Skin Wound Base #%', ['\\s*Not assessed\\s*']],
-    'PI Drainage': ['Impaired Skin Drainage #%', ['\\s*Not assessed\\s*']],
-    'PI Odor': ['Impaired Skin Odor #%', ['\\s*Not applicable\\s*']],
-    'PI Cleansing': ['Impaired Skin Cleanse #%', ['\\s*Not applicable\\s*']],
-    'PI Treatment': ['Impaired Skin Treatment #%', ['\\s*Not applicable\\s*']],
+    'PI Width': ['Impaired Skin Width #%', ['\s*0\s*', '\s*0.0\s*']],
+    'PI Wound Base': ['Impaired Skin Wound Base #%', ['\s*Not assessed\s*']],
+    'PI Drainage': ['Impaired Skin Drainage #%', ['\s*Not assessed\s*']],
+    'PI Odor': ['Impaired Skin Odor #%', []],
+    'PI Cleansing': ['Impaired Skin Cleanse #%', ['\s*Not applicable\s*']],
+    'PI Treatment': ['Impaired Skin Treatment #%', ['\s*Not applicable\s*']],
     # TODO Replace 'SubQ Emphysema' with 'Sub Q emphysema'
-    'PI Skin Type': ['Impaired Skin Type #%', ['\\s*Not applicable\\s*']],
+    'PI Skin Type': ['Impaired Skin Type #%', ['\s*Not applicable\s*']],
     # numeric value as string
-    'PI Length': ['Impaired Skin Length #%', ['\\s*0\\s*', '\\s*0.0\\s*']],
+    'PI Length': ['Impaired Skin Length #%', ['\s*0\s*', '\s*0.0\s*']],
     'PI Drainage Amount': ['Impaired Skin Drainage Amount #%',
-                           ['\\s*Not assessed\\s*']],
+                           ['\s*Not assessed\s*']],
     'PI Surrounding Tissue': ['Surrounding Tissue #%',
-                              ['\\s*Not assessed\\s*']],
-    'PI Tunneling': ['Tunneling Present #%', ['\\s*Not assessed\\s*']],
-    'PI Undermining': ['Undermining Present #%', ['\\s*Not assessed\\s*']],
+                              ['\s*Not assessed\s*']],
+    'PI Tunneling': ['Tunneling Present #%', ['\s*Not assessed\s*']],
+    'PI Undermining': ['Undermining Present #%', ['\s*Not assessed\s*']],
     'PI Dressing Status': ['Impaired Skin  - Dressing Status #%',
-                           ['\\s*Not assessed\\s*']],
+                           ['\s*Not assessed\s*']],
     'PI Length': ['Impaired Skin Length #%', []],
     # The following are the itemid labels not used in Metavision
     # 'type': 'Impaired Skin #N- Type',

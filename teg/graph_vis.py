@@ -55,6 +55,13 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
                 attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
             #attrs[key]['title'] = attrs[key]['value']
         nx.set_edge_attributes(G, values=attrs, name='title')
+        attrs = dict([(key, val)
+                     for key, val in A.items()])
+        nx.set_edge_attributes(G, values=attrs, name='value')
+    else:
+        attrs = dict([(key, {'value': val, 'title': val})
+                     for key, val in A.items()])
+        nx.set_edge_attributes(G, attrs)
     print(nx.is_directed_acyclic_graph(G))
     return G
 

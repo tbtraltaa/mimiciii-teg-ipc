@@ -25,9 +25,11 @@ conf = {
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
+    #'starttime': False,
     'starttime': '2143-01-14',
     #'endtime': '2143-01-21',
     'endtime': '2143-02-14',
+    #'endtime': False,
     'min_missing_percent': 0, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -40,7 +42,7 @@ conf = {
     'path_percentile': [95, 100],
     'PI_only_sql': False, # PI patients slow to query chartevents
     'PI_only': True, # Delete non PI patients after querying all events
-    'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
+    'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'scale_PC': True, # scale by max_PC
@@ -52,7 +54,7 @@ conf = {
     'input_percentile': [0, 100],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 50,
+    'hadm_limit': 10,
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
