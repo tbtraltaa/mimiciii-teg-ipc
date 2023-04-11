@@ -74,6 +74,13 @@ def get_patient_demography(conn, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += "AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -91,6 +98,13 @@ def get_patient_demography(conn, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += "AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -150,6 +164,7 @@ def get_patient_demography(conn, conf):
     df = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
     print("Patients", len(df))
+    print(df)
     return df
 
 
@@ -212,6 +227,13 @@ def get_events(conn, event_key, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += " AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'])]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -229,6 +251,13 @@ def get_events(conn, event_key, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += " AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'])]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -493,6 +522,13 @@ def get_icustays(conn, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += " AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'])]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -510,6 +546,13 @@ def get_icustays(conn, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += " AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'])]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"

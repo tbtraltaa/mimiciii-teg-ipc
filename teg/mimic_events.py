@@ -29,6 +29,8 @@ def mimic_events(event_list, join_rules, conf):
         n += len(events)
         print(event_name, len(events))
         all_events += events
+        if event_name == 'PI Stage':
+            pprint.pprint(events)
     for event_name in CHART_EVENTS:
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
@@ -81,6 +83,7 @@ def mimic_events(event_list, join_rules, conf):
                 exclude_indices.append(e['i'])
             elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                all_events[e['i']]['pi_stage'] = stage
                 PI = True
             elif min_stage <= stage and stage < max_stage:
                 if stage == 0 and \

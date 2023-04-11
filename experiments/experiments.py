@@ -25,12 +25,12 @@ conf = {
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
-    #'starttime': False,
-    'starttime': '2143-01-14',
+    'starttime': False,
+    #'starttime': '2143-01-14',
     #'endtime': '2143-01-21',
-    'endtime': '2143-02-14',
-    #'endtime': False,
-    'min_missing_percent': 0, # for mimic extract
+    #'endtime': '2143-02-14',
+    'endtime': False,
+    'min_missing_percent': 40, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -40,8 +40,8 @@ conf = {
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [95, 100],
     'path_percentile': [95, 100],
-    'PI_only_sql': False, # PI patients slow to query chartevents
-    'PI_only': True, # Delete non PI patients after querying all events
+    'PI_only_sql': 'one', # PI patients slow to query chartevents
+    'PI_only': False, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
@@ -51,29 +51,29 @@ conf = {
     'skip_repeat': False,
     'quantiles': np.arange(0, 1.01, 0.1),
     'drug_percentile': [40, 60],
-    'input_percentile': [0, 100],
+    'input_percentile': [40, 100],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 10,
+    'hadm_limit': 6,
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
 t_max = {
-    'Admissions': timedelta(days=7, hours=0),
-    'Discharges': timedelta(days=7, hours=0),
-    'Icu In': timedelta(days=7, hours=0),
-    'Icu_Out': timedelta(days=7, hours=0),
-    'Callout': timedelta(days=7, hours=0),
-    'Transfer In': timedelta(days=7, hours=0),
-    'Transfer Out': timedelta(days=7, hours=0),
-    'CPT': timedelta(days=7, hours=0),
-    'Presc': timedelta(days=7, hours=0),
-    'Services': timedelta(days=7, hours=0),
-    'other': timedelta(days=7, hours=0),
-    'diff_type_same_patient': timedelta(days=7, hours=0),
-    'PI': timedelta(days=7, hours=0),
-    'Braden': timedelta(days=7, hours=0),
-    'Input': timedelta(days=7, hours=0),
+    'Admissions': timedelta(days=3, hours=0),
+    'Discharges': timedelta(days=3, hours=0),
+    'Icu In': timedelta(days=3, hours=0),
+    'Icu_Out': timedelta(days=3, hours=0),
+    'Callout': timedelta(days=3, hours=0),
+    'Transfer In': timedelta(days=3, hours=0),
+    'Transfer Out': timedelta(days=3, hours=0),
+    'CPT': timedelta(days=3, hours=0),
+    'Presc': timedelta(days=3, hours=0),
+    'Services': timedelta(days=3, hours=0),
+    'other': timedelta(days=3, hours=0),
+    'diff_type_same_patient': timedelta(days=1, hours=0),
+    'PI': timedelta(days=3, hours=0),
+    'Braden': timedelta(days=3, hours=0),
+    'Input': timedelta(days=3, hours=0),
 }
 
 join_rules = {
@@ -99,16 +99,24 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     states = np.zeros(n)
     for e in events:
         states[e['i']] = e['pi_state']
-    #G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    #print(nx.is_directed_acyclic_graph(G))
+    print(states)
+    print(np.nonzero(states))
+    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    print(nx.is_directed_acyclic_graph(G))
     #start = time.time()
     #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
     #print('PC time based on networkx', float(time.time() - start)/60.0)
+    #a = np.sort(np.nonzero(PC)[0])
+    #print(a)
     #PC_vals = algebraic_PC(A, states=states)
     #print("Time for PC without paths", float(time.time() - start)/60.0)
     start = time.time()
     PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
     print(float(time.time() - start)/60.0)
+    print(PC_values)
+    b = np.sort(np.nonzero(PC_values)[0])
+    print(b)
+    #print('Algebraic PC matches networks:', np.all(a==b))
     PC = dict()
     PC_all = dict()
     max_PC = float(max(PC_values))
@@ -145,8 +153,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     print("Nodes above percentile", len(PC_P))
     plot_PC(events, PC, conf, nbins=30)
     plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
-    '''
-    if vis and conf['max_hours'] > 168:
+    if vis and n > 500:
         # when a graph is too large for visualization
         # use only shortest path subgraph
         A = A.toarray()
@@ -178,8 +185,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
-    '''
-    if vis:
+    elif vis:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         file_name += "_Q" + str(len(conf['quantiles']))
         paths_P = dict([(i, paths[i]) for i in PC_P])

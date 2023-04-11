@@ -27,7 +27,7 @@ setuptools.setup(
     install_requires=[
         'networkx>=2.8.4',
         'pandas>=1.5.1',
-        'numpy>=1.23.1',
+        'numpy>=1.20.3',
         'matplotlib>=3.5.2',
         'scipy>=1.9.1',
         'pyvis>=0.2.0',

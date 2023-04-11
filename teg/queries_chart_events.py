@@ -84,6 +84,13 @@ def get_chart_events(conn, event_name, conf):
         pi_where += f' AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += "AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -100,6 +107,13 @@ def get_chart_events(conn, event_name, conf):
         pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND value not similar to '{value}'"
+        pi_where += "AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
+            if i == 0:
+                pi_where += f" value similar to '{value}'"
+            else:
+                pi_where += f" OR value similar to '{value}'"
+        pi_where += ")"
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
@@ -242,6 +256,7 @@ def get_chart_events(conn, event_name, conf):
                 id_ = e['id']
                 day = e['t'].days
         events = events_daily_max
+    # old code. it assumes only querying PI events
     if conf['duration']:
         df['duration'] = timedelta(days=0)
         # each row is converted into a dictionary indexed by column names
