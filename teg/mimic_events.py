@@ -67,24 +67,28 @@ def mimic_events(event_list, join_rules, conf):
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
-    exclude_indices = []
     stage = 0
     PI = False
     non_PI_ids = []
     non_PI_events = []
+    exclude_ids = []
+    exclude_indices = []
+    id_excluded = False
     for i, e in enumerate(sorted_events):
         # consider events till the first PI stage
         if not PI:
             # PI stage
-            if e['type'] == 'PI Stage':
+            if 'PI Stage' in e['type']:
                 stage = e['pi_stage']
-            # PI related events before stage I is considered as stage I
+            # exclude a patient who had higher or lower stage than our focus.
             if stage < min_stage or stage > max_stage:
-                exclude_indices.append(e['i'])
+                exclude_ids.append(e['id'])
+                id_excluded = True
             elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
                 PI = True
+            # PI related events before stage I is considered as stage I
             elif min_stage <= stage and stage < max_stage:
                 if stage == 0 and \
                     e['type'] != 'PI Stage' and \
@@ -95,7 +99,9 @@ def mimic_events(event_list, join_rules, conf):
                     PI = True
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
-        else:
+        # later all events belonging to excluded ids
+        # then no need to exclude those events here
+        elif PI and not id_excluded:
             # exlude events after maximum PI stage event
             exclude_indices.append(e['i'])
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
@@ -103,6 +109,11 @@ def mimic_events(event_list, join_rules, conf):
                 non_PI_ids.append(e['id'])
             PI = False
             stage = 0
+            id_excluded = False
+
+    for e in all_events:
+        if e['id'] in exclude_ids:
+            exclude_indices.append(e['i'])
 
     if conf['PI_only']:
         for e in all_events:

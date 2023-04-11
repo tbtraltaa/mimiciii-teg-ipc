@@ -91,6 +91,9 @@ def build_eventgraph(subjects, events, join_rules):
     for i, e1 in enumerate(events):
         j = i + 1
         for e2 in events[i + 1:]:
+            if 'pi_stage' not in e1 or 'pi_stage' not in e2:
+                print('e1', e1)
+                print('e2', e2)
             if e1['type'] != e2['type']:
                 break
             # Prevents over counting which happens if events with max PI stage connect with each other
