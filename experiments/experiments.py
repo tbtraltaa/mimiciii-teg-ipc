@@ -106,21 +106,25 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     start = time.time()
     PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
     print('Algebraic PC time', float(time.time() - start)/60.0)
-    '''
     # Check if algebraic PC match PC from networkx
     print(PC_values)
     b = np.sort(np.nonzero(PC_values)[0])
     print(b)
+    '''
+    # Check if algebraic PC matches PC computed using NetworkX
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     print(nx.is_directed_acyclic_graph(G))
     start = time.time()
-    PC, V, paths, all_paths = PC_with_target(G, states=states, weight='weight')
+    PC, V_nx, paths_nx, all_paths_nx = PC_with_target(G, states=states, weight='weight')
     print(PC)
     print('PC time based on networkx', float(time.time() - start)/60.0)
     a = np.sort(np.nonzero(list(PC.values()))[0])
     print(a)
     print('Algebraic PC nodes match that from networkx:', np.all(a==b))
-    print('Values match:', np.all(list(PC.values())==PC_values))
+    print('PC values match:', np.all(list(PC.values())==PC_values))
+    print('V match:', np.all(sorted(V)==sorted(V_nx)))
+    print('v_paths match:', paths==paths_nx)
+    print('all_paths match:', all_paths==all_paths_nx)
     '''
     PC = dict()
     PC_all = dict()
@@ -133,9 +137,9 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         PC_all[i] = v
         if val > 0:
             PC[i] = v
-    PC_sorted_events = [[k, v, events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True)]
-    pprint.pprint(PC_sorted_events[:11])
     '''
+    PC_sorted = [[k, v, events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True)]
+    pprint.pprint(PC_sorted[:11])
     PC_top = dict()
     num = 100 if len(PC_sorted) > 100 else len(PC_sorted)
     for i, info in enumerate(PC_sorted):
