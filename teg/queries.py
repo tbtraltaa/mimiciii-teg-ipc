@@ -164,7 +164,6 @@ def get_patient_demography(conn, conf):
     df = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
     print("Patients", len(df))
-    print(df)
     return df
 
 

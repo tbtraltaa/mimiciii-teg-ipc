@@ -10,7 +10,7 @@ warnings.filterwarnings('ignore')
 from teg.schemas import *
 from teg.mimic_events import *
 from teg.eventgraphs import *
-from teg.percolation import PC_with_target, percolation_centrality_with_target
+from teg.percolation import PC_with_target
 from teg.apercolation import *
 from teg.graph_vis import *
 from teg.paths import *
@@ -19,17 +19,17 @@ from teg.plot import *
 # Experiment configuration
 conf = {
     'duration': False,
-    'max_hours': 720,
-    #'max_hours': 168,
+    #'max_hours': 720,
+    'max_hours': 168,
     #'max_hours': 336,
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
     'starttime': False,
-    #'starttime': '2143-01-14',
-    #'endtime': '2143-01-21',
+    'starttime': '2143-01-14',
+    'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
-    'endtime': False,
+    #'endtime': False,
     'min_missing_percent': 40, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -40,9 +40,9 @@ conf = {
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [95, 100],
     'path_percentile': [95, 100],
-    'PI_only_sql': 'one', # PI patients slow to query chartevents
+    'PI_only_sql': 'False', # PI patients slow to query chartevents
     'PI_only': False, # Delete non PI patients after querying all events
-    'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
+    'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'scale_PC': True, # scale by max_PC
@@ -101,22 +101,27 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         states[e['i']] = e['pi_state']
     print(states)
     print(np.nonzero(states))
-    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    print(nx.is_directed_acyclic_graph(G))
-    #start = time.time()
-    #PC, V, paths = percolation_centrality_with_target(G, states=states, weight='weight')
-    #print('PC time based on networkx', float(time.time() - start)/60.0)
-    #a = np.sort(np.nonzero(PC)[0])
-    #print(a)
     #PC_vals = algebraic_PC(A, states=states)
     #print("Time for PC without paths", float(time.time() - start)/60.0)
     start = time.time()
     PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
-    print(float(time.time() - start)/60.0)
+    print('Algebraic PC time', float(time.time() - start)/60.0)
+    '''
+    # Check if algebraic PC match PC from networkx
     print(PC_values)
     b = np.sort(np.nonzero(PC_values)[0])
     print(b)
-    #print('Algebraic PC matches networks:', np.all(a==b))
+    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    print(nx.is_directed_acyclic_graph(G))
+    start = time.time()
+    PC, V, paths, all_paths = PC_with_target(G, states=states, weight='weight')
+    print(PC)
+    print('PC time based on networkx', float(time.time() - start)/60.0)
+    a = np.sort(np.nonzero(list(PC.values()))[0])
+    print(a)
+    print('Algebraic PC nodes match that from networkx:', np.all(a==b))
+    print('Values match:', np.all(list(PC.values())==PC_values))
+    '''
     PC = dict()
     PC_all = dict()
     max_PC = float(max(PC_values))

@@ -42,6 +42,21 @@ class GS(Type):
 GS_monoid = GS.new_monoid(GS.PLUS, GS.one)
 GS_semiring = GS.new_semiring(GS_monoid, GS.TIMES)
 
+def shortest_path_FW_while(matrix):
+    n = matrix.nrows
+    v = Vector.sparse(matrix.type, n)
+    D_k = matrix.dup()
+    D = matrix.dup()
+    D_prev = matrix.dup()
+    with GS_semiring:
+        while True:
+            D_prev = D.dup()
+            D_k @= matrix
+            D += D_k
+            if D.iseq(D_prev):
+                break
+    return D
+
 def shortest_path_FW(matrix):
     n = matrix.nrows
     v = Vector.sparse(matrix.type, n)
@@ -78,10 +93,12 @@ def algebraic_PC(Adj, states, normalize=False):
         S_exclude_v = S - S_sv[v] - S_vt[v]
         for s in D.extract_col(v).indices:
             for t in D.extract_row(v).indices:
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if D[s, t][1] == 0:
+                    continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    delta = states[t] - states[s]
-                    if delta <= 0:
-                        continue
                     w = delta / S_exclude_v 
                     if v in PC.indices:
                         PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
@@ -136,10 +153,12 @@ def algebraic_PC_with_paths(Adj, states, normalize=False):
         v_paths[v] = []
         for s in D.extract_col(v).indices:
             for t in D.extract_row(v).indices:
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if D[s, t][1] == 0:
+                    continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    delta = states[t] - states[s]
-                    if delta <= 0:
-                        continue
                     w = delta / S_exclude_v
                     if (s, t) not in paths:
                         paths[(s,t)] = st_paths(pred[s], s, t)
