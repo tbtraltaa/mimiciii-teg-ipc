@@ -151,7 +151,6 @@ def get_events_vitals_X_mean(conn, conf):
     else:
         Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
         Qs.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
-    print(Qs)
     icu_events = []
     vitals = vitals.loc[(slice(None), slice(
         None), icustays_ids, slice(None)), :]
@@ -257,7 +256,6 @@ def get_events_vitals_X(conn, conf):
     else:
         Qs = vitals_nan.quantile(conf['quantiles'], numeric_only=True)
         Qs.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
-    print(Qs)
     missing_percents = get_missing_percents_vitals_X(vitals)
     icu_events = []
     vitals = vitals.loc[(slice(None), slice(

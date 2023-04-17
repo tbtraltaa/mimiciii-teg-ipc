@@ -86,7 +86,10 @@ def get_patient_demography(conn, conf):
             pi_where += f" AND charttime <= '{conf['endtime']}'"
         pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents'
         pi += f' WHERE {pi_where}'
-        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        pi += f" ORDER BY hadm_id"
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi+= ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     elif conf['PI_only_sql'] == 'one':
         ignored_values_stage = []
@@ -116,9 +119,10 @@ def get_patient_demography(conn, conf):
                     GROUP BY t1.hadm_id) as t2
                 WHERE t2.count = 1
                 ORDER BY t2.hadm_id
-                LIMIT {conf['hadm_limit']}
-            ) as pi
             '''
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     where = f''' a.diagnosis != 'NEWBORN'
         AND a.hadm_id is NOT NULL
@@ -238,7 +242,10 @@ def get_events(conn, event_key, conf):
             pi_where += f" AND charttime <= '{conf['endtime']}'"
         pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents'
         pi += f' WHERE {pi_where}'
-        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        pi += f" ORDER BY hadm_id"
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     elif conf['PI_only_sql'] == 'one':
         ignored_values_stage = []
@@ -268,9 +275,10 @@ def get_events(conn, event_key, conf):
                     GROUP BY t1.hadm_id) as t2
                 WHERE t2.count = 1
                 ORDER BY t2.hadm_id
-                LIMIT {conf['hadm_limit']}
-            ) as pi
             '''
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     '''
     if conf['PI_only_sql']:
@@ -533,7 +541,10 @@ def get_icustays(conn, conf):
             pi_where += f" AND charttime <= '{conf['endtime']}'"
         pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents'
         pi += f' WHERE {pi_where}'
-        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        pi += f' ORDER BY hadm_id'
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     elif conf['PI_only_sql'] == 'one':
         ignored_values_stage = []
@@ -563,9 +574,10 @@ def get_icustays(conn, conf):
                     GROUP BY t1.hadm_id) as t2
                 WHERE t2.count = 1
                 ORDER BY t2.hadm_id
-                LIMIT {conf['hadm_limit']}
-            ) as pi
             '''
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     where = 'a.hadm_id is NOT NULL'
     '''

@@ -96,7 +96,8 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     PC_w = dict()
     PC_p = dict()
     for k, f in PC_freq.items():
-        PC_w[k] = PC_sum[k]* f/PC_n
+        #PC_w[k] = PC_sum[k]* f/PC_n
+        PC_w[k] = PC_sum[k] / f
         PC_p[k] = PC_sum[k]/PC_total
     PC_w = dict(sorted(PC_w.items(), key=lambda x: x[1]))
     PC_p = dict(sorted(PC_p.items(), key=lambda x: x[1]))
@@ -104,8 +105,8 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     y_pos  =  range(0, 2*len(PC_w), 2)
     plt.barh(y_pos, list(PC_w.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_w.keys()))
-    plt.title("Weighted Average PC " + str(percentile))
-    plt.xlabel("Weighted Average PC")
+    plt.title("Average PC " + str(percentile))
+    plt.xlabel("Average PC")
     plt.xscale("log")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels

@@ -95,7 +95,10 @@ def get_chart_events(conn, event_name, conf):
             pi_where += f" AND charttime >= '{conf['starttime']}'"
             pi_where += f" AND charttime <= '{conf['endtime']}'"
         pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
-        pi += f" ORDER BY hadm_id LIMIT {conf['hadm_limit']}) as pi"
+        pi += f" ORDER BY hadm_id"
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     elif conf['PI_only_sql'] == 'one':
         ignored_values_stage = []
@@ -125,9 +128,10 @@ def get_chart_events(conn, event_name, conf):
                     GROUP BY t1.hadm_id) as t2
                 WHERE t2.count = 1
                 ORDER BY t2.hadm_id
-                LIMIT {conf['hadm_limit']}
-            ) as pi
             '''
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi += ") as pi"
         table += f' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'
     where = 'tb.hadm_id is NOT NULL'
     '''

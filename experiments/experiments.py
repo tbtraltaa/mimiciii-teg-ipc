@@ -19,17 +19,16 @@ from teg.plot import *
 # Experiment configuration
 conf = {
     'duration': False,
-    #'max_hours': 720,
-    'max_hours': 168,
-    #'max_hours': 336,
+    'max_hours': 240,
+    #'max_hours': 168,
     'min_age': 15,
     'max_age': 89,
     'age_interval': 5, # in years, for patients
     'starttime': False,
-    'starttime': '2143-01-14',
-    'endtime': '2143-01-21',
+    #'starttime': '2143-01-14',
+    #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
-    #'endtime': False,
+    'endtime': False,
     'min_missing_percent': 40, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -38,23 +37,24 @@ conf = {
     'edge label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
-    'PC_percentile': [95, 100],
+    'PC_percentile': [97, 100],
     'path_percentile': [95, 100],
-    'PI_only_sql': 'False', # PI patients slow to query chartevents
+    'PI_only_sql': 'one', # PI patients slow to query chartevents
     'PI_only': False, # Delete non PI patients after querying all events
-    'PI_as_stage': True, # PI events after stage 0 are considered as stage 1 
+    'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'scale_PC': True, # scale by max_PC
     'Top_n_PC': 20,
     'PI_vitals': False, # Use a list of vitals related to PI
-    'skip_repeat': False,
+    'skip_repeat': True,
     'quantiles': np.arange(0, 1.01, 0.1),
     'drug_percentile': [40, 60],
     'input_percentile': [40, 100],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 6,
+    'hadm_limit': False,
+    'vis': False
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
@@ -92,7 +92,7 @@ join_rules = {
 }
 
 
-def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
+def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
     patients, events = mimic_events(event_list, join_rules, conf)
     n = len(events)
     A = build_eventgraph(patients, events, join_rules)
@@ -101,15 +101,36 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         states[e['i']] = e['pi_state']
     print(states)
     print(np.nonzero(states))
-    #PC_vals = algebraic_PC(A, states=states)
-    #print("Time for PC without paths", float(time.time() - start)/60.0)
     start = time.time()
+    PC_values = algebraic_PC(A, states=states)
+    print("Time for PC without paths", float(time.time() - start)/60.0)
+    '''
+    start = time.time()
+    P, pred, D = algebraic_PC_with_pred(A, states=states)
+    print("Time for PC with pred", float(time.time() - start)/60.0)
+    start = time.time()
+    V, v_paths = PC_paths(D, pred, states)
+    print("Compute paths", float(time.time() - start)/60.0)
+    start = time.time()
+    start = time.time()
+    PC_values, V, v_paths = algebraic_PC_with_paths_v1(A, states=states)
+    print("Time for PC with pred", float(time.time() - start)/60.0)
     PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
     print('Algebraic PC time', float(time.time() - start)/60.0)
     # Check if algebraic PC match PC from networkx
     print(PC_values)
     b = np.sort(np.nonzero(PC_values)[0])
     print(b)
+    '''
+    '''
+    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+    print(nx.is_directed_acyclic_graph(G))
+    start = time.time()
+    PC, V, paths, all_paths = PC_with_target(G, states=states, weight='weight')
+    PC_values = np.array(list(PC.values()))
+    print(PC)
+    print('PC time based on networkx', float(time.time() - start)/60.0)
+    '''
     '''
     # Check if algebraic PC matches PC computed using NetworkX
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
@@ -162,7 +183,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
     print("Nodes above percentile", len(PC_P))
     plot_PC(events, PC, conf, nbins=30)
     plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
-    if vis and n > 500:
+    if conf['vis'] and n > 500:
         # when a graph is too large for visualization
         # use only shortest path subgraph
         A = A.toarray()
@@ -194,7 +215,7 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name, vis=True):
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), file_name+"V_percentile")
-    elif vis:
+    elif conf['vis']:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         file_name += "_Q" + str(len(conf['quantiles']))
         paths_P = dict([(i, paths[i]) for i in PC_P])
@@ -221,7 +242,8 @@ if __name__ == "__main__":
         'input_percentile',
         'skip_repeat',
         'PI_only_sql',
-        'hadm_limit']
+        'hadm_limit', 
+        'min_missing_percent']
     fname_LF = 'output/TEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])

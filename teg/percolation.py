@@ -27,21 +27,19 @@ def PC_with_target(G, states=None, weight=None):
             for t in D[s][0]:
                 if t not in D[v][0]:
                     continue
-                delta = states[t] - states[s]
+                delta = float(states[t] - states[s])
                 if delta <= 0:
                     continue
                 if s != v and t != v and s != t and D[s][0][t] == D[s][0][v] + D[v][0][t]:
                     if (s, t) not in paths:
-                        st_paths = list(nx.all_shortest_paths(G, source=s, target=t, weight='weight'))
-                        paths[(s,t)] = st_paths
+                        paths[(s,t)] = list(nx.all_shortest_paths(G, source=s, target=t, weight='weight'))
                     sigma_st = len(paths[(s,t)])
                     if sigma_st == 0:
                         continue
                     sv_paths = list(nx.all_shortest_paths(G, source=s, target=v, weight='weight'))
                     vt_paths = list(nx.all_shortest_paths(G, source=v, target=t, weight='weight'))
                     sigma_v_st = float(len(sv_paths) * len(vt_paths))
-                    w = float(delta) 
-                    w /= S_exclude_v 
+                    w = delta/S_exclude_v 
                     if v not in v_paths:
                         v_paths[v] = []
                     PC[v] += sigma_v_st / sigma_st * w

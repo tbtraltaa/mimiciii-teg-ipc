@@ -32,3 +32,54 @@ def analyze_paths(events, PC, V, paths):
                     pass
                 else:
                     pass
+
+def PC_paths(D, pred, states):
+    n = D.nrows
+    S = 0.0
+    S_vt = dict()
+    S_sv = dict()
+    for v in range(n):
+        deltas = states - states[v]
+        S_vt[v] = np.sum(deltas[deltas > 0])
+        deltas = states * (-1) + states[v]
+        S_sv[v] = np.sum(deltas[deltas > 0])
+        S += S_vt[v]
+    v_paths = dict()
+    V = set()
+    for v in range(n):
+        S_exclude_v = S - S_sv[v] - S_vt[v]
+        v_paths[v] = []
+        for s in D.extract_col(v).indices:
+            for t in D.extract_row(v).indices:
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if s != v and t != v and s != t and D[s, t] == D[s, v] + D[v, t]:
+                    sv_paths = st_paths(pred[s], s, v)
+                    vt_paths = st_paths(pred[s], v, t)
+                    for p1 in sv_paths:
+                        for p2 in vt_paths:
+                            v_paths[v].append(p1 + p2[1:])
+                            V.update(p1 + p2[1:])
+    return list(V), v_paths
+
+def st_paths(pred, s, t):
+    stack = [[t, 0]]
+    top = 0
+    paths = []
+    while top >= 0:
+        node, i = stack[top]
+        if node == s:
+            paths.append([p for p, n in reversed(stack[:top+1])])
+        if node not in pred:
+            continue
+        if len(pred[node]) > i:
+            top += 1
+            if top == len(stack):
+                stack.append([pred[node][i],0])
+            else:
+                stack[top] = [pred[node][i],0]
+        else:
+            stack[top-1][1] += 1
+            top -= 1
+    return paths

@@ -33,7 +33,7 @@
 
              #mynetwork {
                  width: 100%;
-                 height: 300;
+                 height: 600px;
                  background-color: #ffffff;
                  border: 1px solid lightgray;
                  position: relative;
@@ -88,8 +88,8 @@
                   
 
                   // parsing and collecting nodes and edges from the python
-                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": 0, "label": "0", "shape": "circle"}, {"color": "#97c2fc", "id": 1, "label": "(0,1,9.0,1)", "shape": "circle"}, {"color": "#97c2fc", "id": 3, "label": "(0,3,3.0,1)", "shape": "circle"}, {"color": "#97c2fc", "id": 5, "label": "(0,5,4.0,2)\n(1,5,7.0,1)\n(3,5,1.0,1)", "shape": "circle"}, {"color": "#97c2fc", "id": 2, "label": "(0,2,10.0,2)\n(1,2,8.0,1)\n(3,2,7.0,1)\n(4,2,4.0,1)\n(5,2,6.0,1)", "shape": "circle"}, {"color": "#97c2fc", "id": 4, "label": "(0,4,6.0,2)\n(1,4,9.0,1)\n(3,4,3.0,1)\n(5,4,2.0,1)", "shape": "circle"}]);
-                  edges = new vis.DataSet([{"arrows": "to", "from": 0, "label": "(9.0, 1)", "to": 1}, {"arrows": "to", "from": 0, "label": "(3.0, 1)", "to": 3}, {"arrows": "to", "from": 0, "label": "(4.0, 1)", "to": 5}, {"arrows": "to", "from": 1, "label": "(8.0, 1)", "to": 2}, {"arrows": "to", "from": 1, "label": "(7.0, 1)", "to": 5}, {"arrows": "to", "from": 3, "label": "(6.0, 1)", "to": 4}, {"arrows": "to", "from": 3, "label": "(1.0, 1)", "to": 5}, {"arrows": "to", "from": 4, "label": "(4.0, 1)", "to": 2}, {"arrows": "to", "from": 5, "label": "(2.0, 1)", "to": 4}]);
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "id": 0, "label": "0", "shape": "circle"}, {"color": "#97c2fc", "id": 1, "label": "1", "shape": "circle"}, {"color": "#97c2fc", "id": 3, "label": "3", "shape": "circle"}, {"color": "#97c2fc", "id": 5, "label": "5", "shape": "circle"}, {"color": "#97c2fc", "id": 2, "label": "2", "shape": "circle"}, {"color": "#97c2fc", "id": 4, "label": "4", "shape": "circle"}]);
+                  edges = new vis.DataSet([{"arrows": "to", "from": 0, "label": "9.0", "to": 1}, {"arrows": "to", "from": 0, "label": "3.0", "to": 3}, {"arrows": "to", "from": 0, "label": "4.0", "to": 5}, {"arrows": "to", "from": 1, "label": "8.0", "to": 2}, {"arrows": "to", "from": 1, "label": "7.0", "to": 5}, {"arrows": "to", "from": 3, "label": "6.0", "to": 4}, {"arrows": "to", "from": 3, "label": "1.0", "to": 5}, {"arrows": "to", "from": 4, "label": "4.0", "to": 2}, {"arrows": "to", "from": 5, "label": "2.0", "to": 4}]);
 
                   nodeColors = {};
                   allNodes = nodes.get({ returnType: "Object" });

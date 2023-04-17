@@ -29,8 +29,6 @@ def mimic_events(event_list, join_rules, conf):
         n += len(events)
         print(event_name, len(events))
         all_events += events
-        if event_name == 'PI Stage':
-            pprint.pprint(events)
     for event_name in CHART_EVENTS:
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
@@ -174,5 +172,6 @@ def mimic_events(event_list, join_rules, conf):
     #print('Total patients', len(patients))
     #print("Total events: ", n)
     print('Total patients', len(set([e['subject_id'] for e in all_events])))
+    print('Total admissions', len(set([e['id'] for e in all_events])))
     print("Total events: ", len(all_events))
     return patients, all_events

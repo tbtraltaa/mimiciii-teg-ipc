@@ -14,7 +14,7 @@ class GS(Type):
     _numpy_t = None
     members = ['double w', 'uint64_t n']
     one = (float('inf'), 0)
-
+    # equal operation is not working with "iseq" operation, D.iseq(D1)
     @binop(boolean=True)
     def EQ(z, x, y):
         if x.w == y.w and x.n == y.n:
@@ -42,7 +42,7 @@ class GS(Type):
 GS_monoid = GS.new_monoid(GS.PLUS, GS.one)
 GS_semiring = GS.new_semiring(GS_monoid, GS.TIMES)
 
-def shortest_path_FW_while(matrix):
+def shortest_path_FW_early_stop(matrix):
     n = matrix.nrows
     v = Vector.sparse(matrix.type, n)
     D_k = matrix.dup()
@@ -53,6 +53,7 @@ def shortest_path_FW_while(matrix):
             D_prev = D.dup()
             D_k @= matrix
             D += D_k
+            # iseq not working
             if D.iseq(D_prev):
                 break
     return D
@@ -88,7 +89,8 @@ def algebraic_PC(Adj, states, normalize=False):
         else:
             A[i,j] = (v, 1)
     D = shortest_path_FW(A)
-    PC = Vector.sparse(FP64, n)  
+    #PC = Vector.sparse(FP64, n)  
+    PC = np.zeros(n)
     for v in range(n):
         S_exclude_v = S - S_sv[v] - S_vt[v]
         for s in D.extract_col(v).indices:
@@ -100,13 +102,75 @@ def algebraic_PC(Adj, states, normalize=False):
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
                     w = delta / S_exclude_v 
+                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    '''
                     if v in PC.indices:
                         PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     else:
                         PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    '''
     return PC
 
-def algebraic_PC_with_paths(Adj, states, normalize=False):
+def algebraic_PC_with_pred(Adj, states, normalize=False):
+    n = Adj.shape[0]
+    A = Matrix.sparse(GS, n, n)
+    A1 = Matrix.sparse(FP64, n, n)
+    S = 0.0
+    S_vt = dict()
+    S_sv = dict()
+    for v in range(n):
+        deltas = states - states[v]
+        S_vt[v] = np.sum(deltas[deltas > 0])
+        deltas = states * (-1) + states[v]
+        S_sv[v] = np.sum(deltas[deltas > 0])
+        S += S_vt[v]
+    for k, v in Adj.items():
+        i = k[0]
+        j = k[1]
+        if i == j:
+            A[i,j] = (float('inf'), 0)
+        else:
+            A[i,j] = (v, 1)
+            A1[i,j] = v
+    D = shortest_path_FW(A)
+    #PC = Vector.sparse(FP64, n)  
+    PC = np.zeros(n)
+    for v in range(n):
+        S_exclude_v = S - S_sv[v] - S_vt[v]
+        for s in D.extract_col(v).indices:
+            for t in D.extract_row(v).indices:
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if D[s, t][1] == 0:
+                    continue
+                if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
+                    w = delta / S_exclude_v 
+                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    '''
+                    if v in PC.indices:
+                        PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    else:
+                        PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    '''
+    D1 = Matrix.sparse(FP64, n, n)
+    for i, j, v in D:
+        D1[i,j] = v[0]
+    pred = dict()
+    with FP64.plus:
+        for i in range(n):
+            pred[i] = dict()
+            d = D1.extract_row(i)
+            d[i] = 0
+            for j in d.indices:
+                col_j = A1.extract_col(j)
+                col_j.emult(d, mult_op=FP64.plus, out=col_j)
+                #pred_j = list((col_j == d[j]).indices)
+                #if pred_j:
+                pred[i][j] = list((col_j == d[j]).indices)
+    return PC, pred, D1
+
+def algebraic_PC_with_paths(Adj, states):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
@@ -177,6 +241,69 @@ def algebraic_PC_with_paths(Adj, states, normalize=False):
                     '''
                     PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
     return PC, list(V), v_paths, paths
+
+def algebraic_PC_with_paths_v1(Adj, states):
+    n = Adj.shape[0]
+    A = Matrix.sparse(GS, n, n)
+    A1 = Matrix.sparse(FP64, n, n)
+    S = 0.0
+    S_vt = dict()
+    S_sv = dict()
+    for v in range(n):
+        deltas = states - states[v]
+        S_vt[v] = np.sum(deltas[deltas > 0])
+        deltas = states * (-1) + states[v]
+        S_sv[v] = np.sum(deltas[deltas > 0])
+        S += S_vt[v]
+    for k, v in Adj.items():
+        i = k[0]
+        j = k[1]
+        if i == j:
+            A[i,j] = (float('inf'), 0)
+        else:
+            A[i,j] = (v, 1)
+            A1[i,j] = v
+    D = shortest_path_FW(A)
+    D1 = Matrix.sparse(FP64, n, n)
+    for i, j, v in D:
+        D1[i,j] = v[0]
+    pred = dict()
+    with FP64.plus:
+        for i in range(n):
+            pred[i] = dict()
+            d = D1.extract_row(i)
+            d[i] = 0
+            for j in d.indices:
+                col_j = A1.extract_col(j)
+                col_j.emult(d, mult_op=FP64.plus, out=col_j)
+                #pred_j = list((col_j == d[j]).indices)
+                #if pred_j:
+                pred[i][j] = list((col_j == d[j]).indices)
+    #PC = Vector.sparse(FP64, n)
+    PC = np.zeros(n)
+    paths = dict()
+    v_paths = dict()
+    V = set()
+    for v in range(n):
+        S_exclude_v = S - S_sv[v] - S_vt[v]
+        v_paths[v] = []
+        for s in D.extract_col(v).indices:
+            for t in D.extract_row(v).indices:
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if D[s, t][1] == 0:
+                    continue
+                if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
+                    w = delta / S_exclude_v
+                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    sv_paths = st_paths(pred[s], s, v)
+                    vt_paths = st_paths(pred[s], v, t)
+                    for p1 in sv_paths:
+                        for p2 in vt_paths:
+                            v_paths[v].append(p1 + p2[1:])
+                            V.update(p1 + p2[1:])
+    return PC, list(V), v_paths
 
 def st_paths(pred, s, t):
     stack = [[t, 0]]

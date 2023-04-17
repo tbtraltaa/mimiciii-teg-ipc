@@ -35,8 +35,8 @@ EVENTS = {
     #'Chart': [8, 'chartevents', 'charttime'],
     # charttime preferred over storetime
     # ignored endtime
-    #'Input CV': [ 'Input', 'inputevents_cv', 'charttime', 'd.label'],
-    #'Input MV': [ 'Input', 'inputevents_mv', 'starttime', 'd.label'],
+    'Input CV': [ 'Input', 'inputevents_cv', 'charttime', 'd.label'],
+    'Input MV': [ 'Input', 'inputevents_mv', 'starttime', 'd.label'],
     # 'datatimeevents',
     # charttime preferred over storetime
     #'Output': [10, 'outputevents', 'charttime'],
@@ -57,8 +57,8 @@ EVENTS = {
     # 886 ISERROR=1 out of 2083180, that is, around 0.04%
     # charttime preferred over storetime
     # 'notevents': [16, 'noteevents', 'charttime'],
-    #'Presc Start': ['Presc Start', 'prescriptions', 'startdate', 'tb.drug'],
-    #'Presc End': ['Presc End', 'prescriptions', 'enddate', 'tb.drug'],
+    'Presc Start': ['Presc Start', 'prescriptions', 'startdate', 'tb.drug'],
+    'Presc End': ['Presc End', 'prescriptions', 'enddate', 'tb.drug'],
     # at the end after discharge, take discharge time from admissions table
     #'Procedures ICD': [19, 'procedures_icd', 'dischtime'],
     'Services': ['Services', 'services', 'transfertime', 'tb.curr_service']}
