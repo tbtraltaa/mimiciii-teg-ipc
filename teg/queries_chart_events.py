@@ -49,10 +49,12 @@ def get_chart_events(conn, event_name, conf):
         cols += f"split_part(tb.value, ' ', 1) as value, " 
         if conf['unique_chartvalue_per_day_sql']:
             # Take max value events for a day
-            # Ignoring PI numbers
+            # The number of events match the results from pandas, but
+            # the event values could be different due to the casting.
+            # TEG connections differed from using pandas.
+            # Hence, not using this option
             cols += f''' row_number() over (partition by 
                 tb.subject_id, tb.hadm_id,
-                cast(split_part(tb.value, ' ', 1) as double precision),
                 EXTRACT(DAY FROM tb.{time_col} - a.admittime)
                 order by cast(split_part(tb.value, ' ', 1) as double precision) DESC), '''
     else:
@@ -244,9 +246,9 @@ def get_chart_events(conn, event_name, conf):
                  .groupby(['id', 'day']) \
                  .cumcount() + 1
             df = df[df['row_number'] == 1]
+            df.drop(['row_number'], axis=1, inplace=True)
         df['value_test'] = df['value']
         df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
-        df.drop(['row_number'], axis=1, inplace=True)
         df.drop(['day'], axis=1, inplace=True)
     elif conf['unique_chartvalue_per_day']:
         df['row_number'] = df.sort_values(['t'], ascending=[True]) \

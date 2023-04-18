@@ -44,7 +44,7 @@ conf = {
     'admittime_start':'2143-01-14',
     'admittime_end': '2143-02-14',
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
-    'unique_chartvalue_per_day_sql': True, # Take chart events with distinct values per day
+    'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'has_icustay': 'True',
     'scale_PC': True, # scale by max_PC
