@@ -80,54 +80,58 @@ def get_events_interventions(conn, conf):
                 continue
             if not conf['skip_repeat']:
                 events.append({'id': e['id'],
-                               'type': 'intervention-' + col,
+                               'type': 'Intervention-' + col,
+                               'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
                                'subject_id': subject_id,
                                'hadm_id': hadm_id,
                                'icu-time': time,
-                               'intervention-count': count,
+                               'count': count,
                                'intervention': 1})
                 continue
             if i not in prev:
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
-                               'type': 'intervention-' + col,
+                               'type': 'Intervention-' + col,
+                               'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
                                'subject_id': subject_id,
                                'hadm_id': hadm_id,
                                'icu-time': time,
-                               'intervention-count': count,
+                               'count': count,
                                'intervention': 1,
                                'duration': zero_duration})
                 event_idx += 1
             elif conf['duration'] and prev[i][0] == val and prev[i][1] == h - 1:
                 events[prev[i][2]]['duration'] += time_unit
-                events[prev[i][2]]['intervention-count'] += count
+                events[prev[i][2]]['count'] += count
             elif conf['duration'] and prev[i][0] == val and prev[i][1] != h - 1:
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
-                               'type': 'intervention-' + col,
+                               'type': 'Intervention-' + col,
+                               'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
                                'subject_id': subject_id,
                                'hadm_id': hadm_id,
                                'icu-time': time,
-                               'intervention-count': count,
+                               'count': count,
                                'intervention': 1,
                                'duration': zero_duration})
                 event_idx += 1
             elif val != prev[i][0]:
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
-                               'type': 'intervention-' + col,
+                               'type': 'Intervention-' + col,
+                               'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
                                'subject_id': subject_id,
                                'hadm_id': hadm_id,
                                'icu-time': time,
-                               'intervention-count': count,
+                               'count': count,
                                'intervention': 1,
                                'duration': zero_duration})
                 event_idx += 1
@@ -187,7 +191,8 @@ def get_events_vitals_X_mean(conn, conf):
             Q = get_quantile_mimic_extract(val, Qs.loc[:, col])
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -200,7 +205,8 @@ def get_events_vitals_X_mean(conn, conf):
             if i not in prev:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -215,7 +221,8 @@ def get_events_vitals_X_mean(conn, conf):
             elif conf['duration'] and prev[i][0] == Q and prev[i][1] != h - 1:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -228,7 +235,8 @@ def get_events_vitals_X_mean(conn, conf):
             elif Q != prev[i][0]:
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -295,7 +303,8 @@ def get_events_vitals_X(conn, conf):
             std_Q = get_quantile_mimic_extract(std, Qs.loc[:, (col, 'std')])
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -311,7 +320,8 @@ def get_events_vitals_X(conn, conf):
             if i not in prev:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -331,7 +341,8 @@ def get_events_vitals_X(conn, conf):
             elif conf['duration'] and prev[i][1] == mean_Q and prev[i][1] != h - 1:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,
@@ -348,7 +359,8 @@ def get_events_vitals_X(conn, conf):
             elif mean_Q != prev[i][1]:
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
-                                   'type': col + f' {mean_Q}',
+                                   'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
                                    'subject_id': subject_id,

@@ -1,7 +1,7 @@
 schema = 'mimiciii'
 
 # attributes of an event, not used for comparison
-EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime']
+EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime', 'parent_type']
 
 LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services']
 

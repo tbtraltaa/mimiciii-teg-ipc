@@ -277,6 +277,7 @@ def get_chart_events(conn, event_name, conf):
         df[df['value'] == 'Subq Emphysema']['value'] = 'Sub Q Emphysema'
 
     # Decoupling events by their value
+    df['parent_type'] = df['type']
     df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')

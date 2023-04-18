@@ -52,13 +52,14 @@ conf = {
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': True,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 60],
+    'drug_percentile': [40, 100],
     'input_percentile': [40, 100],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 10,
+    'hadm_limit': 200,
     'hadm_order': 'DESC',
-    'vis': False
+    'vis': False,
+    'first_hadm': True
 }
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]

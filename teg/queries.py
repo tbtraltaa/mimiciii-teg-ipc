@@ -249,6 +249,7 @@ def get_events(conn, event_key, conf):
     for e in LOGISTIC_EVENTS:
         if e in event_name:
             initcap = False
+    ID_cols += f"'{event_name}' as parent_type, "
     if initcap:
         ID_cols += f"CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,"
     else:

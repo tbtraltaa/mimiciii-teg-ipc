@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
+from itertools import groupby
 import pprint
 from datetime import timedelta
 import copy
@@ -28,7 +29,8 @@ def mimic_events(event_list, join_rules, conf):
             e['i'] = i + n
         n += len(events)
         print(event_name, len(events))
-        all_events += events
+        if len(events) > 0:
+            all_events += events
     for event_name in CHART_EVENTS:
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
@@ -37,13 +39,15 @@ def mimic_events(event_list, join_rules, conf):
             e['i'] = i + n
         n += len(events)
         print(event_name, len(events))
-        all_events += events
+        if len(events) > 0:
+            all_events += events
     events = get_events_interventions(conn, conf)
     for i, e in enumerate(events):
         e['i'] = i + n
     n += len(events)
     print('Interventions', len(events))
-    all_events += events
+    if len(events) > 0:
+        all_events += events
     if conf['vitals_X_mean']:
         events = get_events_vitals_X_mean(conn, conf)
     else:
@@ -52,7 +56,8 @@ def mimic_events(event_list, join_rules, conf):
         e['i'] = i + n
     n += len(events)
     print('Vitals', len(events))
-    all_events += events
+    if len(events) > 0:
+        all_events += events
     for event_key in event_list:
         event_name, table, time_col, main_attr = EVENTS[event_key]
         events = get_events(conn, event_key, conf)
@@ -60,7 +65,8 @@ def mimic_events(event_list, join_rules, conf):
             e['i'] = i + n
         n += len(events)
         print(event_key, len(events))
-        all_events += events
+        if len(events) > 0:
+            all_events += events
     # Add stage to all events
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
     min_stage = min(conf['PI_states'].keys())
@@ -69,18 +75,23 @@ def mimic_events(event_list, join_rules, conf):
     PI = False
     non_PI_ids = []
     non_PI_events = []
-    exclude_ids = []
-    exclude_indices = []
+    excluded_ids = []
+    excluded_indices = []
     id_excluded = False
+    subjects = []
     for i, e in enumerate(sorted_events):
+        # take only first admission
+        if 'Admissions' in e['type'] and e['subject_id'] in subjects and conf['first_hadm']:
+            excluded_ids.append(e['id'])
+            id_excluded = True
         # consider events till the first PI stage
-        if not PI:
+        if not PI and not id_excluded:
             # PI stage
             if 'PI Stage' in e['type']:
                 stage = e['pi_stage']
             # exclude a patient who had higher or lower stage than our focus.
             if stage < min_stage or stage > max_stage:
-                exclude_ids.append(e['id'])
+                excluded_ids.append(e['id'])
                 id_excluded = True
             elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
@@ -101,7 +112,7 @@ def mimic_events(event_list, join_rules, conf):
         # then no need to exclude those events here
         elif PI and not id_excluded:
             # exlude events after maximum PI stage event
-            exclude_indices.append(e['i'])
+            excluded_indices.append(e['i'])
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
             if not PI:
                 non_PI_ids.append(e['id'])
@@ -110,14 +121,14 @@ def mimic_events(event_list, join_rules, conf):
             id_excluded = False
 
     for e in all_events:
-        if e['id'] in exclude_ids:
-            exclude_indices.append(e['i'])
+        if e['id'] in excluded_ids:
+            excluded_indices.append(e['i'])
 
     if conf['PI_only']:
         for e in all_events:
             if e['id'] in non_PI_ids:
                 non_PI_events.append(e['i'])
-    for i in sorted(set(exclude_indices + non_PI_events), reverse=True):
+    for i in sorted(set(excluded_indices + non_PI_events), reverse=True):
         del all_events[i]
 
     if conf['subsequent_adm']:
@@ -166,12 +177,18 @@ def mimic_events(event_list, join_rules, conf):
                 e2['adm_num'] = adm_num
         print("Subsequent admission events: ", len(sub_adm_events))
         all_events += sub_adm_events
+
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
     for i in range(len(all_events)):
         all_events[i]['i'] = i
+    print("Events in TEG:")
+    print("==========================================================")
+    for key, val in groupby(all_events, key=lambda x: x['parent_type']):
+        print(key, len(list(val)))
     #print('Total patients', len(patients))
     #print("Total events: ", n)
     print('Total patients', len(set([e['subject_id'] for e in all_events])))
     print('Total admissions', len(set([e['id'] for e in all_events])))
     print("Total events: ", len(all_events))
+
     return patients, all_events
