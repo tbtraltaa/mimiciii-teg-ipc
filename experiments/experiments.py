@@ -39,11 +39,14 @@ conf = {
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [97, 100],
     'path_percentile': [95, 100],
-    'PI_only_sql': 'one', # PI patients slow to query chartevents
+    'PI_sql': 'one',
     'PI_only': False, # Delete non PI patients after querying all events
+    'admittime_start':'2143-01-14',
+    'admittime_end': '2143-02-14',
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
-    'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
+    'unique_chartvalue_per_day_sql': True, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
+    'has_icustay': 'True',
     'scale_PC': True, # scale by max_PC
     'Top_n_PC': 20,
     'PI_vitals': False, # Use a list of vitals related to PI
@@ -53,7 +56,8 @@ conf = {
     'input_percentile': [40, 100],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': False,
+    'hadm_limit': 10,
+    'hadm_order': 'DESC',
     'vis': False
 }
 # Event graph configuration

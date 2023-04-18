@@ -73,69 +73,99 @@ def get_chart_events(conn, event_name, conf):
     table += f' ON tb.subject_id = p.subject_id'
     table += f' INNER JOIN {schema}.d_items d'
     table += f' ON tb.itemid = d.itemid'
-    if conf['PI_only_sql'] == 'multiple':
+    if conf['PI_sql'] == 'one_or_multiple':
         ignored_values_stage = []
         label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
         ignored_values_stage += ignored_values_CV_stage
         label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
         ignored_values_stage += ignored_values_MV_stage
-        # values of maximum stage
-        pi_where = f'value is NOT NULL'
-        pi_where += f' AND itemid in {PI_STAGE_ITEMIDS}'
+        pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
-            pi_where += f" AND value not similar to '{value}'"
+            pi_where += f" AND t1.value not similar to '{value}'"
+        pi_where += " AND ("
+        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
+            if i == 0:
+                pi_where += f" t1.value similar to '{value}'"
+            else:
+                pi_where += f" OR t1.value similar to '{value}'"
+        pi_where += ")"
+        if conf['starttime'] and conf['endtime']:
+            pi_where += f" AND t1.charttime >= '{conf['starttime']}'"
+            pi_where += f" AND t1.charttime <= '{conf['endtime']}'"
+        pi_where += f" AND t1.charttime - t2.admittime <='{conf['max_hours']} hours'"
+        pi = f'''(SELECT DISTINCT t1.hadm_id, t2.admittime from {schema}.chartevents t1
+                INNER JOIN {schema}.admissions t2
+                ON t1.hadm_id=t2.hadm_id
+            '''
+        if conf['has_icustay'] == 'True':
+            pi += f' INNER JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
+            pi_where += f''' AND icu.intime - t2.admittime <= '{conf['max_hours']} hours'
+                AND icu.intime >= t2.admittime
+                '''
+        elif conf['has_icustay'] == 'False':
+            pi += f' LEFT JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
+            pi_where += f' AND icu.hadm_id IS NULL'
+        pi += f' WHERE {pi_where}'
+        # Take recent or older admissions
+        pi += f" ORDER BY t2.admittime {conf['hadm_order']}"
+        if conf['hadm_limit']:
+            pi += f" LIMIT {conf['hadm_limit']}"
+        pi+= ") as pi"
+        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
+    elif conf['PI_sql'] == 'one' or conf['PI_sql'] == 'multiple':
+        ignored_values_stage = []
+        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
+        ignored_values_stage += ignored_values_CV_stage
+        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
+        ignored_values_stage += ignored_values_MV_stage
+        pi_where = f'tb1.value is NOT NULL AND tb1.itemid in {PI_STAGE_ITEMIDS}'
+        for value in ignored_values_stage:
+            pi_where += f" AND tb1.value not similar to '{value}'"
         pi_where += "AND ("
         for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
             if i == 0:
-                pi_where += f" value similar to '{value}'"
+                pi_where += f" tb1.value similar to '{value}'"
             else:
-                pi_where += f" OR value similar to '{value}'"
+                pi_where += f" OR tb1.value similar to '{value}'"
         pi_where += ")"
         if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi = f'(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
-        pi += f" ORDER BY hadm_id"
+            pi_where += f" AND tb1.charttime >= '{conf['starttime']}'"
+            pi_where += f" AND tb1.charttime <= '{conf['endtime']}'"
+        pi_where += f" AND tb1.charttime - tb2.admittime <='{conf['max_hours']} hours'"
+        pi = f'''
+            (SELECT t2.hadm_id
+                FROM (SELECT t1.hadm_id, count(*)
+                    FROM (SELECT distinct tb1.itemid, tb1.hadm_id 
+                        FROM {schema}.chartevents tb1 
+                        INNER JOIN {schema}.admissions tb2
+                        ON tb1.hadm_id=tb2.hadm_id
+                        '''
+        if conf['has_icustay'] == 'True':
+            pi += f' INNER JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
+            pi_where += f''' AND icu.intime - tb2.admittime <= '{conf['max_hours']} hours'
+                AND icu.intime >= tb2.admittime
+                '''
+        elif conf['has_icustay'] == 'False':
+            pi += f' LEFT JOIN {schema}.icustays icu ON tb2.hadm_id=icu.hadm_id'
+            pi_where += f' AND icu.hadm_id IS NULL'
+        pi += f'''
+                        WHERE {pi_where} ) as t1
+                    GROUP BY t1.hadm_id) as t2
+                INNER JOIN {schema}.admissions t3
+                ON t2.hadm_id=t3.hadm_id
+            '''
+        if conf['PI_sql'] == 'one':
+            pi += ' WHERE t2.count = 1'
+        elif conf['PI_sql'] == 'multiple':
+            pi += ' WHERE t2.count > 1'
+        pi += f" ORDER BY t3.admittime {conf['hadm_order']}"
         if conf['hadm_limit']:
             pi += f" LIMIT {conf['hadm_limit']}"
         pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
-    elif conf['PI_only_sql'] == 'one':
-        ignored_values_stage = []
-        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
-        ignored_values_stage += ignored_values_CV_stage
-        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
-        ignored_values_stage += ignored_values_MV_stage
-        # values of maximum stage
-        pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values_stage:
-            pi_where += f" AND value not similar to '{value}'"
-        pi_where += "AND ("
-        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
-            if i == 0:
-                pi_where += f" value similar to '{value}'"
-            else:
-                pi_where += f" OR value similar to '{value}'"
-        pi_where += ")"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi = f'''
-            (SELECT t2.hadm_id
-                FROM (SELECT t1.hadm_id, count(*)
-                    FROM (SELECT distinct itemid, hadm_id
-                        FROM {schema}.chartevents WHERE {pi_where} ) as t1
-                    GROUP BY t1.hadm_id) as t2
-                WHERE t2.count = 1
-                ORDER BY t2.hadm_id
-            '''
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
-        pi += ") as pi"
-        table += f' INNER JOIN {pi} ON tb.hadm_id=pi.hadm_id'
     where = 'tb.hadm_id is NOT NULL'
     '''
-    if conf['PI_only_sql']:
+    if conf['PI_sql']:
         ignored_values = []
         label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
         ignored_values += ignored_values_CV
