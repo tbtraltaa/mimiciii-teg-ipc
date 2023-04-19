@@ -29,7 +29,7 @@ conf = {
     #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
     'endtime': False,
-    'min_missing_percent': 40, # for mimic extract
+    'min_missing_percent': 20, # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -52,11 +52,11 @@ conf = {
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': True,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 100],
-    'input_percentile': [40, 100],
+    'drug_percentile': [40, 60],
+    'input_percentile': [40, 90],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 200,
+    'hadm_limit': 100,
     'hadm_order': 'DESC',
     'vis': False,
     'first_hadm': True
@@ -64,21 +64,21 @@ conf = {
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
 t_max = {
-    'Admissions': timedelta(days=3, hours=0),
-    'Discharges': timedelta(days=3, hours=0),
-    'Icu In': timedelta(days=3, hours=0),
-    'Icu_Out': timedelta(days=3, hours=0),
-    'Callout': timedelta(days=3, hours=0),
-    'Transfer In': timedelta(days=3, hours=0),
-    'Transfer Out': timedelta(days=3, hours=0),
-    'CPT': timedelta(days=3, hours=0),
-    'Presc': timedelta(days=3, hours=0),
-    'Services': timedelta(days=3, hours=0),
-    'other': timedelta(days=3, hours=0),
+    'Admissions': timedelta(days=1, hours=0),
+    'Discharges': timedelta(days=1, hours=0),
+    'Icu In': timedelta(days=1, hours=0),
+    'Icu_Out': timedelta(days=1, hours=0),
+    'Callout': timedelta(days=1, hours=0),
+    'Transfer In': timedelta(days=1, hours=0),
+    'Transfer Out': timedelta(days=1, hours=0),
+    'CPT': timedelta(days=1, hours=0),
+    'Presc': timedelta(days=1, hours=0),
+    'Services': timedelta(days=1, hours=0),
+    'other': timedelta(days=1, hours=0),
     'diff_type_same_patient': timedelta(days=1, hours=0),
-    'PI': timedelta(days=3, hours=0),
-    'Braden': timedelta(days=3, hours=0),
-    'Input': timedelta(days=3, hours=0),
+    'PI': timedelta(days=1, hours=0),
+    'Braden': timedelta(days=1, hours=0),
+    'Input': timedelta(days=1, hours=0),
 }
 
 join_rules = {
@@ -106,9 +106,18 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
         states[e['i']] = e['pi_state']
     print(states)
     print(np.nonzero(states))
-    start = time.time()
-    PC_values = algebraic_PC(A, states=states)
-    print("Time for PC without paths", float(time.time() - start)/60.0)
+    if not conf['vis']:
+        start = time.time()
+        PC_values = algebraic_PC(A, states=states)
+        print("Time for PC without paths ", float(time.time() - start)/60.0, 'min' )
+    else:
+        start = time.time()
+        PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
+        print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
+        # Check if algebraic PC match PC from networkx
+        #print(PC_values)
+        b = np.sort(np.nonzero(PC_values)[0])
+       # print(b)
     '''
     start = time.time()
     P, pred, D = algebraic_PC_with_pred(A, states=states)
@@ -117,15 +126,8 @@ def eventgraph_mimiciii(event_list, join_rules, conf, file_name):
     V, v_paths = PC_paths(D, pred, states)
     print("Compute paths", float(time.time() - start)/60.0)
     start = time.time()
-    start = time.time()
     PC_values, V, v_paths = algebraic_PC_with_paths_v1(A, states=states)
     print("Time for PC with pred", float(time.time() - start)/60.0)
-    PC_values, V, paths, all_paths = algebraic_PC_with_paths(A, states=states)
-    print('Algebraic PC time', float(time.time() - start)/60.0)
-    # Check if algebraic PC match PC from networkx
-    print(PC_values)
-    b = np.sort(np.nonzero(PC_values)[0])
-    print(b)
     '''
     '''
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
