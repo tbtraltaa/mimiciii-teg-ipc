@@ -44,11 +44,11 @@ def get_interventions(conf):
     return interventions
 
 
-def get_events_interventions(conn, conf):
+def get_events_interventions(conn, conf, hadms=None):
     if not conf['interventions']:
         return []
     events = []
-    icustays = get_icustays(conn, conf)
+    icustays = get_icustays(conn, conf, hadms)
     icustays_ids = list(icustays.keys())
     interventions = get_interventions(conf)
     skip_count = 0
@@ -143,8 +143,8 @@ def get_events_interventions(conn, conf):
     return events
 
 
-def get_events_vitals_X_mean(conn, conf):
-    icustays = get_icustays(conn, conf)
+def get_events_vitals_X_mean(conn, conf, hadms=None):
+    icustays = get_icustays(conn, conf, hadms)
     icustays_ids = list(icustays.keys())
     vitals = get_vitals(conf)
     vitals_stats = get_stats_vitals_X_mean(vitals)
@@ -253,8 +253,8 @@ def get_events_vitals_X_mean(conn, conf):
     return icu_events
 
 
-def get_events_vitals_X(conn, conf):
-    icustays = get_icustays(conn, conf)
+def get_events_vitals_X(conn, conf, hadms=None):
+    icustays = get_icustays(conn, conf, hadms)
     icustays_ids = list(icustays.keys())
     vitals = get_vitals(conf)
     vitals_nan = vitals.replace(0, np.NaN)

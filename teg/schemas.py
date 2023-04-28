@@ -3,7 +3,7 @@ schema = 'mimiciii'
 # attributes of an event, not used for comparison
 EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime', 'parent_type']
 
-LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services']
+LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services', 'Callout']
 
 # {<table_name>: [<columns>]}
 PATIENTS = {
@@ -13,6 +13,7 @@ PATIENTS = {
         'dob'],
     # a for admissions
     'a': [
+        'admission_type',
         'insurance',
         'language',
         'religion',
@@ -20,7 +21,7 @@ PATIENTS = {
         'ethnicity',
         'diagnosis']}
 
-# {<event_name>: [<event_number>, <event_table>, <time_column>, <main attr>]}
+# {<event_name>: [<event_name>, <event_table>, <time_column>, <main attr>]}
 EVENTS = {
     # Patient tracking events
     'Admissions': ['Admissions', 'admissions', 'admittime', 'tb.admission_location'],

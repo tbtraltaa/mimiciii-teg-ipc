@@ -16,15 +16,22 @@ from teg.queries_mimic_extract import *
 from teg.queries_chart_events import *
 from teg.queries import *
 
-def mimic_events(event_list, join_rules, conf):
-    conn = get_db_connection()
-    patients = get_patient_demography(conn, conf)
+def mimic_events(conn, event_list, conf, hadms=()):
     all_events = list()
     n = 0
+    for event_key in event_list:
+        event_name, table, time_col, main_attr = EVENTS[event_key]
+        events = get_events(conn, event_key, conf, hadms)
+        for i, e in enumerate(events):
+            e['i'] = i + n
+        n += len(events)
+        print(event_key, len(events))
+        if len(events) > 0:
+            all_events += events
     for event_name in PI_EVENTS:
         if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
             continue
-        events = get_chart_events(conn, event_name, conf)
+        events = get_chart_events(conn, event_name, conf, hadms)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
@@ -34,14 +41,14 @@ def mimic_events(event_list, join_rules, conf):
     for event_name in CHART_EVENTS:
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
-        events = get_chart_events(conn, event_name, conf)
+        events = get_chart_events(conn, event_name, conf, hadms)
         for i, e in enumerate(events):
             e['i'] = i + n
         n += len(events)
         print(event_name, len(events))
         if len(events) > 0:
             all_events += events
-    events = get_events_interventions(conn, conf)
+    events = get_events_interventions(conn, conf, hadms)
     for i, e in enumerate(events):
         e['i'] = i + n
     n += len(events)
@@ -49,25 +56,20 @@ def mimic_events(event_list, join_rules, conf):
     if len(events) > 0:
         all_events += events
     if conf['vitals_X_mean']:
-        events = get_events_vitals_X_mean(conn, conf)
+        events = get_events_vitals_X_mean(conn, conf, hadms)
     else:
-        events = get_events_vitals_X(conn, conf)
+        events = get_events_vitals_X(conn, conf, hadms)
     for i, e in enumerate(events):
         e['i'] = i + n
     n += len(events)
     print('Vitals', len(events))
     if len(events) > 0:
         all_events += events
-    for event_key in event_list:
-        event_name, table, time_col, main_attr = EVENTS[event_key]
-        events = get_events(conn, event_key, conf)
-        for i, e in enumerate(events):
-            e['i'] = i + n
-        n += len(events)
-        print(event_key, len(events))
-        if len(events) > 0:
-            all_events += events
+    return all_events
+
+def process_events_PI(all_events, conf):
     # Add stage to all events
+    n = len(all_events)
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
@@ -79,6 +81,7 @@ def mimic_events(event_list, join_rules, conf):
     excluded_indices = []
     id_excluded = False
     subjects = []
+    hadm_stage_t = dict()
     for i, e in enumerate(sorted_events):
         # take only first admission
         if 'Admissions' in e['type'] and e['subject_id'] in subjects and conf['first_hadm']:
@@ -97,6 +100,7 @@ def mimic_events(event_list, join_rules, conf):
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
                 PI = True
+                hadm_stage_t[e['hadm_id']] = e['t']
             # PI related events before stage I is considered as stage I
             elif min_stage <= stage and stage < max_stage:
                 if stage == 0 and \
@@ -106,6 +110,7 @@ def mimic_events(event_list, join_rules, conf):
                     max_stage == 1:
                     stage = 1
                     PI = True
+                    hadm_stage_t[e['hadm_id']] = e['t']
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
         # later all events belonging to excluded ids
@@ -185,10 +190,69 @@ def mimic_events(event_list, join_rules, conf):
     print("==========================================================")
     for key, val in groupby(all_events, key=lambda x: x['parent_type']):
         print(key, len(list(val)))
-    #print('Total patients', len(patients))
-    #print("Total events: ", n)
-    print('Total patients', len(set([e['subject_id'] for e in all_events])))
+    subject_ids = set([e['subject_id'] for e in all_events])
+    print('Total patients', len(subject_ids))
     print('Total admissions', len(set([e['id'] for e in all_events])))
     print("Total events: ", len(all_events))
 
-    return patients, all_events
+    return all_events, hadm_stage_t
+
+def process_events_NPI(all_events, NPI_t, conf):
+    # Add stage to all events
+    n = len(all_events)
+    sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
+    min_stage = min(conf['PI_states'].keys())
+    max_stage = max(conf['PI_states'].keys())
+    stage = 0
+    PI = False
+    excluded_ids = []
+    excluded_indices = []
+    id_excluded = False
+    t_marker = NPI_t[sorted_events[0]['hadm_id']]
+    for i, e in enumerate(sorted_events):
+        if 'PI Stage' in e['type']:
+            pprint.pprint(e)
+        # consider events till the first PI stage
+        if not PI and not id_excluded:
+            # PI stage
+            if e['t'] > t_marker:
+                stage = max_stage
+            # exclude a patient who had higher or lower stage than our focus.
+            if stage < min_stage or stage > max_stage:
+                excluded_ids.append(e['id'])
+                id_excluded = True
+            elif stage == max_stage:
+                all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                all_events[e['i']]['pi_stage'] = stage
+                PI = True
+            else:
+                all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                all_events[e['i']]['pi_stage'] = stage
+        # later all events belonging to excluded ids
+        # then no need to exclude those events here
+        elif PI and not id_excluded:
+            # exlude events after maximum PI stage event
+            excluded_indices.append(e['i'])
+        if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
+            PI = False
+            stage = 0
+            id_excluded = False
+            t_marker = NPI_t[sorted_events[i + 1]['hadm_id']]
+
+    for e in all_events:
+        if e['id'] in excluded_ids:
+            excluded_indices.append(e['i'])
+    for i in sorted(set(excluded_indices), reverse=True):
+        del all_events[i]
+    all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
+    for i in range(len(all_events)):
+        all_events[i]['i'] = i
+    print("Events in TEG:")
+    print("==========================================================")
+    for key, val in groupby(all_events, key=lambda x: x['parent_type']):
+        print(key, len(list(val)))
+    subject_ids = set([e['subject_id'] for e in all_events])
+    print('Total patients', len(subject_ids))
+    print('Total admissions', len(set([e['id'] for e in all_events])))
+    print("Total events: ", len(all_events))
+    return all_events

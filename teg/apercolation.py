@@ -6,7 +6,7 @@ import numpy as np
 from pyvis import network as net
 from scipy.sparse import dok_matrix
 
-options_set(nthreads=8)
+options_set(nthreads=16)
 
 class GS(Type):
 
@@ -224,6 +224,7 @@ def algebraic_PC_with_paths(Adj, states):
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
                     w = delta / S_exclude_v
+                    '''
                     if (s, t) not in paths:
                         paths[(s,t)] = st_paths(pred[s], s, t)
                     for p in paths[(s, t)]:
@@ -238,7 +239,6 @@ def algebraic_PC_with_paths(Adj, states):
                     for p in paths[(s, t)]:
                         if v in p:
                             v_paths[v].append(p)
-                    '''
                     PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
     return PC, list(V), v_paths, paths
 

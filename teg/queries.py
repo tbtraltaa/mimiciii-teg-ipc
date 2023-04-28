@@ -33,11 +33,13 @@ def get_patient_demography(conn, conf):
     '''
     Returns patients with demography between the given time window.
     '''
-    cols = f"CONCAT(p.subject_id, '-', a.hadm_id) as id,"
+    cols = f"CONCAT(p.subject_id, '-', a.hadm_id) as id, p.subject_id, a.hadm_id, "
     for table in PATIENTS:
         for col in PATIENTS[table]:
             cols += f'{table}.{col}, '
-    cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age'
+    cols += 'EXTRACT(DAY FROM a.dischtime - a.admittime) as los, '
+    cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age, '
+    cols += 'a.admittime '
     table = f'''{schema}.patients p INNER JOIN {schema}.admissions a
             ON a.subject_id = p.subject_id'''
     where = f''' a.diagnosis != 'NEWBORN'
@@ -45,37 +47,26 @@ def get_patient_demography(conn, conf):
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <={conf['max_age']}
         '''
-    #if conf['PI_sql'] or conf['PI_only']:
-    '''
-    if conf['PI_sql']:
-        ignored_values = []
-        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
-        ignored_values += ignored_values_CV
-        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
-        ignored_values += ignored_values_MV
-        # values of maximum stage
-        values = STAGE_PI_MAP[conf['PI_states'][1]]
-        pi_where = f"(TRIM(value)='{values[0]}'"
-        if len(values) > 1:
-            for value in values[1:]:
-                pi_where += f" OR TRIM(value)='{value}'"
-        pi_where += ")"
-        pi_where += ' AND value is NOT NULL'
-        for value in ignored_values:
-            pi_where += f" AND value not similar to '{value}'"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi = f"(SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}) as pi"
-        table += f"INNER JOIN {pi} ON a.hadm_id=pi.hadm_id"
-    '''
-    if conf['PI_sql'] == 'one_or_multiple':
+    if conf['has_icustay'] == 'True':
+        table += f' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
+        where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
+            AND icu.intime >= a.admittime
+            '''
+    elif conf['has_icustay'] == 'False':
+        table += f' LEFT JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
+        where += f' AND icu.hadm_id IS NULL'
+    if conf['PI_sql'] == 'PI_or_NPI':
+        # Exclude patients with PI staging within 24 hours after admission
+        pi24_hadms = PI_hadms_24h(conn, conf)
+        where += f' AND a.hadm_id NOT IN {pi24_hadms}'
+    elif conf['PI_sql'] == 'one_or_multiple':
+        pi24_hadms = PI_hadms_24h(conn, conf)
+        where += f' AND a.hadm_id NOT IN {pi24_hadms}'
         ignored_values_stage = []
         label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
         ignored_values_stage += ignored_values_CV_stage
         label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
         ignored_values_stage += ignored_values_MV_stage
-        # values of maximum stage
         pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND t1.value not similar to '{value}'"
@@ -94,32 +85,26 @@ def get_patient_demography(conn, conf):
                 INNER JOIN {schema}.admissions t2
                 ON t1.hadm_id=t2.hadm_id
             '''
-        if conf['has_icustay'] == 'True':
-            table += f' INNER JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - t2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= t2.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            table += f' LEFT JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
+        if conf['dbsource']:
+            pi += f' INNER JOIN {schema}.d_items d ON t1.itemid=d.itemid'
+            pi_where += f" AND d.dbsource='{conf['dbsource']}'"
         pi += f' WHERE {pi_where}'
         # Take more recent admissions
         pi += f" ORDER BY t2.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
         pi+= ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     elif conf['PI_sql'] == 'one' or conf['PI_sql'] == 'multiple':
+        pi24_hadms = PI_hadms_24h(conn, conf)
+        where += f' AND a.hadm_id NOT IN {pi24_hadms}'
         ignored_values_stage = []
         label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
         ignored_values_stage += ignored_values_CV_stage
         label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
         ignored_values_stage += ignored_values_MV_stage
-        # values of maximum stage
         pi_where = f'tb1.value is NOT NULL AND tb1.itemid in {PI_STAGE_ITEMIDS}'
         for value in ignored_values_stage:
             pi_where += f" AND tb1.value not similar to '{value}'"
-        pi_where += "AND ("
+        pi_where += " AND ("
         for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
             if i == 0:
                 pi_where += f" tb1.value similar to '{value}'"
@@ -138,14 +123,9 @@ def get_patient_demography(conn, conf):
                         INNER JOIN {schema}.admissions tb2
                         ON tb1.hadm_id=tb2.hadm_id
                         '''
-        if conf['has_icustay'] == 'True':
-            pi += f' INNER JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - tb2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= tb2.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            pi += f' LEFT JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
+        if conf['dbsource']:
+            pi += f' INNER JOIN {schema}.d_items d ON tb1.itemid=d.itemid'
+            pi_where += f" AND d.dbsource='{conf['dbsource']}'"
         pi += f'''
                         WHERE {pi_where} ) as t1
                     GROUP BY t1.hadm_id) as t2
@@ -157,61 +137,134 @@ def get_patient_demography(conn, conf):
         elif conf['PI_sql'] == 'multiple':
             pi += ' WHERE t2.count > 1'
         pi += f" ORDER BY t3.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
         pi += ") as pi"
         table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
-    #elif conf['has_icustay'] == 'True':
-    #    table += ' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
-    #    where += f''' AND icu.intime - a.admittime <= {conf['max_hours']}
-    #        AND icu.intime >= a.admittime
-    #        '''
-
-    '''
-    if conf['PI_sql']:
-        ignored_values = []
-        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
-        ignored_values += ignored_values_CV
-        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
-        ignored_values += ignored_values_MV
-        # values of maximum stage
-        pi_where = f' value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values:
-            pi_where += f" AND value not similar to '{value}'"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
-        pi_query += f' ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
-        pi_hadms = pd.read_sql_query(pi_query, conn)
-        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
-        where += f' AND a.hadm_id IN {pi_hadms}'
-    '''
+    elif conf['PI_sql'] == 'no_PI_stage':
+        if conf['dbsource']:
+            npi =  f'''
+                (SELECT DISTINCT c.hadm_id
+                FROM {schema}.chartevents c
+                INNER JOIN {schema}.d_items d
+                ON c.itemid=d.itemid
+                WHERE d.dbsource='{conf['dbsource']}')
+                as npi
+                '''
+        table += f' INNER JOIN {npi} ON a.hadm_id=npi.hadm_id'
+        pi_stage_hadms = PI_stage_hadms(conn, conf)
+        print(len(pi_stage_hadms))
+        where += f' AND a.hadm_id NOT IN {pi_stage_hadms}'
+    elif conf['PI_sql'] == 'no_PI_events':
+        if conf['dbsource']:
+            npi =  f'''
+                (SELECT DISTINCT c.hadm_id
+                FROM {schema}.chartevents c
+                INNER JOIN {schema}.d_items d
+                ON c.itemid=d.itemid
+                WHERE d.dbsource='{conf['dbsource']}')
+                as npi
+                '''
+        table += f' INNER JOIN {npi} ON a.hadm_id=npi.hadm_id'
+        pi_event_hadms = PI_stage_hadms(conn, conf)
+        print(len(pi_event_hadms))
+        where += f' AND a.hadm_id NOT IN {pi_event_hadms}'
     # patients, admitted in the hospital within the time window
     # Some events occur before the admisson date, but have the correct hadm_id.
     # Those events are ignored.
     if conf['starttime'] and conf['endtime']:
         where += f" AND a.admittime < '{conf['endtime']}'"
         where += f" AND a.admittime >= '{conf['starttime']}'"
-    query = f'SELECT {cols} FROM {table} WHERE {where}'
+    # order admissions by admittime
+    query = f'SELECT {cols} FROM {table} WHERE {where} ORDER BY a.admittime'
+    if conf['hadm_limit']:
+        query += f" LIMIT {conf['hadm_limit']}"
     df = pd.read_sql_query(query, conn)
-    # age = (df['admittime'] - df['dob']).dt.total_seconds()/ (60*60*24*365.25)
-    # df['age'] = round(age, 2)
-    # df.drop(['admittime'], axis=1, inplace=True)
+    print("Admissions including subsequent admissions", len(df))
+    if conf['first_hadm']:
+        # drop subsequent admissions
+        df.drop_duplicates('subject_id', inplace=True)
+    print("First admissions", len(df))
+    df.drop('admittime', axis=1, inplace=True)
+    df.drop('subject_id', axis=1, inplace=True)
     # compute the age interval
+    dff = df.copy()
+    df.drop('los', axis=1, inplace=True)
+    df.drop('hadm_id', axis=1, inplace=True)
     left = df['age']//conf['age_interval'] * conf['age_interval'] 
     right  = left + conf['age_interval']
     df['age'] = left.astype(str) + '-' + right.astype(str)
     # creates a dictionary with <id> as a key.
-    df = dict([(k, v)
+    df_dict = dict([(k, v)
               for k, v in zip(df.id, df.iloc[:, 1:].to_dict('records'))])
-    print("Patients", len(df))
-    return df
+    print("Admissions", len(df))
+    return dff, df_dict
 
+def PI_hadms_24h(conn, conf):
+    # Patients with PI staging within 24 hours after admission
+    pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
+    if conf['starttime'] and conf['endtime']:
+        pi_where += f" AND t1.charttime >= '{conf['starttime']}'"
+        pi_where += f" AND t1.charttime <= '{conf['endtime']}'"
+    pi_where += f" AND t1.charttime - t2.admittime <='24 hours'"
+    pi = f'''SELECT DISTINCT t1.hadm_id from {schema}.chartevents t1
+            INNER JOIN {schema}.admissions t2
+            ON t1.hadm_id=t2.hadm_id
+        '''
+    if conf['dbsource']:
+        pi += f' INNER JOIN {schema}.d_items d ON t1.itemid=d.itemid'
+        pi_where += f" AND d.dbsource='{conf['dbsource']}'"
+    pi += f' WHERE {pi_where}'
+    pi24_hadms = pd.read_sql_query(pi, conn)
+    return tuple(pi24_hadms['hadm_id'].tolist())
+
+def PI_stage_hadms(conn, conf):
+    # Patients with PI stage anytime after admission
+    pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
+    pi = f'''SELECT DISTINCT t1.hadm_id, t2.admittime FROM {schema}.chartevents t1
+            INNER JOIN {schema}.admissions t2
+            ON t1.hadm_id=t2.hadm_id
+        '''
+
+    '''
+    if conf['dbsource']:
+        pi += f' INNER JOIN {schema}.d_items d ON t1.itemid=d.itemid'
+        pi_where += f" AND d.dbsource='{conf['dbsource']}'"
+    '''
+    pi += f' WHERE {pi_where}'
+    pi_stage_hadms = pd.read_sql_query(pi, conn)
+    return tuple(pi_stage_hadms['hadm_id'].tolist())
+
+def PI_event_hadms(conn, conf):
+    # Patients with PI events after admission
+    pi_where = f't1.value is NOT NULL'
+    for value in PI_ITEM_LABELS:
+        pi_where += f"  AND d.label similar to '{value}'"
+    pi = f'''SELECT DISTINCT t1.hadm_id from {schema}.chartevents t1
+            INNER JOIN {schema}.d_items d
+            ON t1.itemid=d.itemid
+        '''
+    #if conf['dbsource']:
+    #    pi_where += f" AND d.dbsource='{conf['dbsource']}'"
+    pi += f' WHERE {pi_where}'
+    pi_event_hadms = pd.read_sql_query(pi, conn)
+    return tuple(pi_event_hadms['hadm_id'].tolist())
+
+def PI_first_stage(conn, conf):
+    # Patients with PI stage anytime after admission
+    pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
+    pi = f'''SELECT DISTINCT t1.hadm_id, t2.admittime FROM {schema}.chartevents t1
+            INNER JOIN {schema}.admissions t2
+            ON t1.hadm_id=t2.hadm_id
+        '''
+    if conf['dbsource']:
+        pi += f' INNER JOIN {schema}.d_items d ON t1.itemid=d.itemid'
+        pi_where += f" AND d.dbsource='{conf['dbsource']}'"
+    pi += f' WHERE {pi_where}'
+    pi_stage_hadms = pd.read_sql_query(pi, conn)
+    return tuple(pi_stage_hadms['hadm_id'].tolist())
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
-def get_events(conn, event_key, conf):
+def get_events(conn, event_key, conf, hadms=()):
     '''
     Returns events within the given time window.
     '''
@@ -259,121 +312,24 @@ def get_events(conn, event_key, conf):
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
-    '''
-    if conf['PI_sql']:
-        ignored_values = []
-        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
-        ignored_values += ignored_values_CV
-        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
-        ignored_values += ignored_values_MV
-        # values of maximum stage
-        pi_where = f'value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values:
-            pi_where += f" AND value not similar to '{value}'"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
-        pi_query += f'ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
-        pi_hadms = pd.read_sql_query(pi_query, conn)
-        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
-        where += f' AND a.hadm_id IN {pi_hadms}'
-    '''
-    if conf['PI_sql'] == 'one_or_multiple':
-        ignored_values_stage = []
-        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
-        ignored_values_stage += ignored_values_CV_stage
-        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
-        ignored_values_stage += ignored_values_MV_stage
-        # values of maximum stage
-        pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values_stage:
-            pi_where += f" AND t1.value not similar to '{value}'"
-        pi_where += " AND ("
-        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
-            if i == 0:
-                pi_where += f" t1.value similar to '{value}'"
-            else:
-                pi_where += f" OR t1.value similar to '{value}'"
-        pi_where += ")"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND t1.charttime >= '{conf['starttime']}'"
-            pi_where += f" AND t1.charttime <= '{conf['endtime']}'"
-        pi_where += f" AND t1.charttime - t2.admittime <='{conf['max_hours']} hours'"
-        pi = f'''(SELECT DISTINCT t1.hadm_id, t2.admittime from {schema}.chartevents t1
-                INNER JOIN {schema}.admissions t2
-                ON t1.hadm_id=t2.hadm_id
-            '''
+    where = ' tb.hadm_id is NOT NULL'
+    if len(hadms) != 0:
+        where += f' AND tb.hadm_id IN {hadms}'
+    else:
         if conf['has_icustay'] == 'True':
-            pi += f' INNER JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - t2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= t2.admittime
+            table += f' INNER JOIN {schema}.icustays icu ON tb.hadm_id=icu.hadm_id'
+            where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
+                AND icu.intime >= a.admittime
                 '''
         elif conf['has_icustay'] == 'False':
-            pi += f' LEFT JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
-        pi += f' WHERE {pi_where}'
-        # Take more recent admissions
-        pi += f" ORDER BY t2.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
-        pi+= ") as pi"
-        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
-    elif conf['PI_sql'] == 'one' or conf['PI_sql'] == 'multiple':
-        ignored_values_stage = []
-        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
-        ignored_values_stage += ignored_values_CV_stage
-        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
-        ignored_values_stage += ignored_values_MV_stage
-        pi_where = f'tb1.value is NOT NULL AND tb1.itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values_stage:
-            pi_where += f" AND tb1.value not similar to '{value}'"
-        pi_where += "AND ("
-        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
-            if i == 0:
-                pi_where += f" tb1.value similar to '{value}'"
-            else:
-                pi_where += f" OR tb1.value similar to '{value}'"
-        pi_where += ")"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND tb1.charttime >= '{conf['starttime']}'"
-            pi_where += f" AND tb1.charttime <= '{conf['endtime']}'"
-        pi_where += f" AND tb1.charttime - tb2.admittime <='{conf['max_hours']} hours'"
-        pi = f'''
-            (SELECT t2.hadm_id
-                FROM (SELECT t1.hadm_id, count(*)
-                    FROM (SELECT distinct tb1.itemid, tb1.hadm_id 
-                        FROM {schema}.chartevents tb1 
-                        INNER JOIN {schema}.admissions tb2
-                        ON tb1.hadm_id=tb2.hadm_id
-                        '''
-        if conf['has_icustay'] == 'True':
-            pi += f' INNER JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - tb2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= tb2.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            pi += f' LEFT JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
-        pi += f'''
-                        WHERE {pi_where} ) as t1
-                    GROUP BY t1.hadm_id) as t2
-                INNER JOIN {schema}.admissions t3
-                ON t2.hadm_id=t3.hadm_id
-            '''
-        if conf['PI_sql'] == 'one':
-            pi += ' WHERE t2.count = 1'
-        elif conf['PI_sql'] == 'multiple':
-            pi += ' WHERE t2.count > 1'
-        pi += f" ORDER BY t3.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
-        pi += ") as pi"
-        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
+            table += f' LEFT JOIN {schema}.icustays icu ON tb.hadm_id=icu.hadm_id'
+            where += f' AND icu.hadm_id IS NULL'
+        # Exclude patients with PI staging within 24 hours after admission
+        pi24_hadms = PI_hadms_24h(conn, conf)
+        where += f' AND tb.hadm_id NOT IN {pi24_hadms}'
     if event_name == 'Input':
         table += f''' INNER JOIN {schema}.d_items d
             ON tb.itemid = d.itemid'''
-    where = ' tb.hadm_id is NOT NULL'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"
@@ -392,18 +348,6 @@ def get_events(conn, event_key, conf):
     where += f' AND {t_table}.{time_col} >= a.admittime'
     where += f' AND {t_table}.{time_col} <= a.dischtime'
     order_by = f'ORDER BY t ASC'
-    '''
-    if event_name == 'chartevents':
-        items = f'(SELECT c.itemid, count(c.itemid) as count' + \
-            f'from {schema}.chartevents c GROUP BY c.itemid) AS i'
-        table += f' INNER JOIN {items} ON tb.itemid=i.itemid'
-        where += ' AND i.count < 200000'
-        where += ' AND (tb.warning != 1 OR tb.warning IS NULL)'
-        where += ' AND (tb.error != 1 OR tb.error IS NULL)'
-        where += " AND (tb.stopped !='D/C''d' OR tb.stopped IS NULL)"
-    elif event_name == 'noteevents':
-        where += ' AND (tb.iserror != 1 or tb.iserror is NULL)'
-    '''
     if event_name == 'Transfer In' or event_name == 'Transfer Out':
         # transfers contain admissions and discharge, we exclude them
         # we only take transfers with previous and current care unit
@@ -510,7 +454,7 @@ def get_events(conn, event_key, conf):
             Q  = query_quantiles_Input(conn, conf['quantiles'], args) 
         else:
             Q  = query_quantiles(conn, conf['quantiles'], event_name, **args) 
-        # compute percentiles for numeric values withuom
+        # compute percentiles for numeric values with uom
         if uom_col:
             df['value_test'] = df[col]
             # due to apply error in pandas, a loop is used
@@ -570,15 +514,8 @@ def get_events(conn, event_key, conf):
         events.sort(key = lambda x: (x['type'], x['t']))
     return events
 
-    '''
-    if event_name in EVENTS_EXCLUDE:
-        for col, exclude_values in EVENTS_EXCLUDE[event_name].items():
-            q_str = '(' + ','.join(str(val) for val in exclude_values) + ')'
-            where += f" AND t.{col}  NOT IN {q_str}"
-    '''
 
-
-def get_icustays(conn, conf):
+def get_icustays(conn, conf, hadms=()):
     table = 'icustays'
     time_col = 'intime'
     cols = f"CONCAT(tb.subject_id, '-', tb.hadm_id) as id"
@@ -589,121 +526,21 @@ def get_icustays(conn, conf):
     table += f' ON tb.hadm_id = a.hadm_id'
     table += f' INNER JOIN {schema}.patients p'
     table += f' ON tb.subject_id = p.subject_id'
-    if conf['PI_sql'] == 'one_or_multiple':
-        ignored_values_stage = []
-        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
-        ignored_values_stage += ignored_values_CV_stage
-        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
-        ignored_values_stage += ignored_values_MV_stage
-        pi_where = f't1.value is NOT NULL AND t1.itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values_stage:
-            pi_where += f" AND t1.value not similar to '{value}'"
-        pi_where += " AND ("
-        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
-            if i == 0:
-                pi_where += f" t1.value similar to '{value}'"
-            else:
-                pi_where += f" OR t1.value similar to '{value}'"
-        pi_where += ")"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND t1.charttime >= '{conf['starttime']}'"
-            pi_where += f" AND t1.charttime <= '{conf['endtime']}'"
-        pi_where += f" AND t1.charttime - t2.admittime <='{conf['max_hours']} hours'"
-        pi = f'''(SELECT DISTINCT t1.hadm_id, t2.admittime from {schema}.chartevents t1
-                INNER JOIN {schema}.admissions t2
-                ON t1.hadm_id=t2.hadm_id
-            '''
-        if conf['has_icustay'] == 'True':
-            pi += f' INNER JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - t2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= t2.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            pi += f' LEFT JOIN {schema}.icustays icu ON t1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
-        pi += f' WHERE {pi_where}'
-        # Take recent or older admissions
-        pi += f" ORDER BY t2.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
-        pi+= ") as pi"
-        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
-    elif conf['PI_sql'] == 'one' or conf['PI_sql'] == 'multiple':
-        ignored_values_stage = []
-        label_CV_stage, ignored_values_CV_stage = PI_EVENTS_CV['PI Stage']
-        ignored_values_stage += ignored_values_CV_stage
-        label_MV_stage, ignored_values_MV_stage = PI_EVENTS_MV['PI Stage']
-        ignored_values_stage += ignored_values_MV_stage
-        pi_where = f'tb1.value is NOT NULL AND tb1.itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values_stage:
-            pi_where += f" AND tb1.value not similar to '{value}'"
-        pi_where += "AND ("
-        for i, value in enumerate(STAGE_PI_MAP[max(conf['PI_states'].keys())]):
-            if i == 0:
-                pi_where += f" tb1.value similar to '{value}'"
-            else:
-                pi_where += f" OR tb1.value similar to '{value}'"
-        pi_where += ")"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND tb1.charttime >= '{conf['starttime']}'"
-            pi_where += f" AND tb1.charttime <= '{conf['endtime']}'"
-        pi_where += f" AND tb1.charttime - tb2.admittime <='{conf['max_hours']} hours'"
-        pi = f'''
-            (SELECT t2.hadm_id
-                FROM (SELECT t1.hadm_id, count(*)
-                    FROM (SELECT distinct tb1.itemid, tb1.hadm_id
-                        FROM {schema}.chartevents tb1 
-                        INNER JOIN {schema}.admissions tb2
-                        ON tb1.hadm_id=tb2.hadm_id
-                        '''
-        if conf['has_icustay'] == 'True':
-            pi += f' INNER JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f''' AND icu.intime - tb2.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= tb2.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            pi += f' LEFT JOIN {schema}.icustays icu ON tb1.hadm_id=icu.hadm_id'
-            pi_where += f' AND icu.hadm_id IS NULL'
-        pi += f'''
-                        WHERE {pi_where} ) as t1
-                    GROUP BY t1.hadm_id) as t2
-                INNER JOIN {schema}.admissions t3
-                ON t2.hadm_id=t3.hadm_id
-            '''
-        if conf['PI_sql'] == 'one':
-            pi += ' WHERE t2.count = 1'
-        elif conf['PI_sql'] == 'multiple':
-            pi += ' WHERE t2.count > 1'
-        pi += f" ORDER BY t3.admittime {conf['hadm_order']}"
-        if conf['hadm_limit']:
-            pi += f" LIMIT {conf['hadm_limit']}"
-        pi += ") as pi"
-        table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
     where = 'a.hadm_id is NOT NULL'
-    '''
-    table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
-    table += f' ON tb.hadm_id = a.hadm_id'
-    table += f' INNER JOIN {schema}.patients p'
-    table += f' ON tb.subject_id = p.subject_id'
-    if conf['PI_sql']:
-        ignored_values = []
-        label_CV, ignored_values_CV = PI_EVENTS_CV['PI Stage']
-        ignored_values += ignored_values_CV
-        label_MV, ignored_values_MV = PI_EVENTS_MV['PI Stage']
-        ignored_values += ignored_values_MV
-        # values of maximum stage
-        pi_where = f' value is NOT NULL AND itemid in {PI_STAGE_ITEMIDS}'
-        for value in ignored_values:
-            pi_where += f" AND value not similar to '{value}'"
-        if conf['starttime'] and conf['endtime']:
-            pi_where += f" AND charttime >= '{conf['starttime']}'"
-            pi_where += f" AND charttime <= '{conf['endtime']}'"
-        pi_query = f'SELECT DISTINCT hadm_id from {schema}.chartevents WHERE {pi_where}'
-        pi_query += f' ORDER BY hadm_id LIMIT {conf['hadm_limit']}'
-        pi_hadms = pd.read_sql_query(pi_query, conn)
-        pi_hadms = tuple(pi_hadms['hadm_id'].tolist())
-        where += f' AND a.hadm_id IN {pi_hadms}'
-    '''
+    if len(hadms) != 0:
+        where += f' AND tb.hadm_id IN {hadms}'
+    else:
+        if conf['has_icustay'] == 'True':
+            table += f' INNER JOIN {schema}.icustays icu ON tb.hadm_id=icu.hadm_id'
+            where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
+                AND icu.intime >= a.admittime
+                '''
+        elif conf['has_icustay'] == 'False':
+            table += f' LEFT JOIN {schema}.icustays icu ON tb.hadm_id=icu.hadm_id'
+            where += f' AND icu.hadm_id IS NULL'
+        # Exclude patients with PI staging within 24 hours after admission
+        pi24_hadms = PI_hadms_24h(conn, conf)
+        where += f' AND tb.hadm_id NOT IN {pi24_hadms}'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"

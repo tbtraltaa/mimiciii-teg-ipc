@@ -2,13 +2,13 @@ from teg.schemas import *
 
 # {event_name: d_items.label}
 CHART_EVENTS = {
-    'Braden Activity': ['%Braden Activity%', []],
-    'Braden Friction/Shear': ['%Braden Frict%', []],
-    'Braden Mobility': ['%Braden Mobility%', []],
-    'Braden Moisture': ['%Braden Moisture%', []],
-    'Braden Nutrition': ['%Braden Nutrition%', []],
-    'Braden Sensory Perception': ['%Braden Sensory%', []],
-    'Braden Score': ['%Braden Score%', []],
+    #'Braden Activity': ['%Braden Activity%', []],
+    #'Braden Friction/Shear': ['%Braden Frict%', []],
+    #'Braden Mobility': ['%Braden Mobility%', []],
+    #'Braden Moisture': ['%Braden Moisture%', []],
+    #'Braden Nutrition': ['%Braden Nutrition%', []],
+    #'Braden Sensory Perception': ['%Braden Sensory%', []],
+    #'Braden Score': ['%Braden Score%', []],
     }
 
 CHART_EVENTS_NUMERIC = {

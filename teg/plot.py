@@ -83,7 +83,7 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
             PC_sum[etype] += val
     PC_freq = dict(sorted(PC_freq.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(PC_freq), 2)
-    plt.barh(y_pos, PC_freq.values(), align='center')
+    plt.barh(y_pos, list(PC_freq.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_freq.keys()))
     plt.title("PC Event Type Distribution " + str(percentile))
     plt.xlabel("Frequency")
@@ -97,7 +97,7 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     PC_p = dict()
     for k, f in PC_freq.items():
         #PC_w[k] = PC_sum[k]* f/PC_n
-        PC_w[k] = PC_sum[k] / f
+        PC_w[k] = (PC_sum[k]/f) * f/PC_n
         PC_p[k] = PC_sum[k]/PC_total
     PC_w = dict(sorted(PC_w.items(), key=lambda x: x[1]))
     PC_p = dict(sorted(PC_p.items(), key=lambda x: x[1]))
@@ -105,9 +105,9 @@ def plot_PC(events, PC, conf, percentile='', nbins=30):
     y_pos  =  range(0, 2*len(PC_w), 2)
     plt.barh(y_pos, list(PC_w.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_w.keys()))
-    plt.title("Average PC " + str(percentile))
-    plt.xlabel("Average PC")
-    plt.xscale("log")
+    plt.title("Average PC weighted by frequency " + str(percentile))
+    plt.xlabel("Average PC weighted by frequency")
+    #plt.xscale("log")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)

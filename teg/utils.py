@@ -49,6 +49,10 @@ def get_quantile_uom(row, item_col, val_col, uom_col, Q):
     val = row[val_col]
     uom = row[uom_col]
     item = row[item_col]
-    Q_item = pd.DataFrame(Q.loc[(item, uom), :].values, index=Q.columns)
-    val_P = get_quantile(val, Q_item)
+    val_P = 'None'
+    if (item, uom) in Q.index:
+        Q_item = pd.DataFrame(Q.loc[(item, uom), :].values, index=Q.columns)
+        val_P = get_quantile(val, Q_item)
+    else:
+        print('Quantile Missing ', item, uom)
     return val_P
