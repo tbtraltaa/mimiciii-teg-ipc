@@ -511,7 +511,7 @@ def get_events(conn, event_key, conf, hadms=()):
                 prev_id = e['id']
         for i in sorted(del_list, reverse=True):
             del events[i]
-        events.sort(key = lambda x: (x['type'], x['t']))
+    events.sort(key = lambda x: (x['type'], x['t']))
     return events
 
 

@@ -14,7 +14,7 @@ def get_psm(df, conf):
             df[col] = df[col].astype('category').cat.codes
     psm = PsmPy(df, treatment='PI', indx='hadm_id', exclude = [])
     psm.logistic_ps(balance = True)
-    psm.knn_matched(matcher='propensity_score', replacement=False, caliper=0.02, drop_unmatched=True)
+    psm.knn_matched(matcher='propensity_logit', replacement=False, caliper=None, drop_unmatched=True)
     psm.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity score', names = ['PI', 'NPI'], colors=['#E69F00', '#56B4E9'])
     plt.show()
     psm.effect_size_plot(title='Standardized Mean differences across covariates before and after matching')

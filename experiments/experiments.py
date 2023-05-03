@@ -12,11 +12,13 @@ from teg.mimic_events import *
 from teg.eventgraphs import *
 from teg.percolation import PC_with_target
 from teg.apercolation import *
-from teg.psm import *
+from teg.PC_utils import *
 from teg.graph_vis import *
 from teg.build_graph import *
 from teg.paths import *
 from teg.plot import *
+from teg.psm import *
+from teg.pca import *
 
 # Experiment configuration
 conf = {
@@ -58,7 +60,7 @@ conf = {
     'input_percentile': [40, 90],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 100,
+    'hadm_limit': 5,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
     'vis': False,
@@ -78,21 +80,21 @@ conf = {
 # Event graph configuration
 # t_max = [<delta days>, <delta hours>]
 t_max = {
-    'Admissions': timedelta(days=1, hours=0),
-    'Discharges': timedelta(days=1, hours=0),
-    'Icu In': timedelta(days=1, hours=0),
-    'Icu_Out': timedelta(days=1, hours=0),
-    'Callout': timedelta(days=1, hours=0),
-    'Transfer In': timedelta(days=1, hours=0),
-    'Transfer Out': timedelta(days=1, hours=0),
-    'CPT': timedelta(days=1, hours=0),
-    'Presc': timedelta(days=1, hours=0),
-    'Services': timedelta(days=1, hours=0),
-    'other': timedelta(days=1, hours=0),
-    'diff_type_same_patient': timedelta(days=1, hours=0),
-    'PI': timedelta(days=1, hours=0),
-    'Braden': timedelta(days=1, hours=0),
-    'Input': timedelta(days=1, hours=0),
+    'Admissions': timedelta(days=2, hours=0),
+    'Discharges': timedelta(days=2, hours=0),
+    'Icu In': timedelta(days=2, hours=0),
+    'Icu_Out': timedelta(days=2, hours=0),
+    'Callout': timedelta(days=2, hours=0),
+    'Transfer In': timedelta(days=2, hours=0),
+    'Transfer Out': timedelta(days=2, hours=0),
+    'CPT': timedelta(days=2, hours=0),
+    'Presc': timedelta(days=2, hours=0),
+    'Services': timedelta(days=2, hours=0),
+    'other': timedelta(days=2, hours=0),
+    'diff_type_same_patient': timedelta(days=2, hours=0),
+    'PI': timedelta(days=2, hours=0),
+    'Braden': timedelta(days=2, hours=0),
+    'Input': timedelta(days=2, hours=0),
 }
 
 join_rules = {
@@ -104,7 +106,7 @@ join_rules = {
     'w_e_default': 1,
     'join_by_subject': True,
     'duration': conf['duration'],
-    'duration_similarity': timedelta(days=1),
+    'duration_similarity': timedelta(days=2),
     'sequential_join': True,
     'max_pi_stage':1,
     'include_numeric': True
@@ -113,10 +115,11 @@ join_rules = {
 
 def TEG_PC_PI(event_list, join_rules, conf, fname):
     conn = get_db_connection()
-    p_df, patients = get_patient_demography(conn, conf) 
+    PI_df, patients = get_patient_demography(conn, conf) 
     print('Patients', len(patients))
-    all_events = mimic_events(conn, event_list, conf)
-    events, subject_ids = process_events_PI(all_events, conf)
+    PI_hadms = tuple(PI_df['hadm_id'].tolist())
+    all_events = mimic_events(conn, event_list, conf, PI_hadms)
+    events, PI_hadm_stage_t = process_events_PI(all_events, conf)
     n = len(events)
     A = build_eventgraph(patients, events, join_rules)
     states = np.zeros(n)
@@ -128,12 +131,12 @@ def TEG_PC_PI(event_list, join_rules, conf, fname):
         print("Time for PC without paths ", float(time.time() - start)/60.0, 'min' )
     else:
         start = time.time()
-        PC_values, pred, D = algebraic_PC_with_pred(A, states=states)
-        print("Time for PC with pred", float(time.time() - start)/60.0)
-        V, v_paths, paths = PC_paths(D, pred, states)
-        print("Paths")
-        #PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
-        #print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
+        #PC_values, pred, D = algebraic_PC_with_pred(A, states=states)
+        #print("Time for PC with pred", float(time.time() - start)/60.0)
+        #V, v_paths, paths = PC_paths(D, pred, states)
+        #print("Paths")
+        PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
+        print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
         # Check if algebraic PC match PC from networkx
         #print(PC_values)
         b = np.sort(np.nonzero(PC_values)[0])
@@ -174,44 +177,12 @@ def TEG_PC_PI(event_list, join_rules, conf, fname):
     print('v_paths match:',v_paths==paths_nx)
     print('paths match:', paths==paths_nx)
     '''
-    PC = dict()
-    PC_all = dict()
-    max_PC = float(max(PC_values))
-    min_PC = float(min(PC_values))
-    PC_vals = []
-    for i, val in enumerate(PC_values):
-        v = float(val) / max_PC if conf['scale_PC'] else float(val)
-        PC_vals.append(v)
-        PC_all[i] = v
-        if val > 0:
-            PC[i] = v
-    '''
-    PC_sorted = [[k, v, events[k]] for k, v in sorted(PC.items(), key=lambda x: x[1], reverse=True)]
-    pprint.pprint(PC_sorted[:11])
-    PC_top = dict()
-    num = 100 if len(PC_sorted) > 100 else len(PC_sorted)
-    for i, info in enumerate(PC_sorted):
-        if info[2]['type'] not in PC_top:
-            PC_top[info[2]['type']] = [1, info[1]]
-        else:
-            PC_top[info[2]['type']][0] += 1
-            PC_top[info[2]['type']][1] += info[1]
-    pprint.pprint([e for e in events if e['type']=='admissions' or e['type'] =='discharges'])
-    pprint.pprint(PC_top, sort_dicts=False)
-    '''
-    PC_nz = list(PC.values())
-    P_min = np.percentile(PC_nz, conf['PC_percentile'][0])
-    P_max = np.percentile(PC_nz, conf['PC_percentile'][1])
-    print("Nonzero PC", len(PC_nz))
-    print("Min, Max PC", min_PC, max_PC)
-    print("Min, Max PC scaled", min(PC_nz), max(PC_nz))
-    print("Percentile", P_min, P_max)
-    PC_P = dict([(i, v) for i, v in PC.items() if v >= P_min and v <= P_max])
-    print("Nodes above percentile", len(PC_P))
-    plot_PC(events, PC, conf, nbins=30)
+    PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
+    plot_PC(events, PC_nz, conf, nbins=30)
     plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
     if conf['vis']:
-        visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname)
+        visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname+'Paths')
+        simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fname+'Simple')
 
 def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     conn = get_db_connection()
@@ -220,7 +191,7 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     print('PI Patients', len(PI_admissions))
     PI_hadms = tuple(PI_df['hadm_id'].tolist())
     all_events = mimic_events(conn, event_list, conf, PI_hadms)
-    events, PI_hadm_stage_t = process_events_PI(all_events, conf)
+    PI_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
     # Remove invalid admissions
     PI_df = PI_df[PI_df['hadm_id'].isin(list(PI_hadm_stage_t.keys()))]
     PI_df = PI_df[conf['psm_features']]
@@ -249,11 +220,11 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     PI_hadms = tuple(psm.matched_ids['hadm_id'].tolist())
     if len(PI_hadm_stage_t) != len(PI_hadms):
         all_events = mimic_events(conn, event_list, conf, PI_hadms)
-        events, PI_hadm_stage_t = process_events_PI(all_events, conf)
-    n = len(events)
-    A = build_eventgraph(PI_admissions, events, join_rules)
+        PI_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
+    n = len(PI_events)
+    A = build_eventgraph(PI_admissions, PI_events, join_rules)
     states = np.zeros(n)
-    for e in events:
+    for e in PI_events:
         states[e['i']] = e['pi_state']
     if not conf['vis']:
         start = time.time()
@@ -264,36 +235,19 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
         PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
         print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
         b = np.sort(np.nonzero(PC_values)[0])
-    PC = dict()
-    PC_all = dict()
-    max_PC = float(max(PC_values))
-    min_PC = float(min(PC_values))
-    PC_vals = []
-    for i, val in enumerate(PC_values):
-        v = float(val) / max_PC if conf['scale_PC'] else float(val)
-        PC_vals.append(v)
-        PC_all[i] = v
-        if val > 0:
-            PC[i] = v
-    PC_nz = list(PC.values())
-    P_min = np.percentile(PC_nz, conf['PC_percentile'][0])
-    P_max = np.percentile(PC_nz, conf['PC_percentile'][1])
-    print("Nonzero PC", len(PC_nz))
-    print("Min, Max PC", min_PC, max_PC)
-    print("Min, Max PC scaled", min(PC_nz), max(PC_nz))
-    print("Percentile", P_min, P_max)
-    PC_P = dict([(i, v) for i, v in PC.items() if v >= P_min and v <= P_max])
-    print("Nodes above percentile", len(PC_P))
-    plot_PC(events, PC, conf, nbins=30)
+    PI_PC_all, PI_PC_nz, PI_PC_P = process_PC_values(PC_values, conf)
+    plot_PC(PI_events, PI_PC_nz, conf, nbins=30)
     PI_etypes = set()
-    for i, val in PC.items():
-            PI_etypes.add(events[i]['type'])
-    plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
+    for i, val in PI_PC_nz.items():
+            PI_etypes.add(PI_events[i]['type'])
+    plot_PC(PI_events, PI_PC_P, conf, conf['PC_percentile'], nbins=10)
     PI_etypes_P = set()
-    for i, val in PC_P.items():
-        PI_etypes_P.add(events[i]['type'])
+    for i, val in PI_PC_P.items():
+        PI_etypes_P.add(PI_events[i]['type'])
     if conf['vis']:
-        visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, fname)
+        visualize(PI_admissions, PI_events, A, V, PI_PC_all, PI_PC_P, v_paths, paths, conf, fname)
+    else:
+        simple_visualization(A, PI_events, PI_admissions, PI_PC_all, PI_PC_P, conf, join_rules, fname+'PI')
     # handle admissions with higher or lower PI stages
     # handle subsequent admissions
     NPI_t = dict()
@@ -304,11 +258,11 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
             NPI_hadms.append(row['matched_ID'])
     NPI_hadms = tuple(NPI_hadms)
     all_events = mimic_events(conn, event_list, conf, NPI_hadms)
-    events = process_events_NPI(all_events, NPI_t, conf)
-    n = len(events)
-    A = build_eventgraph(NPI_admissions, events, join_rules)
+    NPI_events = process_events_NPI(all_events, NPI_t, conf)
+    n = len(NPI_events)
+    A = build_eventgraph(NPI_admissions, NPI_events, join_rules)
     states = np.zeros(n)
-    for e in events:
+    for e in NPI_events:
         states[e['i']] = e['pi_state']
     if not conf['vis']:
         start = time.time()
@@ -319,52 +273,35 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
         PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
         print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
         b = np.sort(np.nonzero(PC_values)[0])
-    PC = dict()
-    PC_all = dict()
-    max_PC = float(max(PC_values))
-    min_PC = float(min(PC_values))
-    PC_vals = []
-    for i, val in enumerate(PC_values):
-        v = float(val) / max_PC if conf['scale_PC'] else float(val)
-        PC_vals.append(v)
-        PC_all[i] = v
-        if val > 0:
-            PC[i] = v
-    PC_nz = list(PC.values())
-    P_min = np.percentile(PC_nz, conf['PC_percentile'][0])
-    P_max = np.percentile(PC_nz, conf['PC_percentile'][1])
-    print("Nonzero PC", len(PC_nz))
-    print("Min, Max PC", min_PC, max_PC)
-    print("Min, Max PC scaled", min(PC_nz), max(PC_nz))
-    print("Percentile", P_min, P_max)
-    PC_P = dict([(i, v) for i, v in PC.items() if v >= P_min and v <= P_max])
-    print("Nodes above percentile", len(PC_P))
-    plot_PC(events, PC, conf, nbins=30)
+    NPI_PC_all, NPI_PC_nz, NPI_PC_P = process_PC_values(PC_values, conf)
+    plot_PC(NPI_events, NPI_PC_nz, conf, nbins=30)
     NPI_etypes = set()
-    for i, val in PC.items():
-        NPI_etypes.add(events[i]['type'])
-    plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10)
+    for i, val in NPI_PC_nz.items():
+        NPI_etypes.add(NPI_events[i]['type'])
+    plot_PC(NPI_events, NPI_PC_P, conf, conf['PC_percentile'], nbins=10)
     NPI_etypes_P = set()
-    for i, val in PC_P.items():
-        NPI_etypes_P.add(events[i]['type'])
-    I = PI_etypes & NPI_etypes
-    I_P = PI_etypes_P & NPI_etypes_P
-    PI_etypes_diff = PI_etypes - I
-    PI_etypes_P_diff = PI_etypes_P - I_P
-    NPI_etypes_diff = NPI_etypes - I
-    NPI_etypes_P_diff = NPI_etypes_P - I_P
+    for i, val in NPI_PC_P.items():
+        NPI_etypes_P.add(NPI_events[i]['type'])
     '''
+    I = PI_etypes & NPI_etypes
+    PI_etypes_diff = PI_etypes - I
+    NPI_etypes_diff = NPI_etypes - I
     print("PI differences, Intersection and NPI difference")
     pprint.pprint(PI_etypes_diff)
     pprint.pprint(I)
     pprint.pprint(NPI_etypes_diff)
     '''
+    I_P = PI_etypes_P & NPI_etypes_P
+    PI_etypes_P_diff = PI_etypes_P - I_P
+    NPI_etypes_P_diff = NPI_etypes_P - I_P
     print("With percentile, PI differences, Intersection and NPI difference")
     pprint.pprint(PI_etypes_P_diff)
     pprint.pprint(I_P)
     pprint.pprint(NPI_etypes_P_diff)
     if conf['vis']:
-        visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, fname)
+        visualize(NPI_admissions, NPI_events, A, V, NPI_PC_all, NPI_PC_P, v_paths, paths, conf, fname)
+    else:
+        simple_visualization(A, NPI_events, NPI_admissions, NPI_PC_all, NPI_PC_P, conf, join_rules, fname+'NPI')
 
 if __name__ == "__main__":
     fname_keys = [
@@ -386,5 +323,5 @@ if __name__ == "__main__":
                                     for k, v in join_rules.items()
                                     if k in fname_keys])
 
-    #TEG_PC_PI(EVENTS, join_rules, conf, fname_LF)
-    TEG_PC_Non_PI(EVENTS, join_rules, conf, fname_LF)
+    TEG_PC_PI(EVENTS, join_rules, conf, fname_LF)
+    #TEG_PC_Non_PI(EVENTS, join_rules, conf, fname_LF)

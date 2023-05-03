@@ -8,6 +8,25 @@ from teg.eventgraphs import *
 from teg.build_graph import *
 from teg.paths import *
 
+def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fname):
+    G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+    g = Network(
+        directed=True,
+        height=1000,
+        width='90%',
+        neighborhood_highlight=True,
+        select_menu=True)
+    g.from_nx(G.subgraph(list(PC_P.keys())), show_edge_weights=False)
+    g.repulsion()
+    #g.barnes_hut()
+    g.toggle_physics(True)
+    g.show_buttons()
+    g.save_graph(fname + 'PC_P.html')
+    attrs = dict([(e['i'], e['type']) for e in events])
+    nx.set_node_attributes(G, attrs, 'group')
+    visualize_vertices(G, list(PC_P.keys()), fname+"V_PC_P")
+
+
 def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname):
     n = len(events)
     if conf['vis'] and n > 100:
