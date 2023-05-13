@@ -166,6 +166,8 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     if len(PI_hadm_stage_t) != len(PI_hadms):
         PI_events = events(conn, event_list, conf, PI_hadms)
         PI_events, PI_hadm_stage_t = process_events_PI(PI_events, conf)
+    PI_events_grouped = group_events_by_parent_type(PI_events)
+
     NPI_t = dict()
     NPI_hadms = list()
     for i, row in psm.matched_ids.iterrows():
@@ -175,22 +177,48 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     NPI_hadms = tuple(NPI_hadms)
     NPI_events = events(conn, event_list, conf, NPI_hadms)
     NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
+    NPI_events_grouped = group_events_by_parent_type(NPI_events)
+    PI_events_P = []
+    NPI_events_P = []
+    for parent_type in PI_events_grouped:
+        if parent_type not in NPI_events_grouped:
+            continue
+        if 'PI Stage' in parent_type:
+            continue
+        pi_events = PI_events_grouped[parent_type] + PI_events_grouped['PI Stage']
+        # sort by type, t and reindex
+        pi_events = sort_and_index_events(pi_events)
 
-    for i in range(conf['iterations']):
-        if i == conf['iterations'] - 1:
-            conf['plot'] = True
-        PI_PC_all, PI_PC_nz, PI_PC_P = run_experiments(PI_admissions, PI_events, conf, join_rules, fname + f'_PI_{i}')
-        PI_etypes = get_event_types(PI_events, PI_PC_nz)
-        PI_etypes_P = get_event_types(PI_events, PI_PC_P)
+        npi_events = NPI_events_grouped[parent_type] + NPI_events_grouped['Marker']
+        # sort by type, t and reindex
+        npi_events = sort_and_index_events(npi_events)
+        pi_events, npi_events, PI_PC_P, NPI_PC_P, I = run_iterations(PI_admissions,
+                                                                     NPI_admissions,
+                                                                     pi_events,
+                                                                     npi_events,
+                                                                     conf,
+                                                                     join_rules,
+                                                                     fname)
+        for i in PI_PC_P:
+            if pi_events[i]['type'] not in I:
+                PI_events_P.append(pi_events[i])
+        for i in NPI_PC_P:
+            if npi_events[i]['type'] not in I:
+                NPI_events_P.append(npi_events[i])
+    PI_events_P += PI_events_grouped['PI Stage']
+    # sort by type, t and reindex
+    PI_events_P = sort_and_index_events(PI_events_P)
 
-        NPI_PC_all, NPI_PC_nz, NPI_PC_P = run_experiments(NPI_admissions, NPI_events, conf, join_rules, fname + f'_NPI_{i}')
-        NPI_etypes = get_event_types(NPI_events, NPI_PC_nz)
-        NPI_etypes_P = get_event_types(NPI_events, NPI_PC_P)
-        PI_types, NPI_types, I = intersection_and_differences(PI_etypes_P, NPI_etypes_P)
-
-        PI_events = remove_event_type(PI_events, I) 
-        NPI_events = remove_event_type(NPI_events, I) 
-        
+    NPI_events_P = NPI_events_P + NPI_events_grouped['Marker']
+    # sort by type, t and reindex
+    NPI_events_P = sort_and_index_events(NPI_events_P)
+    NPI_events_P, NPI_events_P, PI_PC_P, NPI_PC_P, I = run_iterations(PI_admissions,
+                                                                 NPI_admissions,
+                                                                 PI_events_P,
+                                                                 NPI_events_P,
+                                                                 conf,
+                                                                 join_rules,
+                                                                 fname)
 if __name__ == "__main__":
     fname_keys = [
         'max_hours',
@@ -198,9 +226,9 @@ if __name__ == "__main__":
         'drug_percentile',
         'input_percentile',
         'skip_repeat',
-        'hadm_limit', 
         'min_missing_percent',
-        'dbsource']
+        'hadm_limit'
+    ]
     fname_LF = 'output/TEG'
     fname_LF += '_' + '_'.join([k + '-' + str(v)
                                for k, v in conf.items() if k in fname_keys])

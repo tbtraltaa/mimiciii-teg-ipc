@@ -16,7 +16,7 @@ from teg.queries_mimic_extract import *
 from teg.queries_chart_events import *
 from teg.queries import *
 
-def mimic_events(conn, event_list, conf, hadms=()):
+def events(conn, event_list, conf, hadms=()):
     all_events = list()
     n = 0
     for event_key in event_list:
@@ -224,6 +224,8 @@ def process_events_NPI(all_events, NPI_t, conf):
             elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
+                all_events[e['i']]['type'] = 'Marker'
+                all_events[e['i']]['parent_type'] = 'Marker'
                 PI = True
             else:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
@@ -234,6 +236,11 @@ def process_events_NPI(all_events, NPI_t, conf):
             # exlude events after maximum PI stage event
             excluded_indices.append(e['i'])
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
+            if not PI:
+                all_events[e['i']]['pi_state'] = conf['PI_states'][max_stage]
+                all_events[e['i']]['pi_stage'] = max_stage
+                all_events[e['i']]['type'] = 'Marker'
+                all_events[e['i']]['parent_type'] = 'Marker'
             PI = False
             stage = 0
             id_excluded = False

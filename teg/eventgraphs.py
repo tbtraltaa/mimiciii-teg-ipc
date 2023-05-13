@@ -99,6 +99,7 @@ def build_eventgraph(subjects, events, join_rules):
             # Prevents over counting which happens if events with max PI stage connect with each other
             elif e1['pi_stage'] == e2['pi_stage'] and e1['pi_stage'] == join_rules['max_pi_stage']:
                 break
+            # get t_max by event type
             vals = [v for  k, v in join_rules['t_max'].items() if e1['type'] in k]
             if vals:
                 t_max = vals[0]

@@ -39,9 +39,12 @@ def get_patient_demography(conn, conf):
             cols += f'{table}.{col}, '
     cols += 'EXTRACT(DAY FROM a.dischtime - a.admittime) as los, '
     cols += 'EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) as age, '
-    cols += 'a.admittime '
-    table = f'''{schema}.patients p INNER JOIN {schema}.admissions a
-            ON a.subject_id = p.subject_id'''
+    cols += 'a.admittime, o.oasis '
+    table = f'''{schema}.admissions a INNER JOIN {schema}.patients p
+            ON a.subject_id = p.subject_id
+            INNER JOIN {schema}.oasis o
+            ON a.hadm_id = o.hadm_id
+            '''
     where = f''' a.diagnosis != 'NEWBORN'
         AND a.hadm_id is NOT NULL
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}

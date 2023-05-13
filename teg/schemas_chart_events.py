@@ -1,5 +1,10 @@
 from teg.schemas import *
 
+VITALS_LAB_EVENTS = [
+    'Interventions',
+    'Vitals/Labs'
+    ]
+
 # {event_name: d_items.label}
 CHART_EVENTS = {
     #'Braden Activity': ['%Braden Activity%', []],
