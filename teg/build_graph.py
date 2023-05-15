@@ -23,9 +23,11 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     nx.set_node_attributes(G, shapes, 'shape')
     if not conf['scale_PC']:
         max_PC = max(PC.values())
-        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v/max_PC * 120) for i, v in PC.items()])
+        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                else (i, v/max_PC * 120) for i, v in PC.items()])
     else:
-        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v * 120) for i, v in PC.items()])
+        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                else (i, v * 120) for i, v in PC.items()])
     nx.set_node_attributes(G, PC_scaled, 'size')
     #nx.set_node_attributes(G, PC_scaled, 'value')
     attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)

@@ -162,9 +162,12 @@ def build_eventgraph(subjects, events, join_rules):
                     w_t, w_e, w_s, I_e  = weight_same_subject(e1, e2, join_rules, t_max)
                     A[e1['i'], e2['i']] = w_t + w_e + w_s
                     c2 += 1
+        print("Number of events", len(events))
         print("Edges connecting events of different patients: ", c1)
         print("Edges connecting events of the same patients: ", c2)
-    return A
+        if c1 == 0:
+            return A, False
+    return A, True
 
 def get_t_max(e1, e2, join_rules):
     if e1['type'] == e2['type']:

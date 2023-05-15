@@ -78,7 +78,7 @@ def get_events_interventions(conn, conf, hadms=None):
             val = 1 if count >= 1 else 0
             if val == 0:
                 continue
-            if not conf['skip_repeat']:
+            if not conf['skip_repeat_intervention']:
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
                                'parent_type': 'Intervention',
@@ -149,7 +149,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
     vitals = get_vitals(conf)
     vitals_stats = get_stats_vitals_X_mean(vitals)
     vitals_nan = vitals.replace(0, np.NaN)
-    fname = "data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
+    fname = f"data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
     if os.path.exists(fname):
         Qs = pd.read_hdf(fname) 
     else:
@@ -258,7 +258,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
     icustays_ids = list(icustays.keys())
     vitals = get_vitals(conf)
     vitals_nan = vitals.replace(0, np.NaN)
-    fname = "data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
+    fname = f"data/mimic-extract-Q-{len(conf['quantiles'])}.h5"
     if os.path.exists(fname):
         Qs = pd.read_hdf(fname) 
     else:

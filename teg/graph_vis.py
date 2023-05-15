@@ -25,12 +25,12 @@ def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fn
     g.save_graph(fname + '_Simple_PC_P_' + str(datetime.now()) + '.html')
     attrs = dict([(e['i'], e['type']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
-    visualize_vertices(G, list(PC_P.keys()), fname + "_Simple_V_PC_P_" + str(datetime.now()) + '.html')
+    #visualize_vertices(G, list(PC_P.keys()), fname + "_Simple_V_PC_P_")
 
 
 def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname):
     n = len(events)
-    if conf['vis'] and n > 100:
+    if conf['vis'] and n > 2000:
         # when a graph is too large for visualization
         # use only shortest path subgraph
         A = A.toarray()
@@ -64,16 +64,15 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         visualize_vertices(G, list(PC_P.keys()), fname+"V_percentile")
     elif conf['vis']:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
-        fname += "_Q" + str(len(conf['quantiles']))
         paths_P = dict([(i, v_paths[i]) for i in PC_P])
         if conf['path_percentile']:
             paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
             visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname+"PC_P_Path_P_P")
-            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname+"all_PC_P_Path_P_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname+"Graph_PC_P_Path_P_P")
         else:
-            visualize_graph(G, list(PC_P.keys()), paths_P, fname+"all_PC_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P, fname+"Graph_PC_P_Path_P")
         visualize_SP_tree(G, V, v_paths, fname+"SP_all")
-        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname+"PC_P")
+        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname+"SP_PC_P_Path_P")
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), fname+"V_PC_P")
@@ -112,10 +111,8 @@ def visualize_SP_tree(G, V, paths, fname):
     #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
-
-    print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(fname + str(datetime.now()) + '.html')
+    g.save_graph(fname + '_' + str(datetime.now()) + '.html')
 
 def visualize_vertices(G, V, fname):
     G.remove_edges_from(list(G.edges()))
@@ -130,9 +127,8 @@ def visualize_vertices(G, V, fname):
     #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
-    print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(fname + str(datetime.now()) + '.html')
+    g.save_graph(fname + '_' + str(datetime.now()) + '.html')
 
 
 def visualize_graph(G, V, paths, fname):
@@ -165,9 +161,8 @@ def visualize_graph(G, V, paths, fname):
     #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
-    print(nx.is_directed_acyclic_graph(G))
     # g.show("mimic.html")
-    g.save_graph(fname + str(datetime.now()) + '.html')
+    g.save_graph(fname + '_' + str(datetime.now()) + '.html')
     '''
     fig, ax = plt.subplots(figsize=(10, 10))
     pos = nx.spring_layout(G, k=0.15, seed=4572321)

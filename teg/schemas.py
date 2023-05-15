@@ -24,8 +24,10 @@ PATIENTS = {
 # {<event_name>: [<event_name>, <event_table>, <time_column>, <main attr>]}
 EVENTS = {
     # Patient tracking events
-    'Admissions': ['Admissions', 'admissions', 'admittime', 'tb.admission_location'],
-    'Discharges': ['Discharges', 'admissions', 'dischtime', 'tb.discharge_location'],
+    #'Admissions': ['Admissions', 'admissions', 'admittime', 'tb.admission_location'],
+    #'Discharges': ['Discharges', 'admissions', 'dischtime', 'tb.discharge_location'],   
+    'Admissions': ['Admissions', 'admissions', 'admittime', False],
+    'Discharges': ['Discharges', 'admissions', 'dischtime', False],   
     'ICU In': ['ICU In', 'icustays', 'intime', 'tb.first_careunit'],
     'ICU Out': ['ICU Out', 'icustays', 'outtime', 'tb.last_careunit'],
     'Callout': ['Callout', 'callout', 'outcometime', 'tb.callout_service'],
@@ -45,7 +47,7 @@ EVENTS = {
 
     # Hospital Data
     # Current Procedural Terminology
-    'CPT': ['CPT', 'cptevents', 'chartdate', 'tb.cpt_cd'],
+    #'CPT': ['CPT', 'cptevents', 'chartdate', 'tb.cpt_cd'],
     # at the end after discharge, take discharge time from admissions table
     #'Diagnoses ICD': [12, 'diagnoses_icd', 'dischtime'],
     # at the end after discharge, take discharge time from admissions table

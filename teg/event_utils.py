@@ -1,5 +1,21 @@
+from itertools import groupby
 import copy
 import pprint
+
+def get_top_events(events, PC_P, conf, I = []):
+    max_n = conf['PC_percentile_max_n']
+    if not max_n:
+        max_n = len(PC_P)
+    PC_P = sorted(PC_P.items(), key=lambda x: x[1], reverse = True)
+    top_events = []
+    count = 0
+    for i, val in PC_P:
+        if events[i]['type'] not in I:
+            top_events.append(events[i])
+            count += 1
+        if count == max_n:
+            break
+    return top_events
 
 def intersection_and_differences(A, B):
     I = A & B
@@ -23,8 +39,8 @@ def get_event_types(events, PC):
 def group_events_by_parent_type(events):
     events_grouped = dict()
     for key, val in groupby(events, key=lambda x: x['parent_type']):
-        print(key, len(list(val)))
-        events_grouped[key] = sorted(list(val), key=lambda x: (x['type'], x['t']))
+        e_list = list(val)
+        events_grouped[key] = sorted(e_list, key=lambda x: (x['type'], x['t']))
     return events_grouped
 
 def sort_and_index_events(events):

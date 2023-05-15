@@ -20,6 +20,10 @@ def events(conn, event_list, conf, hadms=()):
     all_events = list()
     n = 0
     for event_key in event_list:
+        if 'CV' in event_key and conf['dbsource'] == 'metavision':
+            continue
+        elif 'MV' in event_key and conf['dbsource'] == 'carevue':
+            continue
         event_name, table, time_col, main_attr = EVENTS[event_key]
         events = get_events(conn, event_key, conf, hadms)
         for i, e in enumerate(events):

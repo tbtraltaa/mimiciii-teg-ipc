@@ -1,5 +1,140 @@
 import pandas as pd
+import numpy as np
 import os.path
+import matplotlib.pyplot as plt
+
+from teg.schemas import *
+
+def input_filter(conn, conf, fname='output/'):
+    file_name = f'data/input_count.h5'
+    if os.path.exists(file_name):
+        freq = pd.read_hdf(file_name) 
+    else:
+        # filter by frequency percentile range
+        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
+            count(*) as count
+            FROM {schema}.inputevents_cv i
+            INNER JOIN {schema}.d_items d
+            ON i.itemid = d.itemid
+            WHERE i.amount is NOT NULL
+            AND i.amountuom is NOT NULL
+            AND i.amount > 0
+            AND TRIM(i.stopped) != 'D/C''d'
+            AND TRIM(i.stopped) != 'Stopped'
+            GROUP BY RTRIM(INITCAP(d.label), '.')
+            '''
+        freq_cv = pd.read_sql_query(q, conn)
+        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
+            count(*) as count
+            FROM {schema}.inputevents_mv i
+            INNER JOIN {schema}.d_items d
+            ON i.itemid = d.itemid
+            WHERE i.amount is NOT NULL
+            AND i.amount > 0
+            AND i.amountuom is NOT NULL
+            AND TRIM(i.statusdescription) = 'FinishedRunning'
+            GROUP BY RTRIM(INITCAP(d.label), '.')
+            '''
+        freq_mv = pd.read_sql_query(q, conn)
+        freq = pd.concat([freq_cv, freq_mv])
+        freq = freq.groupby('input').sum()
+        if not os.path.exists(file_name):
+            freq.to_hdf(file_name, key='df', mode='w', encoding='UTF-8')
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    plt.title(f"Input count distribution")
+    plt.hist(freq['count'], bins=100, rwidth=0.7)
+    plt.xlabel("Count")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}Input_count_dist")
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    plt.title(f"Input count distribution - Log")
+    plt.hist(np.log10(freq['count']), bins=100, rwidth=0.7)
+    plt.xlabel("Count")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}Input_count_dist_log")
+    plt.clf()
+    plt.cla()
+    min_count = np.nanpercentile(freq['count'], conf['input_percentile'][0])
+    max_count = np.nanpercentile(freq['count'], conf['input_percentile'][1])
+    freq = freq[freq['count']>= min_count]
+    freq = freq[freq['count'] <= max_count]
+    # escaping ' with '' for querying
+    inputs = str(tuple([v.replace("'", "''") if "'" in v else v for v in freq.index]))
+    inputs = inputs.replace('"', "'")
+    return inputs
+
+def prescription_filter(conn, conf, fname='output/'):
+    file_name = f'data/prescription_count.h5'
+    if os.path.exists(file_name):
+        presc_count = pd.read_hdf(file_name) 
+    else:
+        # filter by frequency percentile range
+        q = f'''SELECT RTRIM(INITCAP(drug), '.') as drug, 
+            count(*) as count
+            FROM {schema}.prescriptions
+            WHERE drug is NOT NULL
+            AND dose_val_rx is NOT NULL
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0.0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0.0'
+            AND (split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            OR split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
+            GROUP BY RTRIM(INITCAP(drug), '.')
+            '''
+        presc_count = pd.read_sql_query(q, conn)
+        if not os.path.exists(file_name):
+            presc_count.to_hdf(file_name, key='df', mode='w', encoding='UTF-8')
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    plt.title(f"Prescription count distribution")
+    plt.hist(presc_count['count'], bins=100, rwidth=0.7)
+    plt.xlabel("Count")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}Prescription_count_dist")
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    plt.title(f"Prescription count distribution - Log")
+    plt.hist(np.log10(presc_count['count']), bins=100, rwidth=0.7)
+    plt.xlabel("Count")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}Prescription_count_dist_log")
+    plt.clf()
+    plt.cla()
+    min_count = np.nanpercentile(presc_count['count'], conf['drug_percentile'][0])
+    max_count = np.nanpercentile(presc_count['count'], conf['drug_percentile'][1])
+    q = f'''
+        SELECT q.drug 
+        FROM 
+            (SELECT RTRIM(INITCAP(drug), '.') as drug, count(*) as count 
+            FROM {schema}.prescriptions
+            WHERE drug IS NOT NULL
+            AND dose_val_rx is NOT NULL
+            AND dose_unit_rx is NOT NULL
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0.0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0'
+            AND split_part(TRIM(dose_val_rx), '-', 1) != '0.0'
+            AND (split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
+            OR split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
+            GROUP BY drug
+            ) AS q
+        WHERE q.count >= {min_count} AND q.count <= {max_count}
+        '''
+    df = pd.read_sql_query(q, conn)
+    drugs = str(tuple([v.replace("'", "''") if "'" in v else v for v in df['drug']]))
+    drugs = drugs.replace('"', "'")
+    return drugs
 
 def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom_col, dtype, where):
     if 'Presc' in event_name:

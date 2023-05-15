@@ -50,6 +50,7 @@ def get_patient_demography(conn, conf):
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <={conf['max_age']}
         '''
+    where += ' AND a.hospital_expire_flag=0'
     if conf['has_icustay'] == 'True':
         table += f' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
         where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
@@ -117,6 +118,7 @@ def get_patient_demography(conn, conf):
         if conf['starttime'] and conf['endtime']:
             pi_where += f" AND tb1.charttime >= '{conf['starttime']}'"
             pi_where += f" AND tb1.charttime <= '{conf['endtime']}'"
+        # number of PIs within max_hours from admittime
         pi_where += f" AND tb1.charttime - tb2.admittime <='{conf['max_hours']} hours'"
         pi = f'''
             (SELECT t2.hadm_id
@@ -192,6 +194,7 @@ def get_patient_demography(conn, conf):
     dff = df.copy()
     df.drop('los', axis=1, inplace=True)
     df.drop('hadm_id', axis=1, inplace=True)
+    df.drop('oasis', axis=1, inplace=True)
     left = df['age']//conf['age_interval'] * conf['age_interval'] 
     right  = left + conf['age_interval']
     df['age'] = left.astype(str) + '-' + right.astype(str)
@@ -267,7 +270,7 @@ def PI_first_stage(conn, conf):
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
 # an event dict: [{col_name: col_value, ...}]
-def get_events(conn, event_key, conf, hadms=()):
+def get_events(conn, event_key, conf, hadms=(), fname='output/'):
     '''
     Returns events within the given time window.
     '''
@@ -293,23 +296,34 @@ def get_events(conn, event_key, conf, hadms=()):
             cols = [col for col in all_cols if col not in
                     EVENT_COLS_EXCLUDE[event_name]]
             cols = 'tb.' + ', tb.'.join(cols)
-    ID_cols = f'''
-        CONCAT(tb.subject_id, '-', tb.hadm_id) as id,
-        tb.subject_id as subject_id, tb.hadm_id as hadm_id,
-        RTRIM(INITCAP({main_attr}), '.') as item_col,
-        {t_table}.{time_col} - a.admittime as t,
-        {t_table}.{time_col} as datetime,
-        '''
-    # Not to initcap care unit and services abbreviations
-    initcap = True
-    for e in LOGISTIC_EVENTS:
-        if e in event_name:
-            initcap = False
-    ID_cols += f"'{event_name}' as parent_type, "
-    if initcap:
-        ID_cols += f"CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,"
+    if main_attr:
+        ID_cols = f'''
+            CONCAT(tb.subject_id, '-', tb.hadm_id) as id,
+            tb.subject_id as subject_id, tb.hadm_id as hadm_id,
+            RTRIM(INITCAP({main_attr}), '.') as item_col,
+            {t_table}.{time_col} - a.admittime as t,
+            {t_table}.{time_col} as datetime,
+            '''
+        # Not to initcap care unit and services abbreviations
+        initcap = True
+        for e in LOGISTIC_EVENTS:
+            if e in event_name:
+                initcap = False
+        if initcap:
+            ID_cols += f"CONCAT('{event_name}', '-', RTRIM(INITCAP({main_attr}), '.')) as type,"
+        else:
+            ID_cols += f"CONCAT('{event_name}', '-', RTRIM({main_attr}, '.')) as type,"
     else:
-        ID_cols += f"CONCAT('{event_name}', '-', RTRIM({main_attr}, '.')) as type,"
+        ID_cols = f'''
+            CONCAT(tb.subject_id, '-', tb.hadm_id) as id,
+            tb.subject_id as subject_id, tb.hadm_id as hadm_id,
+            '{event_name}' as type,
+            tb.hadm_id as item_col,
+            {t_table}.{time_col} - a.admittime as t,
+            {t_table}.{time_col} as datetime,
+            '''
+
+    ID_cols += f"'{event_name}' as parent_type, "
     cols = ID_cols + cols
     table = f'{schema}.{table} tb INNER JOIN {schema}.admissions a'
     table += f' ON tb.hadm_id = a.hadm_id'
@@ -333,6 +347,7 @@ def get_events(conn, event_key, conf, hadms=()):
     if event_name == 'Input':
         table += f''' INNER JOIN {schema}.d_items d
             ON tb.itemid = d.itemid'''
+    where += ' AND a.hospital_expire_flag=0'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"
@@ -358,28 +373,10 @@ def get_events(conn, event_key, conf, hadms=()):
         where += ' AND tb.prev_careunit IS NOT NULL'
         where += " AND tb.eventtype='transfer'"
     if 'Presc' in event_name:
-        # filter by frequency percentile range
-        q = f'''SELECT RTRIM(INITCAP(drug), '.') as drug, 
-            count(*) as count
-            FROM {schema}.prescriptions
-            WHERE drug is NOT NULL
-            AND dose_val_rx is NOT NULL
-            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0'
-            AND split_part(TRIM(dose_val_rx), ' ', 1) != '0.0'
-            AND split_part(TRIM(dose_val_rx), '-', 1) != '0'
-            AND split_part(TRIM(dose_val_rx), '-', 1) != '0.0'
-            AND (split_part(TRIM(dose_val_rx), ' ', 1) similar to '\+?\d*\.?\d*'
-            OR split_part(TRIM(dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
-            GROUP BY RTRIM(INITCAP(drug), '.')
-            '''
-        drug_freq = pd.read_sql_query(q, conn)
-        min_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][0])
-        max_count = np.nanpercentile(drug_freq['count'], conf['drug_percentile'][1])
-        presc = f"(SELECT RTRIM(INITCAP(p.drug), '.') as drug, count(*) as count" + \
-            f' from {schema}.prescriptions p GROUP BY p.drug) AS q'
-        table += f" INNER JOIN {presc} ON RTRIM(INITCAP(tb.drug), '.')=q.drug"
-        where += f''' AND q.count >= {min_count}
-            AND q.count <= {max_count}
+        if conf['drug_percentile'] != [0, 100]:
+            drugs = prescription_filter(conn, conf, fname)
+            where += f" AND RTRIM(INITCAP(tb.drug), '.') IN {drugs} "
+        where += f'''
             AND tb.drug IS NOT NULL
             AND tb.dose_val_rx is NOT NULL
             AND tb.dose_unit_rx is NOT NULL
@@ -391,41 +388,12 @@ def get_events(conn, event_key, conf, hadms=()):
             OR split_part(TRIM(tb.dose_val_rx), '-', 1) similar to '\+?\d*\.?\d*')
             '''
     if 'Input' in event_name:
-        # filter by frequency percentile range
-        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
-            count(*) as count
-            FROM {schema}.inputevents_cv i
-            INNER JOIN {schema}.d_items d
-            ON i.itemid = d.itemid
-            WHERE i.amount is NOT NULL
-            AND i.amount > 0
-            AND TRIM(i.stopped) != 'D/C''d'
-            AND TRIM(i.stopped) != 'Stopped'
-            GROUP BY RTRIM(INITCAP(d.label), '.')
-            '''
-        freq_cv = pd.read_sql_query(q, conn)
-        q = f'''SELECT RTRIM(INITCAP(d.label), '.') as input, 
-            count(*) as count
-            FROM {schema}.inputevents_mv i
-            INNER JOIN {schema}.d_items d
-            ON i.itemid = d.itemid
-            WHERE i.amount is NOT NULL
-            AND i.amount > 0
-            AND TRIM(i.statusdescription) = 'FinishedRunning'
-            GROUP BY RTRIM(INITCAP(d.label), '.')
-            '''
-        freq_mv = pd.read_sql_query(q, conn)
-        freq = pd.concat([freq_cv, freq_mv])
-        freq = freq.groupby('input').sum()
-        min_count = np.nanpercentile(freq['count'], conf['input_percentile'][0])
-        max_count = np.nanpercentile(freq['count'], conf['input_percentile'][1])
-        freq = freq[freq['count']>= min_count]
-        freq = freq[freq['count'] <= max_count]
-        # escaping ' with '' for querying
-        inputs = str(tuple([v.replace("'", "''") if "'" in v else v for v in freq.index]))
-        inputs = inputs.replace('"', "'")
+        if conf['input_percentile'] != [0, 100]:
+            inputs = input_filter(conn, conf, fname)
+            where += f''' 
+                AND RTRIM(INITCAP(d.label), '.') in {inputs}
+                '''
         where += f''' 
-            AND RTRIM(INITCAP(d.label), '.') in {inputs}
             AND tb.amount is NOT NULL
             AND tb.amountuom is NOT NULL
             AND tb.amount > 0
@@ -544,6 +512,7 @@ def get_icustays(conn, conf, hadms=()):
         # Exclude patients with PI staging within 24 hours after admission
         pi24_hadms = PI_hadms_24h(conn, conf)
         where += f' AND tb.hadm_id NOT IN {pi24_hadms}'
+    where += ' AND a.hospital_expire_flag=0'
     where += " AND a.diagnosis != 'NEWBORN'"
     where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
         f">= {conf['min_age']}"

@@ -44,11 +44,10 @@ conf = {
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
     'PI_states': {0: 0, 1: 1},
     'PC_percentile': [97, 100],
+    'PC_percentile_max_n': False,
     'path_percentile': [95, 100],
     'PI_sql': 'one', #multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
-    'admittime_start':'2143-01-14',
-    'admittime_end': '2143-02-14',
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
@@ -57,17 +56,18 @@ conf = {
     'Top_n_PC': 20,
     'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': False,
+    'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 60],
-    'input_percentile': [40, 90],
+    'drug_percentile': [40, 70],
+    'input_percentile': [40, 85],
     'include_numeric': True,
     'subsequent_adm': False,
     'hadm_limit': 33,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
     'PC_path': False,
-    'vis': False,
-    'plot': False,
+    'vis': True,
+    'plot': True,
     'first_hadm': True,
     'dbsource': 'metavision', # carevue or False
     'iterations': 5,
@@ -88,8 +88,8 @@ conf = {
 t_max = {
     'Admissions': timedelta(days=2, hours=0),
     'Discharges': timedelta(days=2, hours=0),
-    'Icu In': timedelta(days=2, hours=0),
-    'Icu_Out': timedelta(days=2, hours=0),
+    'ICU In': timedelta(days=2, hours=0),
+    'ICU Out': timedelta(days=2, hours=0),
     'Callout': timedelta(days=2, hours=0),
     'Transfer In': timedelta(days=2, hours=0),
     'Transfer Out': timedelta(days=2, hours=0),
@@ -125,8 +125,8 @@ def TEG_PC_PI(event_list, join_rules, conf, fname):
     print('Patients', len(patients))
     PI_hadms = tuple(PI_df['hadm_id'].tolist())
     all_events = events(conn, event_list, conf, PI_hadms)
-    events, PI_hadm_stage_t = process_events_PI(all_events, conf)
-    run_experiments(patients, events, conf, join_rules, fname)
+    all_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
+    run_experiments(patients, all_events, conf, join_rules, fname)
 
 
 def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
@@ -161,7 +161,7 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     PI_df['PI'] = 1
     df = pd.concat([PI_df, NPI_df])
     # Propensity Score matrching
-    psm = get_psm(df, conf)
+    psm = get_psm(df, conf, fname)
     PI_hadms = tuple(psm.matched_ids['hadm_id'].tolist())
     if len(PI_hadm_stage_t) != len(PI_hadms):
         PI_events = events(conn, event_list, conf, PI_hadms)
@@ -177,8 +177,6 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
     NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
 
     for i in range(conf['iterations']):
-        if i == conf['iterations'] - 1:
-            conf['plot'] = True
         PI_PC_all, PI_PC_nz, PI_PC_P = run_experiments(PI_admissions, PI_events, conf, join_rules, fname + f'_PI_{i}')
         PI_etypes = get_event_types(PI_events, PI_PC_nz)
         PI_etypes_P = get_event_types(PI_events, PI_PC_P)
@@ -190,6 +188,8 @@ def TEG_PC_Non_PI(event_list, join_rules, conf, fname):
 
         PI_events = remove_event_type(PI_events, I) 
         NPI_events = remove_event_type(NPI_events, I) 
+        if I == []:
+            break
         
 if __name__ == "__main__":
     fname_keys = [
@@ -208,5 +208,6 @@ if __name__ == "__main__":
                                     for k, v in join_rules.items()
                                     if k in fname_keys])
 
-    #TEG_PC_PI(EVENTS, join_rules, conf, fname_LF)
-    TEG_PC_Non_PI(EVENTS, join_rules, conf, fname_LF)
+    fname = 'output/TEG-PI'
+    TEG_PC_PI(EVENTS, join_rules, conf, fname)
+    #TEG_PC_Non_PI(EVENTS, join_rules, conf, fname)

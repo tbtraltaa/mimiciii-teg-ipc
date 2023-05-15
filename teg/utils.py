@@ -1,9 +1,12 @@
 import pandas as pd
 
 def get_quantile(val, Q):
+    # for '0.25 to 1', 0.25 is taken
     if type(val) == str:
         if '-' in val:
             val = float(val.split('-')[0])
+        elif ' ' in val:
+            val = float(val.split(' ')[0])
         else:
             val = float(val)
     prev_q = 0
