@@ -30,6 +30,7 @@ def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fn
 
 def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname):
     n = len(events)
+    '''
     if conf['vis'] and n > 2000:
         # when a graph is too large for visualization
         # use only shortest path subgraph
@@ -62,7 +63,8 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
         visualize_vertices(G, list(PC_P.keys()), fname+"V_percentile")
-    elif conf['vis']:
+    '''
+    if conf['vis']:
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         paths_P = dict([(i, v_paths[i]) for i in PC_P])
         if conf['path_percentile']:

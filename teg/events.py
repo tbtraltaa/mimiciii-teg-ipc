@@ -18,7 +18,6 @@ from teg.queries import *
 
 def events(conn, event_list, conf, hadms=()):
     all_events = list()
-    n = 0
     for event_key in event_list:
         if 'CV' in event_key and conf['dbsource'] == 'metavision':
             continue
@@ -26,9 +25,6 @@ def events(conn, event_list, conf, hadms=()):
             continue
         event_name, table, time_col, main_attr = EVENTS[event_key]
         events = get_events(conn, event_key, conf, hadms)
-        for i, e in enumerate(events):
-            e['i'] = i + n
-        n += len(events)
         print(event_key, len(events))
         if len(events) > 0:
             all_events += events
@@ -36,9 +32,6 @@ def events(conn, event_list, conf, hadms=()):
         if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
             continue
         events = get_chart_events(conn, event_name, conf, hadms)
-        for i, e in enumerate(events):
-            e['i'] = i + n
-        n += len(events)
         print(event_name, len(events))
         if len(events) > 0:
             all_events += events
@@ -46,16 +39,10 @@ def events(conn, event_list, conf, hadms=()):
         if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
             continue
         events = get_chart_events(conn, event_name, conf, hadms)
-        for i, e in enumerate(events):
-            e['i'] = i + n
-        n += len(events)
         print(event_name, len(events))
         if len(events) > 0:
             all_events += events
     events = get_events_interventions(conn, conf, hadms)
-    for i, e in enumerate(events):
-        e['i'] = i + n
-    n += len(events)
     print('Interventions', len(events))
     if len(events) > 0:
         all_events += events
@@ -63,12 +50,12 @@ def events(conn, event_list, conf, hadms=()):
         events = get_events_vitals_X_mean(conn, conf, hadms)
     else:
         events = get_events_vitals_X(conn, conf, hadms)
-    for i, e in enumerate(events):
-        e['i'] = i + n
-    n += len(events)
     print('Vitals', len(events))
     if len(events) > 0:
         all_events += events
+    for i, e in enumerate(all_events):
+        e['i'] = i 
+        e['j'] = i
     return all_events
 
 def process_events_PI(all_events, conf):
@@ -78,6 +65,7 @@ def process_events_PI(all_events, conf):
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
     stage = 0
+    state = 0
     PI = False
     non_PI_ids = []
     non_PI_events = []
@@ -96,6 +84,8 @@ def process_events_PI(all_events, conf):
             # PI stage
             if 'PI Stage' in e['type']:
                 stage = e['pi_stage']
+                if stage in conf['PI_states']:
+                    state = conf['PI_states'][stage]
             # exclude a patient who had higher or lower stage than our focus.
             if stage < min_stage or stage > max_stage:
                 excluded_ids.append(e['id'])
@@ -115,7 +105,9 @@ def process_events_PI(all_events, conf):
                     stage = 1
                     PI = True
                     hadm_stage_t[e['hadm_id']] = e['t']
-                all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
+                    if stage in conf['PI_states']:
+                        state = conf['PI_states'][stage]
+                all_events[e['i']]['pi_state'] = state
                 all_events[e['i']]['pi_stage'] = stage
         # later all events belonging to excluded ids
         # then no need to exclude those events here
@@ -127,6 +119,7 @@ def process_events_PI(all_events, conf):
                 non_PI_ids.append(e['id'])
             PI = False
             stage = 0
+            state = 0
             id_excluded = False
 
     for e in all_events:
@@ -188,8 +181,6 @@ def process_events_PI(all_events, conf):
         all_events += sub_adm_events
 
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
-    for i in range(len(all_events)):
-        all_events[i]['i'] = i
     print("Events in TEG:")
     print("==========================================================")
     for key, val in groupby(all_events, key=lambda x: x['parent_type']):
@@ -198,7 +189,9 @@ def process_events_PI(all_events, conf):
     print('Total patients', len(subject_ids))
     print('Total admissions', len(set([e['id'] for e in all_events])))
     print("Total events: ", len(all_events))
-
+    for i in range(len(all_events)):
+        all_events[i]['i'] = i
+        all_events[i]['j'] = i
     return all_events, hadm_stage_t
 
 def process_events_NPI(all_events, NPI_t, conf):
@@ -230,6 +223,7 @@ def process_events_NPI(all_events, NPI_t, conf):
                 all_events[e['i']]['pi_stage'] = stage
                 all_events[e['i']]['type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
+                all_events[e['i']]['t'] = t_marker
                 PI = True
             else:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
@@ -245,6 +239,7 @@ def process_events_NPI(all_events, NPI_t, conf):
                 all_events[e['i']]['pi_stage'] = max_stage
                 all_events[e['i']]['type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
+                all_events[e['i']]['t'] = t_marker
             PI = False
             stage = 0
             id_excluded = False

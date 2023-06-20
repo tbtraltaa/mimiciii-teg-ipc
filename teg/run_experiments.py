@@ -25,7 +25,7 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     n = len(events)
     A, interconnection = build_eventgraph(admissions, events, join_rules)
     if interconnection == 0:
-        return None, None, None
+        return None, None, None, None
     states = np.zeros(n)
     for e in events:
         states[e['i']] = e['pi_state']
@@ -41,8 +41,10 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
         PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
         print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
     if max(PC_values) == 0:
-        return None, None, None
+        return None, None, None, None
     PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
+    print(len(PC_all))
+    patient_PC = get_patient_PC(events, PC_all)
     if conf['plot']:
         plot_PC(events, PC_nz, conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10, title=title, fname=f"{fname}_P")
@@ -51,7 +53,7 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
         simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
     elif conf['vis']:
         simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
-    return PC_all, PC_nz, PC_P
+    return PC_all, PC_nz, PC_P, patient_PC
 
 
 def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, join_rules, fname, title='', last = False):
@@ -60,22 +62,22 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
         if len(I) != 0:
             PI_events = remove_event_type(PI_events, I) 
             NPI_events = remove_event_type(NPI_events, I) 
-        PI_PC_all, PI_PC_nz, PI_PC_P = run_experiments(PI_admissions,
+        PI_PC_all, PI_PC_nz, PI_PC_P, PI_patient_PC = run_experiments(PI_admissions,
                                                        PI_events,
                                                        conf,
                                                        join_rules,
                                                        fname + f'_PI_{i}', 'PI: ' + title)
         if PI_PC_P is None:
-            return PI_events, NPI_events
+            return PI_events, NPI_events, PI_patient_PC, None
         PI_etypes_P = get_event_types(PI_events, PI_PC_P)
 
-        NPI_PC_all, NPI_PC_nz, NPI_PC_P = run_experiments(NPI_admissions,
+        NPI_PC_all, NPI_PC_nz, NPI_PC_P, NPI_patient_PC = run_experiments(NPI_admissions,
                                                           NPI_events,
                                                           conf,
                                                           join_rules,
                                                           fname + f'_NPI_{i}', 'NPI: ' + title)
         if NPI_PC_P is None:
-            return PI_events, NPI_events
+            return PI_events, NPI_events, None, None
         NPI_etypes_P = get_event_types(NPI_events, NPI_PC_P)
         PI_types, NPI_types, I = intersection_and_differences(PI_etypes_P, NPI_etypes_P)
         if I == [] and last:
@@ -85,7 +87,7 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
             break
     pi_events = get_top_events(PI_events, PI_PC_P, conf, I)
     npi_events = get_top_events(NPI_events, NPI_PC_P, conf, I)
-    return pi_events, npi_events
+    return pi_events, npi_events, PI_patient_PC, NPI_patient_PC
 
 
 def check_PC_values(A, states):

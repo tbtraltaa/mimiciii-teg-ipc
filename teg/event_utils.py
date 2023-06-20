@@ -36,11 +36,31 @@ def get_event_types(events, PC):
             etypes.add(events[i]['type'])
     return etypes
 
-def group_events_by_parent_type(events):
+def group_events_by_parent_type1(events):
     events_grouped = dict()
     for key, val in groupby(events, key=lambda x: x['parent_type']):
         e_list = list(val)
         events_grouped[key] = sorted(e_list, key=lambda x: (x['type'], x['t']))
+    return events_grouped
+
+def group_events_by_parent_type(events):
+    events_grouped = dict()
+    events = sorted(events, key=lambda x: (x['type'], x['t']))
+    for e in events:
+        if e['parent_type'] not in events_grouped:
+            events_grouped[e['parent_type']] = [e]
+        else:
+            events_grouped[e['parent_type']].append(e)
+    return events_grouped
+
+def group_events_by_patient(events):
+    events_grouped = dict()
+    events = sorted(events, key=lambda x: x['t'])
+    for e in events:
+        if e['id'] not in events_grouped:
+            events_grouped[e['id']] = [e]
+        else:
+            events_grouped[e['id']].append(e)
     return events_grouped
 
 def sort_and_index_events(events):
@@ -67,4 +87,22 @@ def remove_event_type(events, types):
         events_copy[i]['i'] = i
     return events_copy
 
+def remove_events_after_t(events, t):
+    remove_indices = []
+    for i, e in enumerate(events):
+        if e['t'] > t[e['hadm_id']]:
+            remove_indices.append(i)
+    for i in range(len(remove_indices)-1, -1, -1):
+        del events[i]
+    return events
+
+def get_patient_Braden_scores(braden_events):
+    patient_events = group_events_by_patient(braden_events)
+    patient_BS = dict()
+    for p_id in patient_events:
+        patient_BS[p_id] = {'t': [], 'BS': []}
+        for e in patient_events[p_id]:
+            patient_BS[p_id]['t'].append(e['t'])
+            patient_BS[p_id]['BS'].append(int(e['value']))
+    return patient_BS
 

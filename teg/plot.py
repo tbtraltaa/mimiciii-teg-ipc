@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure'):
     #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
@@ -272,3 +275,50 @@ def plot_PC_by_parent_type(events, PC, conf, percentile='', nbins=30, title=''):
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
     plt.show()
+
+def plot_time_series(patient_PC, patient_BS, patients_NPI_PC = None, PI_NPI_match = None):
+    #extract color palette, the palette can be changed
+    colors = list(sns.color_palette(palette='viridis', n_colors=len(patient_PC)).as_hex())
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    for p_id, color in zip(patient_PC, colors):
+        fig.add_trace(
+            go.Scatter(
+                x = [t.total_seconds() / (60 * 60) for t in patient_PC[p_id]['t']],
+                y = patient_PC[p_id]['PC'],
+                name = p_id,
+                mode='lines+markers',
+                line_color = color,
+                fill=None),
+            secondary_y=False)
+        if p_id in patient_BS:
+            fig.add_trace(
+                go.Scatter(
+                    x = [t.total_seconds() / (60 * 60) for t in patient_BS[p_id]['t']],
+                    y = patient_BS[p_id]['BS'],
+                    name = p_id,
+                    mode='lines+markers',
+                    line= dict(color=color, dash='dot'),
+                    fill=None),
+                secondary_y=True)
+        if p_id.split('-')[1] in PI_NPI_match:
+            print('Match')
+            npi_hadm_id = PI_NPI_match[p_id.split('-')[1]]
+            npi_id = [idd for idd in patients_NPI_PC if npi_hadm_id in idd][0]
+            fig.add_trace(
+                go.Scatter(
+                    x = [t.total_seconds() / (60 * 60) for t in patients_NPI_PC[npi_id]['t']],
+                    y = patients_NPI_PC[npi_id]['PC'],
+                    name = p_id,
+                    mode='lines+markers',
+                    line= dict(color=color, dash='dash'),
+                    fill=None),
+                    secondary_y=False)
+
+
+    # label x-axes
+    fig.update_xaxes(title_text="Hours after admission")
+    # label y-axes
+    fig.update_yaxes(title_text="PC value", secondary_y=False)
+    fig.update_yaxes(title_text="Braden Scale", secondary_y=True)
+    fig.show()

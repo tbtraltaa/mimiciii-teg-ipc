@@ -1,7 +1,34 @@
 schema = 'mimiciii'
 
 # attributes of an event, not used for comparison
-EVENT_IDs = ['id', 'type', 't', 'i', 'hadm_id', 'subject_id', 'datetime', 'parent_type']
+EVENT_IDs = ['id',
+             'type',
+             't', 
+             'i',
+             'j',
+             'hadm_id',
+             'subject_id',
+             'datetime',
+             'parent_type',
+             'pi_stage',
+             'pi_state',
+             'icustay_id',
+             ]
+IGNORE_COLS = [
+    'dbsource',
+    'pi_number',
+    # labs and inteventions
+    'intervention-count'
+    'vitals-mean',
+    'vitals-count',
+    'vitals-std',
+    'icu-time',
+    'count_Q',
+    'std_Q',
+    'cptdesc',
+    'adm_num',
+    'numeric_value'
+]
 
 LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services', 'Callout']
 
@@ -47,7 +74,7 @@ EVENTS = {
 
     # Hospital Data
     # Current Procedural Terminology
-    #'CPT': ['CPT', 'cptevents', 'chartdate', 'tb.cpt_cd'],
+    'CPT': ['CPT', 'cptevents', 'chartdate', 'tb.cpt_cd'],
     # at the end after discharge, take discharge time from admissions table
     #'Diagnoses ICD': [12, 'diagnoses_icd', 'dischtime'],
     # at the end after discharge, take discharge time from admissions table
@@ -108,6 +135,11 @@ NUMERIC_COLS = {
         'uom_col': None,
         'dtype': None,
         'where': ''}
+    # 'chartevents-valuenum',
+    # 'labevents-valuenum',
+    # 'Microbiology-dilution_value',
+    # 'microbiologyevents-isolate_num' #SMAILLINT,
+    # 'Output-value',
 }
 
 # {event_name : [[<include_columns>], [<exclude_columns>]]}
@@ -198,7 +230,6 @@ EVENT_COLS_EXCLUDE = {
         'cpt_suffix',
         'description'],
 
-
     'Output': [
         'cgid',
         'storetime',
@@ -241,32 +272,4 @@ EVENT_COLS_INCLUDE = {
         ]
 }
 
-IGNORE_COLS = [
-    'value_test'
-    'dbsource',
-    'icustay_id',
-    'pi_number',
-    'pi_stage',
-    'pi_state',
-    # labs and inteventions
-    'intervention-count'
-    'vitals-mean',
-    'vitals-count',
-    'vitals-std',
-    'icu-time',
-    'count_Q',
-    'std_Q',
-    'cptdesc',
-    'adm_num'
-]
 
-FLOAT_COLS = [  # 'chartevents-valuenum',
-                # 'icustays-los', #length of stay
-                'Input-amount',
-                'Input-rate',
-                # 'labevents-valuenum',
-                'Microbiology-dilution_value',
-                # 'microbiologyevents-isolate_num' #SMAILLINT,
-                'Output-value',
-                # 'Transfer Out-los',
-]

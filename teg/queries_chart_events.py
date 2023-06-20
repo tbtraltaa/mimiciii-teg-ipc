@@ -91,12 +91,13 @@ def get_chart_events(conn, event_name, conf, hadms=()):
         # Exclude patients with PI staging within 24 hours after admission
         pi24_hadms = PI_hadms_24h(conn, conf)
         where += f' AND tb.hadm_id NOT IN {pi24_hadms}'
-    where += " AND a.diagnosis != 'NEWBORN'"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f">= {conf['min_age']}"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f"<= {conf['max_age']}"
-    where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    where += f'''
+        AND a.diagnosis != 'NEWBORN'
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
+        AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'
+        AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
+        '''
     if conf['starttime'] and conf['endtime']:
         where += f" AND tb.{time_col} >= '{conf['starttime']}'"
         where += f" AND tb.{time_col} <= '{conf['endtime']}'"
@@ -152,7 +153,7 @@ def get_chart_events(conn, event_name, conf, hadms=()):
                  .cumcount() + 1
             df = df[df['row_number'] == 1]
             df.drop(['row_number'], axis=1, inplace=True)
-        df['value_test'] = df['value']
+        df['numeric_value'] = df['value']
         df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
         df.drop(['day'], axis=1, inplace=True)
     elif conf['unique_chartvalue_per_day']:
@@ -180,10 +181,15 @@ def get_chart_events(conn, event_name, conf, hadms=()):
         df['value'] = df['value'].apply(lambda x: x.strip().title())
     if event_name == 'PI Skin Type':
         df[df['value'] == 'Subq Emphysema']['value'] = 'Sub Q Emphysema'
-
+    if event_name == 'PI Stage':
+        df['parent_type'] = df['type'] + ' ' + df['value'].astype(str)
+    else:
+        df['parent_type'] = df['type']
     # Decoupling events by their value
-    df['parent_type'] = df['type']
-    df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
+    if UOM:
+        df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM
+    else:
+        df['type'] = df['type'] + ' ' + df['value'].astype(str)
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')
     '''

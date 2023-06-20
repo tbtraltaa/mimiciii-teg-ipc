@@ -47,8 +47,9 @@ def get_patient_demography(conn, conf):
             '''
     where = f''' a.diagnosis != 'NEWBORN'
         AND a.hadm_id is NOT NULL
-        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >={conf['min_age']}
-        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <={conf['max_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
+        AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
         '''
     where += ' AND a.hospital_expire_flag=0'
     if conf['has_icustay'] == 'True':
@@ -347,14 +348,14 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
     if event_name == 'Input':
         table += f''' INNER JOIN {schema}.d_items d
             ON tb.itemid = d.itemid'''
-    where += ' AND a.hospital_expire_flag=0'
-    where += " AND a.diagnosis != 'NEWBORN'"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f">= {conf['min_age']}"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f"<= {conf['max_age']}"
-    where += f" AND {t_table}.{time_col} - a.admittime" + \
-        f"<='{conf['max_hours']} hours'"
+    where += f'''
+        AND a.hospital_expire_flag=0
+        AND a.diagnosis != 'NEWBORN'
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
+        AND {t_table}.{time_col} - a.admittime <= '{conf['max_hours']} hours'
+        AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
+        '''
     if conf['starttime'] and conf['endtime']:
         where += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
         where += f" AND {t_table}.{time_col} <= '{conf['endtime']}'"
@@ -427,7 +428,7 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
             Q  = query_quantiles(conn, conf['quantiles'], event_name, **args) 
         # compute percentiles for numeric values with uom
         if uom_col:
-            df['value_test'] = df[col]
+            df['numeric_value'] = df[col]
             # due to apply error in pandas, a loop is used
             vals = list()
             for idx, row in df.iterrows():
@@ -512,13 +513,14 @@ def get_icustays(conn, conf, hadms=()):
         # Exclude patients with PI staging within 24 hours after admission
         pi24_hadms = PI_hadms_24h(conn, conf)
         where += f' AND tb.hadm_id NOT IN {pi24_hadms}'
-    where += ' AND a.hospital_expire_flag=0'
-    where += " AND a.diagnosis != 'NEWBORN'"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f">= {conf['min_age']}"
-    where += f" AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob))" + \
-        f"<= {conf['max_age']}"
-    where += f" AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'"
+    where += f'''
+        AND a.hospital_expire_flag=0
+        AND a.diagnosis != 'NEWBORN'
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
+        AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
+        AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'
+        AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
+        '''
     if conf['starttime'] and conf['endtime']:
         where += f" AND tb.{time_col} >= '{conf['starttime']}'"
         where += f" AND tb.{time_col} < '{conf['endtime']}'"
