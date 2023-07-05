@@ -10,7 +10,12 @@ from teg.build_graph import *
 from teg.paths import *
 
 def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fname):
+    conf['vis_PC'] = False
     G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+    visualize_graph(G, fname = fname + "-Graph-No-PC")
+    conf['vis_PC'] = True
+    G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+    visualize_graph(G, fname = fname + "-Graph")
     g = Network(
         directed=True,
         height=1000,
@@ -65,22 +70,29 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         visualize_vertices(G, list(PC_P.keys()), fname+"V_percentile")
     '''
     if conf['vis']:
+        conf['vis_PC'] = False
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+        visualize_graph(G, fname = fname + "-Graph-No-PC")
+        conf['vis_PC'] = True
+        G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+        visualize_graph(G, fname = fname + "-Graph")
+        for n_paths in conf['n_patient_paths']:
+            patient_paths, patient_paths_list = get_patient_PC_paths(events, PC_all, paths, n_paths)
+            visualize_paths(G, patient_paths_list, fname + f"{n_paths}_patient_PC_paths")
+            #patient_paths, patient_paths_list = get_patient_shortest_paths(A, events, PC_all, paths, n_paths)
+            #visualize_paths(G, patient_paths_list, fname + f"{n_paths}_patient_shortest_paths")
         paths_P = dict([(i, v_paths[i]) for i in PC_P])
         if conf['path_percentile']:
             paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
-            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname+"PC_P_Path_P_P")
-            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname+"Graph_PC_P_Path_P_P")
+            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname + "PC_P_Path_P_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname + "Graph_PC_P_Path_P_P")
         else:
-            visualize_graph(G, list(PC_P.keys()), paths_P, fname+"Graph_PC_P_Path_P")
-        visualize_SP_tree(G, V, v_paths, fname+"SP_all")
-        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname+"SP_PC_P_Path_P")
+            visualize_graph(G, list(PC_P.keys()), paths_P, fname + "Graph_PC_P_Path_P")
+        #visualize_SP_tree(G, V, v_paths, fname+"SP_all")
+        #visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname + "SP_PC_P_Path_P")
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), fname+"V_PC_P")
-
-def visualize_patients(events, patients, PC_all):
-    pass
+        visualize_vertices(G, list(PC_P.keys()), fname + "V_PC_P")
 
 def visualize_SP_tree(G, V, paths, fname):
     PC_edges = list()
@@ -116,6 +128,29 @@ def visualize_SP_tree(G, V, paths, fname):
     # g.show("mimic.html")
     g.save_graph(fname + '_' + str(datetime.now()) + '.html')
 
+
+def visualize_paths(G, paths, fname):
+    edges = set()
+    for path in paths:
+        i = path[0]
+        for j in path[1:]:
+            edges.add((i,j))
+            i = j
+    edges = list(edges)
+    g = Network(
+        directed=True,
+        height=1000,
+        width='90%',
+        neighborhood_highlight=True,
+        select_menu=True)
+    g.from_nx(G.edge_subgraph(edges), show_edge_weights=False)
+    g.repulsion()
+    #g.barnes_hut()
+    g.toggle_physics(True)
+    g.show_buttons()
+    # g.show("mimic.html")
+    g.save_graph(fname + '_' + str(datetime.now()) + '.html')
+
 def visualize_vertices(G, V, fname):
     G.remove_edges_from(list(G.edges()))
     g = Network(
@@ -133,13 +168,14 @@ def visualize_vertices(G, V, fname):
     g.save_graph(fname + '_' + str(datetime.now()) + '.html')
 
 
-def visualize_graph(G, V, paths, fname):
-    for v in V:
-        for path in paths[v]:
-            i = path[0]
-            for j in path[1:]:
-                G[i][j]['color']='black'
-                i = j
+def visualize_graph(G, V = None, paths = None, fname = 'Graph'):
+    if V and paths:
+        for v in V:
+            for path in paths[v]:
+                i = path[0]
+                for j in path[1:]:
+                    G[i][j]['color']='black'
+                    i = j
     '''
     unique_paths = set()
     for v in V:

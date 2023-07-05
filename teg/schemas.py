@@ -12,9 +12,9 @@ EVENT_IDs = ['id',
              'parent_type',
              'pi_stage',
              'pi_state',
-             'icustay_id',
              ]
 IGNORE_COLS = [
+    'icustay_id',
     'dbsource',
     'pi_number',
     # labs and inteventions
@@ -27,7 +27,7 @@ IGNORE_COLS = [
     'std_Q',
     'cptdesc',
     'adm_num',
-    'numeric_value'
+    'numeric_value',
 ]
 
 LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services', 'Callout']
@@ -47,6 +47,7 @@ PATIENTS = {
         'marital_status',
         'ethnicity',
         'diagnosis']}
+
 
 # {<event_name>: [<event_name>, <event_table>, <time_column>, <main attr>]}
 EVENTS = {

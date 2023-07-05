@@ -45,6 +45,7 @@ def get_chart_events(conn, event_name, conf, hadms=()):
     cols += f"'{event_name}' as type, "
     cols += f"tb.{time_col} - a.admittime as t, "
     cols += f"tb.{time_col} as datetime, "
+    cols += " 0 as pi_stage, "
     cols += f"EXTRACT(DAY FROM tb.{time_col} - a.admittime) as day,"
     if event_name in PI_EVENTS_NUMERIC or event_name in CHART_EVENTS_NUMERIC:
         cols += f"split_part(tb.value, ' ', 1) as value, " 

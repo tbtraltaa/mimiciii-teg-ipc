@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from datetime import timedelta
 
 def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure'):
     #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
@@ -276,7 +277,7 @@ def plot_PC_by_parent_type(events, PC, conf, percentile='', nbins=30, title=''):
     plt.tight_layout()
     plt.show()
 
-def plot_time_series(patient_PC, patient_BS, patients_NPI_PC = None, PI_NPI_match = None):
+def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NPI_match = None):
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=len(patient_PC)).as_hex())
     
@@ -284,7 +285,7 @@ def plot_time_series(patient_PC, patient_BS, patients_NPI_PC = None, PI_NPI_matc
     for p_id, color in zip(patient_PC, colors):
         fig.add_trace(
             go.Scatter(
-                x = [t.total_seconds() / (60 * 60) for t in patient_PC[p_id]['t']],
+                x = patient_PC[p_id]['t'],
                 y = patient_PC[p_id]['PC'],
                 name = p_id,
                 mode='lines+markers',
@@ -294,20 +295,22 @@ def plot_time_series(patient_PC, patient_BS, patients_NPI_PC = None, PI_NPI_matc
         if p_id in patient_BS:
             fig.add_trace(
                 go.Scatter(
-                    x = [t.total_seconds() / (60 * 60) for t in patient_BS[p_id]['t']],
+                    x = patient_BS[p_id]['t'],
                     y = patient_BS[p_id]['BS'],
                     name = p_id,
                     mode='lines+markers',
                     line= dict(color=color, dash='dot'),
                     fill=None),
                 secondary_y=True)
+        if PI_NPI_match is None:
+            continue
         if p_id.split('-')[1] in PI_NPI_match:
             print('Match')
             npi_hadm_id = PI_NPI_match[p_id.split('-')[1]]
             npi_id = [idd for idd in patients_NPI_PC if npi_hadm_id in idd][0]
             fig.add_trace(
                 go.Scatter(
-                    x = [t.total_seconds() / (60 * 60) for t in patients_NPI_PC[npi_id]['t']],
+                    x = patients_NPI_PC[npi_id]['t'],
                     y = patients_NPI_PC[npi_id]['PC'],
                     name = p_id,
                     mode='lines+markers',
@@ -317,8 +320,73 @@ def plot_time_series(patient_PC, patient_BS, patients_NPI_PC = None, PI_NPI_matc
 
 
     # label x-axes
-    fig.update_xaxes(title_text="Hours after admission")
+    fig.update_xaxes(title_text = f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
     # label y-axes
-    fig.update_yaxes(title_text="PC value", secondary_y=False)
-    fig.update_yaxes(title_text="Braden Scale", secondary_y=True)
+    fig.update_yaxes(title_text = "PC value", secondary_y=False)
+    fig.update_yaxes(title_text = "Braden Scale", secondary_y=True)
+    fig.show()
+
+def plot_time_series_average(patient_PC, patient_BS, conf):
+    #extract color palette, the palette can be changed
+    colors = list(sns.color_palette(palette='viridis', n_colors=2).as_hex())
+    
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    n = int(conf['max_hours'] * timedelta(hours=1).total_seconds()/conf['PC_time_unit'].total_seconds())
+    x = [i for i in range(0, n + 1)]
+    nnz1 = np.zeros(n + 1)
+    y1_sum = np.zeros(n + 1)
+    nnz2 = np.zeros(n + 1)
+    y2_sum = np.zeros(n + 1)
+    for p_id in patient_PC:
+        if len(patient_PC[p_id]['PC']) == 0:
+            continue
+        # get interpolated values
+        # values beyond given time period are considered 0
+        y1 = np.interp(x, patient_PC[p_id]['t'], patient_PC[p_id]['PC'], right = 0, left = 0)
+        # counts number of nonzero PC values
+        nnz1 += y1 != 0
+        # accumulates total PC values all patients per hour
+        y1_sum += y1
+        if p_id in patient_BS:
+            if len(patient_BS[p_id]['BS']) == 0:
+                continue
+            # get interpolated values
+            # values beyond given time period are considered 0
+            y2 = np.interp(x, patient_BS[p_id]['t'], patient_BS[p_id]['BS'], right = 0, left = 0)
+            # counts number of nonzero PC values
+            nnz2 += y2 != 0
+            # accumulates total PC values all patients per hour
+            y2_sum += y2
+    # average value per hour
+    y1_avg = y1_sum / nnz1
+    y2_avg = y2_sum / nnz2
+    n_p = len(patient_PC)
+    x_PC = [i for i in x if float(nnz1[i])/n_p > conf['PC_BS_nnz']]
+    x_BS = [ i for i in x if float(nnz2[i])/n_p > conf['PC_BS_nnz']]
+    y1_avg = [y1_avg[i] for i in x_PC]
+    y2_avg = [y2_avg[i] for i in x_BS]
+    fig.add_trace(
+        go.Scatter(
+            x = x_PC,
+            y = y1_avg,
+            name = 'Average PC values',
+            mode='lines+markers',
+            line_color = colors[0],
+            fill=None),
+        secondary_y=False)
+    fig.add_trace(
+        go.Scatter(
+            x = x_BS,
+            y = y2_avg,
+            name = 'Average Braden Scale',
+            mode='lines+markers',
+            line= dict(color=colors[1], dash='dot'),
+            fill=None),
+        secondary_y=True)
+
+    # label x-axes
+    fig.update_xaxes(title_text=f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
+    # label y-axes
+    fig.update_yaxes(title_text="Average PC value", secondary_y=False)
+    fig.update_yaxes(title_text="Average Braden Scale", secondary_y=True)
     fig.show()

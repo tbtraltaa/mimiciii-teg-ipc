@@ -1,6 +1,68 @@
 import numpy as np
+import pprint
+
+from teg.event_utils import group_events_by_patient 
+
+def get_patient_PC_paths(events, PC_all, paths, n):
+    events_grouped = group_events_by_patient(events)
+    patient_paths = dict()
+    for p_id in events_grouped:
+        s = events_grouped[p_id][0]['i']
+        t = events_grouped[p_id][-1]['i']
+        if (s, t) not in paths:
+            pass
+            # TODO: to fix this bug
+            #print('st_path missing')
+            #print('s', events_grouped[p_id][0])
+            #print('t', events_grouped[p_id][-1])
+            #pprint.pprint(events_grouped[p_id])
+        else:
+            st_paths = paths[(s, t)]
+            patient_paths[p_id] = []
+            for p in st_paths:
+                path_PC = 0
+                for v in p:
+                    path_PC += PC_all[v]
+                patient_paths[p_id].append({'PC': path_PC, 'path': p})
+    paths = []
+    for p_id in patient_paths:
+        patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['PC'], reverse=True)[:n]
+        paths += [p['path'] for p in patient_paths[p_id]]
+    return patient_paths, paths
+    
+def get_patient_shortest_paths(A, events, PC_all, paths, n):
+    events_grouped = group_events_by_patient(events)
+    patient_paths = dict()
+    for p_id in events_grouped:
+        s = events_grouped[p_id][0]['i']
+        t = events_grouped[p_id][-1]['i']
+        if (s, t) not in paths:
+            pass
+            #print('st_path missing')
+            #print('s', events_grouped[p_id][0])
+            #print('t', events_grouped[p_id][-1])
+            #pprint.pprint(events_grouped[p_id])
+        else:
+            st_paths = paths[(s, t)]
+            patient_paths[p_id] = []
+            for p in st_paths:
+                path_weight = 0
+                i = p[0]
+                for j in p[1:]:
+                    path_weight += A[i, j]
+                    i = j
+                patient_paths[p_id].append({'w': path_weight, 'path': p})
+    paths = []
+    for p_id in patient_paths:
+        patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['w'])[: n]
+        paths += [p['path'] for p in patient_paths[p_id]]
+    return patient_paths, paths
 
 def get_paths_by_PC(PC, PC_P, paths, P=[0, 100]):
+    '''
+    Computes total PC values for paths and
+    returns paths with total PC values above the given percentile
+    '''
     paths_PC = {}
     vals = []
     for v, v_paths in paths.items():
@@ -24,6 +86,9 @@ def get_paths_by_PC(PC, PC_P, paths, P=[0, 100]):
     return paths_P
 
 def get_total_path_PC(PC, PC_P, paths, P=[0, 100]):
+    '''
+    Returns total PC values of paths for each vertex
+    '''
     total_path_PC = {}
     for v, v_paths in paths.items():
         total_path_PC[v] = 0

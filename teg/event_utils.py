@@ -1,6 +1,7 @@
 from itertools import groupby
 import copy
 import pprint
+from datetime import timedelta
 
 def get_top_events(events, PC_P, conf, I = []):
     max_n = conf['PC_percentile_max_n']
@@ -96,7 +97,12 @@ def remove_events_after_t(events, t):
         del events[i]
     return events
 
-def get_patient_Braden_scores(braden_events):
+
+def get_patient_Braden_Scores(braden_events):
+    '''
+    Returns a dictionary of patient Braden Scores
+    with time points
+    '''
     patient_events = group_events_by_patient(braden_events)
     patient_BS = dict()
     for p_id in patient_events:
@@ -106,3 +112,27 @@ def get_patient_Braden_scores(braden_events):
             patient_BS[p_id]['BS'].append(int(e['value']))
     return patient_BS
 
+
+def get_patient_max_Braden_Scores(braden_events, time_unit = timedelta(days=1, hours=0)):
+    '''
+    Return maximum Braden Score per hour for patients
+    '''
+    patient_events = group_events_by_patient(braden_events)
+    patient_BS = dict()
+    for p_id in patient_events:
+        h_prev = -1
+        max_PC = 0
+        patient_BS[p_id] = {'t': [], 'BS': []}
+        for e in patient_events[p_id]:
+            # hour
+            h = e['t'].total_seconds() // time_unit.total_seconds()
+            val = int(e['value'])
+            if val > 0 and h > h_prev:
+                patient_BS[p_id]['t'].append(h)
+                patient_BS[p_id]['BS'].append(val)
+                h_prev = h
+                max_PC = val
+            elif val > 0  and h == h_prev and val > max_PC:
+                patient_BS[p_id]['BS'][-1] = val
+                max_PC = val
+    return patient_BS

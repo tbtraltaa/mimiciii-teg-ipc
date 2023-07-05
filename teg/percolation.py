@@ -2,7 +2,7 @@ import numpy as np
 import pprint
 import networkx as nx
 
-def PC_with_target(G, states=None, weight=None):
+def PC_with_target_path_nx(G, states=None, weight=None):
     #PC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
     PC = np.zeros(n)
@@ -49,6 +49,46 @@ def PC_with_target(G, states=None, weight=None):
                             v_paths[v].append(p)
                             V.update(p)
     return PC, V, v_paths, paths
+
+def PC_with_target_nx(G, states=None, weight=None):
+    #PC = dict.fromkeys(G, 0.0)
+    n = G.number_of_nodes()
+    PC = np.zeros(n)
+    S = 0.0
+    for i in range(n):
+        deltas = states - states[i]
+        S += np.sum(deltas[deltas > 0.0])
+    D = dict(nx.all_pairs_dijkstra(G, weight='weight'))
+    paths = dict()
+    for v in range(n):
+        if v not in D:
+            continue
+        S_exclude_v = S
+        deltas_v_source = states - states[v]
+        S_exclude_v -= np.sum(deltas_v_source[deltas_v_source > 0])
+        deltas_v_target = states * (-1) + states[v]
+        S_exclude_v  -= np.sum(deltas_v_target[deltas_v_target > 0])
+        for s in D:
+            if v not in D[s][0]:
+                continue
+            for t in D[s][0]:
+                if t not in D[v][0]:
+                    continue
+                delta = float(states[t] - states[s])
+                if delta <= 0:
+                    continue
+                if s != v and t != v and s != t and D[s][0][t] == D[s][0][v] + D[v][0][t]:
+                    if (s, t) not in paths:
+                        paths[(s,t)] = list(nx.all_shortest_paths(G, source=s, target=t, weight='weight'))
+                    sigma_st = len(paths[(s,t)])
+                    if sigma_st == 0:
+                        continue
+                    sv_paths = list(nx.all_shortest_paths(G, source=s, target=v, weight='weight'))
+                    vt_paths = list(nx.all_shortest_paths(G, source=v, target=t, weight='weight'))
+                    sigma_v_st = float(len(sv_paths) * len(vt_paths))
+                    w = delta/S_exclude_v 
+                    PC[v] += sigma_v_st / sigma_st * w
+    return PC
 
 
 def PC_with_target_v1(G, states=None, weight=None):

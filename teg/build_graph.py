@@ -28,7 +28,9 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     else:
         PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
                 else (i, v * 120) for i, v in PC.items()])
-    nx.set_node_attributes(G, PC_scaled, 'size')
+    if conf['vis_PC']:
+        nx.set_node_attributes(G, PC_scaled, 'size')
+
     #nx.set_node_attributes(G, PC_scaled, 'value')
     attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
         for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
@@ -46,13 +48,14 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
             if e1['id'] != e2['id'] and e1['type'] == e2['type']:
                 w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max )
                 attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
-                attrs[key] += "Similar attributes\n"
+                attrs[key] += "Common event attributes\n"
                 attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
+                attrs[key] += "Common patient attributes\n"
                 attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_s.items()])
             elif e1['id'] == e2['id']:
                 w_t, w_e, w_s, I_e = weight_same_subject(e1, e2, join_rules, t_max)
                 attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
-                attrs[key] += "Similar attributes\n"
+                attrs[key] += "Common event attributes\n"
                 attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
             #attrs[key]['title'] = attrs[key]['value']
         nx.set_edge_attributes(G, values=attrs, name='title')

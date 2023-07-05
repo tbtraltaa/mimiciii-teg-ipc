@@ -36,6 +36,9 @@ def event_difference(e1, e2, join_rules):
             if abs(e1[k1] - e2[k1]) <= join_rules[e1['type'] + '-' + k1]:
                 i += 1
         '''
+    if n == 0:
+        print('e1', e1)
+        print('e2', e2)
     return 1 - i / n, I
 
 

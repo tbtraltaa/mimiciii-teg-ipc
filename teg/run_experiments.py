@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 
 from teg.schemas import *
 from teg.eventgraphs import *
-from teg.percolation import PC_with_target
+from teg.percolation import PC_with_target_path_nx
 from teg.apercolation import *
 from teg.event_utils import *
 from teg.PC_utils import *
@@ -43,22 +43,24 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     if max(PC_values) == 0:
         return None, None, None, None
     PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
-    print(len(PC_all))
-    patient_PC = get_patient_PC(events, PC_all)
+    patient_PC = get_patient_max_PC(events, PC_all, conf['PC_time_unit'])
     if conf['plot']:
         plot_PC(events, PC_nz, conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10, title=title, fname=f"{fname}_P")
     if conf['vis'] and conf['PC_path']:
-        visualize(admissions, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname+'_Paths_')
         simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
+        visualize(admissions, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname+'_Paths_')
     elif conf['vis']:
         simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
     return PC_all, PC_nz, PC_P, patient_PC
 
 
-def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, join_rules, fname, title='', last = False):
+def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, join_rules, fname, title='', 
+                   vis_last_iter = False, PC_path_last_iter = False):
     I = []
-    for i in range(conf['iterations']):
+    #for i in range(conf['iterations']):
+    i = 0
+    while True:
         if len(I) != 0:
             PI_events = remove_event_type(PI_events, I) 
             NPI_events = remove_event_type(NPI_events, I) 
@@ -80,14 +82,20 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
             return PI_events, NPI_events, None, None
         NPI_etypes_P = get_event_types(NPI_events, NPI_PC_P)
         PI_types, NPI_types, I = intersection_and_differences(PI_etypes_P, NPI_etypes_P)
-        if I == [] and last:
+        if I == [] and vis_last_iter:
+            conf['vis'] = True
+            conf['plot'] = True
+            vis_last_iter = False
+        elif I == [] and PC_path_last_iter:
             conf['PC_path'] = True
-            last = False
+            PC_path_last_iter = False
         elif I == []:
             break
-    pi_events = get_top_events(PI_events, PI_PC_P, conf, I)
-    npi_events = get_top_events(NPI_events, NPI_PC_P, conf, I)
-    return pi_events, npi_events, PI_patient_PC, NPI_patient_PC
+        i += 1
+    if conf['PC_P_events']:
+        PI_events = get_top_events(PI_events, PI_PC_P, conf, I)
+        NPI_events = get_top_events(NPI_events, NPI_PC_P, conf, I)
+    return PI_events, NPI_events, PI_patient_PC, NPI_patient_PC
 
 
 def check_PC_values(A, states):
@@ -102,7 +110,7 @@ def check_PC_values(A, states):
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     print(nx.is_directed_acyclic_graph(G))
     start = time.time()
-    PC, V_nx, v_paths_nx, paths_nx = PC_with_target(G, states=states, weight='weight')
+    PC, V_nx, v_paths_nx, paths_nx = PC_with_target_path_nx(G, states=states, weight='weight')
     print(PC)
     print('PC time based on networkx', float(time.time() - start)/60.0)
     a = np.sort(np.nonzero(list(PC.values()))[0])

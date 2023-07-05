@@ -18,41 +18,45 @@ from teg.queries import *
 
 def events(conn, event_list, conf, hadms=()):
     all_events = list()
-    for event_key in event_list:
-        if 'CV' in event_key and conf['dbsource'] == 'metavision':
-            continue
-        elif 'MV' in event_key and conf['dbsource'] == 'carevue':
-            continue
-        event_name, table, time_col, main_attr = EVENTS[event_key]
-        events = get_events(conn, event_key, conf, hadms)
-        print(event_key, len(events))
-        if len(events) > 0:
-            all_events += events
-    for event_name in PI_EVENTS:
-        if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
-            continue
-        events = get_chart_events(conn, event_name, conf, hadms)
-        print(event_name, len(events))
-        if len(events) > 0:
-            all_events += events
-    for event_name in CHART_EVENTS:
-        if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
-            continue
-        events = get_chart_events(conn, event_name, conf, hadms)
-        print(event_name, len(events))
-        if len(events) > 0:
-            all_events += events
-    events = get_events_interventions(conn, conf, hadms)
-    print('Interventions', len(events))
-    if len(events) > 0:
-        all_events += events
-    if conf['vitals_X_mean']:
-        events = get_events_vitals_X_mean(conn, conf, hadms)
-    else:
-        events = get_events_vitals_X(conn, conf, hadms)
-    print('Vitals', len(events))
-    if len(events) > 0:
-        all_events += events
+    for event_name in event_list:
+        if event_name in EVENTS:
+            event_key = event_name
+            if 'CV' in event_key and conf['dbsource'] == 'metavision':
+                continue
+            elif 'MV' in event_key and conf['dbsource'] == 'carevue':
+                continue
+            event_name, table, time_col, main_attr = EVENTS[event_key]
+            events = get_events(conn, event_key, conf, hadms)
+            print(event_key, len(events))
+            if len(events) > 0:
+                all_events += events
+        elif event_name in PI_EVENTS:
+            if not conf['include_numeric'] and event_name in PI_EVENTS_NUMERIC:
+                continue
+            events = get_chart_events(conn, event_name, conf, hadms)
+            print(event_name, len(events))
+            if len(events) > 0:
+                all_events += events
+        elif event_name in CHART_EVENTS:
+            if not conf['include_numeric'] and event_name in CHART_EVENTS_NUMERIC:
+                continue
+            events = get_chart_events(conn, event_name, conf, hadms)
+            print(event_name, len(events))
+            if len(events) > 0:
+                all_events += events
+        elif event_name == 'Intervention': 
+            events = get_events_interventions(conn, conf, hadms)
+            print('Interventions', len(events))
+            if len(events) > 0:
+                all_events += events
+        elif event_name == 'Vitals/Labs':
+            if conf['vitals_X_mean']:
+                events = get_events_vitals_X_mean(conn, conf, hadms)
+            else:
+                events = get_events_vitals_X(conn, conf, hadms)
+            print('Vitals', len(events))
+            if len(events) > 0:
+                all_events += events
     for i, e in enumerate(all_events):
         e['i'] = i 
         e['j'] = i
@@ -61,7 +65,7 @@ def events(conn, event_list, conf, hadms=()):
 def process_events_PI(all_events, conf):
     # Add stage to all events
     n = len(all_events)
-    sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
+    sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t'], -x['pi_stage']))
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
     stage = 0
@@ -96,17 +100,25 @@ def process_events_PI(all_events, conf):
                 PI = True
                 hadm_stage_t[e['hadm_id']] = e['t']
             # PI related events before stage I is considered as stage I
-            elif min_stage <= stage and stage < max_stage:
-                if stage == 0 and \
-                    e['type'] != 'PI Stage' and \
-                    'PI' in e['type'] and \
-                    conf['PI_as_stage'] and \
-                    max_stage == 1:
+            elif min_stage == stage and \
+                stage == 0 and \
+                'PI Stage' not in e['type'] and \
+                'PI' in e['type'] and \
+                conf['PI_as_stage'] and \
+                max_stage == 1:
                     stage = 1
                     PI = True
                     hadm_stage_t[e['hadm_id']] = e['t']
-                    if stage in conf['PI_states']:
-                        state = conf['PI_states'][stage]
+                    state = conf['PI_states'][stage]
+                    all_events[e['i']]['pi_state'] = state
+                    all_events[e['i']]['pi_stage'] = stage
+            elif stage == min_stage:
+                all_events[e['i']]['pi_state'] = state
+                all_events[e['i']]['pi_stage'] = stage
+            elif min_stage < stage and stage < max_stage and conf['PI_exclude_mid_stages']:
+                    excluded_indices.append(e['i'])
+                    stage = 0
+            elif min_stage < stage and stage < max_stage and not conf['PI_exclude_mid_stages']:
                 all_events[e['i']]['pi_state'] = state
                 all_events[e['i']]['pi_stage'] = stage
         # later all events belonging to excluded ids
@@ -117,6 +129,7 @@ def process_events_PI(all_events, conf):
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
             if not PI:
                 non_PI_ids.append(e['id'])
+                print('Non PI', e['id'])
             PI = False
             stage = 0
             state = 0
@@ -124,6 +137,8 @@ def process_events_PI(all_events, conf):
 
     for e in all_events:
         if e['id'] in excluded_ids:
+            excluded_indices.append(e['i'])
+        if e['id'] in non_PI_ids:
             excluded_indices.append(e['i'])
 
     if conf['PI_only']:
