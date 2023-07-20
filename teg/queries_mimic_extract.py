@@ -220,7 +220,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 vitals_stats.loc[col, 'missing percent'] \
                     < conf['min_missing_percent']:
                 continue
-            Q, q1, q2 = get_quantile_mimic_extract(val, Qs.loc[:, col])
+            Q = get_quantile_mimic_extract(val, Qs.loc[:, col])
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
@@ -233,7 +233,6 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                                    'pi_stage': 0,
                                    'vitals-mean': val,
                                    'Q': Q,
-                                   'Q_I': [q1, q2]
                                    })
                 continue
 
@@ -250,7 +249,6 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                                    'pi_stage': 0,
                                    'vitals-mean': val,
                                    'Q': Q,
-                                   'Q_I': [q1, q2]
                                    'duration': zero_duration})
                 event_idx += 1
             elif i not in prev and not conf['duration']:
@@ -266,7 +264,6 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                                    'pi_stage': 0,
                                    'vitals-mean': val,
                                    'Q': Q,
-                                   'Q_I': [q1, q2]
                                    })
                 event_idx += 1
             elif conf['duration'] and prev[i][0] == Q and prev[i][1] == h - 1:
