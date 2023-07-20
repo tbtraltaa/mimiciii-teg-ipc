@@ -15,8 +15,8 @@ def get_psm(df, conf, fname):
             category_cols.append(col)
         elif not is_numeric_dtype(df.dtypes[col]):
             df[col] = df[col].astype('category').cat.codes
-    print('category cols', category_cols)
     df = pd.get_dummies(df, columns = category_cols, dtype=int)
+    print('Category columns', category_cols)
     psm = PsmPy(df, treatment='PI', indx='hadm_id', exclude = [])
     psm.logistic_ps(balance = True)
     psm.knn_matched(matcher='propensity_logit', replacement=False, caliper=0.02, drop_unmatched=True)
@@ -30,7 +30,5 @@ def get_psm(df, conf, fname):
     plt.show()
     plt.clf()
     plt.cla()
-    print(psm.matched_ids)
-    print(psm.df_matched)
     print(psm.effect_size)
     return psm 

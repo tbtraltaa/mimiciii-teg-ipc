@@ -13,18 +13,29 @@ EVENT_IDs = ['id',
              'pi_stage',
              'pi_state',
              ]
+
+PATIENT_ATTRS_EXCLUDED = ['dob']
+
 IGNORE_COLS = [
+    # ICU
     'icustay_id',
-    'dbsource',
-    'pi_number',
-    # labs and inteventions
-    'intervention-count'
+    'icu-time',
+    # Vitals/Labs
     'vitals-mean',
     'vitals-count',
     'vitals-std',
-    'icu-time',
     'count_Q',
     'std_Q',
+    # ignore Intervention count
+    'Intervention-count'
+    # ignore quantile intervals
+    'Q_I',
+    'mean_I',
+    'count_I',
+    'std_I',
+    # other
+    'dbsource',
+    'pi_number',
     'cptdesc',
     'adm_num',
     'numeric_value',
@@ -35,9 +46,9 @@ LOGISTIC_EVENTS = ['Admissions', 'Transfer', 'ICU', 'Discharges', 'Services', 'C
 # {<table_name>: [<columns>]}
 PATIENTS = {
     # p for patients
+    # dob exluded
     'p': [
-        'gender',
-        'dob'],
+        'gender'],
     # a for admissions
     'a': [
         'admission_type',

@@ -61,6 +61,10 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
     #for i in range(conf['iterations']):
     i = 0
     while True:
+
+        print("==========================================================")
+        print(f"Iteration: {i + 1}")
+        print("==========================================================")
         if len(I) != 0:
             PI_events = remove_event_type(PI_events, I) 
             NPI_events = remove_event_type(NPI_events, I) 
@@ -82,14 +86,17 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
             return PI_events, NPI_events, None, None
         NPI_etypes_P = get_event_types(NPI_events, NPI_PC_P)
         PI_types, NPI_types, I = intersection_and_differences(PI_etypes_P, NPI_etypes_P)
-        if I == [] and vis_last_iter:
+        if I == [] and vis_last_iter and PC_path_last_iter:
             conf['vis'] = True
             conf['plot'] = True
             vis_last_iter = False
-        elif I == [] and PC_path_last_iter:
             conf['PC_path'] = True
             PC_path_last_iter = False
-        elif I == []:
+        elif I == [] and vis_last_iter and not PC_path_last_iter:
+            conf['vis'] = True
+            conf['plot'] = True
+            vis_last_iter = False
+        elif I == [] and not vis_last_iter and not PC_path_last_iter:
             break
         i += 1
     if conf['PC_P_events']:
@@ -108,7 +115,7 @@ def check_PC_values(A, states):
 
     # Check if algebraic PC matches PC computed using NetworkX
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    print(nx.is_directed_acyclic_graph(G))
+    #print(nx.is_directed_acyclic_graph(G))
     start = time.time()
     PC, V_nx, v_paths_nx, paths_nx = PC_with_target_path_nx(G, states=states, weight='weight')
     print(PC)

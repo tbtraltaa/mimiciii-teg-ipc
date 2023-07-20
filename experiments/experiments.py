@@ -55,19 +55,20 @@ conf = {
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
     'PC_percentile': [97, 100],
     'PC_percentile_max_n': False,
-    'path_percentile': [97, 100],
+    'path_percentile': [95, 100],
     'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'has_icustay': 'True',
-    'scale_PC': True, # scale by max_PC
+    'scale_PC': False, # scale by max_PC
     'Top_n_PC': 20,
     'PI_vitals': True, # Use a list of vitals related to PI
     'skip_repeat': True,
     'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
+    'quantile_round': 2,
     'drug_percentile': [40, 60],
     'input_percentile': [40, 80],
     'include_numeric': True,
@@ -287,7 +288,9 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
             NPI_t[row['matched_ID']] = PI_hadm_stage_t[row['hadm_id']]
             NPI_hadms.append(row['matched_ID'])
     NPI_hadms = tuple(NPI_hadms)
-    NPI_events = events(conn, event_list, conf, NPI_hadms)
+    # no PI stage events for NPI patients
+    event_list_npi = [name for name in event_list if name != 'PI Stage']
+    NPI_events = events(conn, event_list_npi, conf, NPI_hadms)
     NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
     if conf['PC_P_events']:
         conf['PC_path'] = True

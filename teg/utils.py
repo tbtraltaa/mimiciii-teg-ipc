@@ -1,6 +1,7 @@
 import pandas as pd
 
-def get_quantile(val, Q):
+
+def get_quantile(val, Q, conf):
     # for '0.25 to 1', 0.25 is taken
     if type(val) == str:
         if '-' in val:
@@ -11,15 +12,15 @@ def get_quantile(val, Q):
             val = float(val)
     prev_q = 0
     prev_idx = 0
-    for idx in Q.index:
-        if Q.loc[prev_q][0] <= val and val < Q.loc[idx][0]:
-            prev_idx = idx
+    for idx in Q.index[1:]:
+        val1 = round(Q.loc[prev_q][0], conf['quantile_round'])
+        val2 = round(Q.loc[idx][0], conf['quantile_round'])
+        prev_val = round(Q.loc[prev_idx][0], conf['quantile_round'])
+        if val1 <= val and val < val2:
             break
-        if Q.loc[prev_idx][0] != Q.loc[idx][0]:
+        elif prev_val != val2:
             prev_q = idx
         prev_idx = idx
-    val1 = round(Q.loc[prev_q][0], 1)
-    val2 = round(Q.loc[idx][0], 1)
     prev_q = round(prev_q*100)
     q = round(idx*100)
     #if prev_q == 0:
@@ -28,36 +29,68 @@ def get_quantile(val, Q):
         val2 = ''
     return f'{prev_q}-{q}P, {val1}-{val2}'
 
-def get_quantile_mimic_extract(val, Q):
+
+def get_quantile_interval(val, Q, conf):
+    # for '0.25 to 1', 0.25 is taken
+    if type(val) == str:
+        if '-' in val:
+            val = float(val.split('-')[0])
+        elif ' ' in val:
+            val = float(val.split(' ')[0])
+        else:
+            val = float(val)
+    prev_q = 0
+    prev_idx = 0
+    for idx in Q.index[1:]:
+        val1 = round(Q.loc[prev_q][0], conf['quantile_round'])
+        val2 = round(Q.loc[idx][0], conf['quantile_round'])
+        prev_val = round(Q.loc[prev_idx][0], conf['quantile_round'])
+        if val1 <= val and val < val2:
+            break
+        elif prev_val != val2:
+            prev_q = idx
+        prev_idx = idx
+    prev_q = round(prev_q*100)
+    q = round(idx*100)
+    #if prev_q == 0:
+    #    val1 = ''
+    if q == 100:
+        val2 = ''
+    return [prev_q, q]
+
+
+def get_quantile_mimic_extract(val, Q, conf):
     if type(val) == str:
         val = float(val)
     prev_q = 0
     prev_idx = 0
-    for idx in Q.index:
-        if Q.loc[prev_q] <= val and val < Q.loc[idx]:
-            prev_idx = idx
+    for idx in Q.index[1:]:
+        val1 = round(Q.loc[prev_q], conf['quantile_round'])
+        val2 = round(Q.loc[idx], conf['quantile_round'])
+        prev_val = round(Q.loc[prev_idx], conf['quantile_round'])
+        if val1 <= val and val < val2:
             break
-        elif Q.loc[prev_idx] != Q.loc[idx]:
+        elif prev_val != val2:
             prev_q = idx 
         prev_idx = idx
-    val1 = round(Q.loc[prev_q], 1)
-    val2 = round(Q.loc[idx], 1)
     prev_q = round(prev_q*100)
     q = round(idx*100)
     #if prev_q == 0:
     #    val1 = ''
     if q == 100:
         val2 = ''
-    return f'{prev_q}-{q}P, {val1}-{val2}'
+    return f'{prev_q}-{q}P, {val1}-{val2}', [prev_q, q]
 
-def get_quantile_uom(row, item_col, val_col, uom_col, Q):
+
+def get_quantile_uom(row, item_col, val_col, uom_col, Q, conf):
     val = row[val_col]
     uom = row[uom_col]
     item = row[item_col]
     val_P = 'None'
     if (item, uom) in Q.index:
         Q_item = pd.DataFrame(Q.loc[(item, uom), :].values, index=Q.columns)
-        val_P = get_quantile(val, Q_item)
+        val_P = get_quantile(val, Q_item, conf)
+        I = get_quantile_interval(val, Q_item, conf)
     else:
         print('Quantile Missing ', item, uom)
-    return val_P
+    return val_P, I 

@@ -445,17 +445,22 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
             df['numeric_value'] = df[col]
             # due to apply error in pandas, a loop is used
             vals = list()
+            intervals = list()
             for idx, row in df.iterrows():
-                vals.append(get_quantile_uom(row, 'item_col', col, uom_col, Q))
+                val, I = get_quantile_uom(row, 'item_col', col, uom_col, Q, conf)
+                vals.append(val)
+                intervals.append(I)
             df[col] = vals
+            df[col + '-I'] = intervals
             # add uom to numeric values
             # drop unit of measure column
             df[col] = df[col].astype(str) + ' ' + df[uom_col]
             df = df.drop([uom_col], axis=1)
         # compute percentiles for numeric values without uom
         else:
-            df['value_test'] = df[col]
-            df[col] = df[col].apply(lambda x: get_quantile(x, Q))
+            df['numeric_value'] = df[col]
+            df[col + '-I'] = df[col].apply(lambda x: get_quantile_interval(x, Q, conf))
+            df[col] = df[col].apply(lambda x: get_quantile(x, Q, conf))
         # include percentiles in event type
         df['type'] = df['type'] + ' ' + df[col]
     df = df.drop(['item_col'], axis=1)

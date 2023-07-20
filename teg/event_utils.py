@@ -27,7 +27,7 @@ def intersection_and_differences(A, B):
     #print(A_minus_B)
     #print("B - A")
     #print(B_minus_A)
-    print("I")
+    print("Intersection: ")
     pprint.pprint(I)
     return A_minus_B, B_minus_A, I
 

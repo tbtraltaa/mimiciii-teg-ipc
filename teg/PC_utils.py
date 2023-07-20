@@ -23,7 +23,8 @@ def process_PC_values(PC_values, conf):
     P_max = np.percentile(PC_nz_vals, conf['PC_percentile'][1])
     print("Nonzero PC", len(PC_nz))
     print("Min, Max PC", min_PC, max_PC)
-    print("Min, Max PC scaled", min(PC_nz_vals), max(PC_nz_vals))
+    if conf['scale_PC']:
+        print("Min, Max PC scaled", min(PC_nz_vals), max(PC_nz_vals))
     print("Percentile", P_min, P_max)
     PC_P = dict([(i, v) for i, v in PC_nz.items() if v >= P_min and v <= P_max])
     print("Nodes above percentile", len(PC_P))

@@ -314,7 +314,8 @@ def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom
                     AND {value_col} > 0.0
                     {where}'''
                 item_vals = pd.read_sql_query(q, conn)
-            quantile_vals = item_vals.quantile(quantiles, numeric_only=True)
+            quantile_vals = item_vals.quantile(quantiles, numeric_only=True)\
+                    .round(conf['quantile_round'])
             df.loc[(item, uom), :] = quantile_vals.values.reshape(-1,)
     elif not item_col and not uom_col:
         if dtype:
@@ -349,9 +350,10 @@ def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom
                 {where}
                 '''
             df = pd.read_sql_query(q, conn)
-        df = df.quantile(quantiles, numeric_only=True)
+        df = df.quantile(quantiles, numeric_only=True).round(conf['quantile_round'])
     dfna = pd.isna(df)
     print('Any NaN in Qs', dfna.any())
+    
     if not os.path.exists(fname):
         df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     return df

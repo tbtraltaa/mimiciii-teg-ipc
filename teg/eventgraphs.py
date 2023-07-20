@@ -12,6 +12,10 @@ from teg.schemas_chart_events import *
 
 
 def event_difference(e1, e2, join_rules):
+    # events of different types
+    if e1['type'] != e2['type']:
+        return join_rules['w_e_default'], {}
+    # events of same types
     n = len(e1) - len(join_rules['IDs'])
     i = float(0)
     I = dict() #intersection
@@ -20,34 +24,30 @@ def event_difference(e1, e2, join_rules):
             continue
         elif k1 == 'duration' and e2[k1] - e1[k1] <= join_rules['duration_similarity']:
             i += 1
-        elif e1['type'] + '-' + k1 in NUMERIC_COLS and not join_rules['include_numeric']:
+        elif f"{e1['parent_type']}-{k1}" in NUMERIC_COLS and not join_rules['include_numeric']:
             n -= 1
-        elif e1['type'] in CHART_EVENTS_NUMERIC and not join_rules['include_numeric']:
+        elif e1['parent_type'] in CHART_EVENTS_NUMERIC and not join_rules['include_numeric']:
             n -= 1
-        elif e1['type'] in PI_EVENTS_NUMERIC and not join_rules['include_numeric']:
+        elif e1['parent_type'] in PI_EVENTS_NUMERIC and not join_rules['include_numeric']:
             n -= 1
-        elif k1 in IGNORE_COLS:
+        elif k1 in IGNORE_COLS or f"{e1['parent_type']}-{k1}" in IGNORE_COLS:
+            n -= 1
+        # ignore quantile intervals of numeric columns: parent_type-col-I
+        elif f"{e1['parent_type']}-{k1[:-2]}" in NUMERIC_COLS and k1[-2:] == '-I':
             n -= 1
         elif e1[k1] == e2[k1]:
             I[k1] = e1[k1]
             i += 1
-        '''
-        elif e1['type'] + '-' + k1 in join_rules:
-            if abs(e1[k1] - e2[k1]) <= join_rules[e1['type'] + '-' + k1]:
-                i += 1
-        '''
-    if n == 0:
-        print('e1', e1)
-        print('e2', e2)
     return 1 - i / n, I
 
 
 def subject_difference(s1, s2, join_rules):
-    n = len(s1) - 1  # dob
+    n = len(s1)
     i = float(0)
-    I = dict() #intersection
+    I = dict() # intersection
     for k1 in s1:
-        if k1 == 'dob':
+        if k1 in PATIENT_ATTRS_EXCLUDED:
+            n -= 1
             continue
         elif s1[k1] == s2[k1]:
             i += 1
@@ -55,23 +55,12 @@ def subject_difference(s1, s2, join_rules):
     return 1 - i / n, I
 
 
-def weight_same_subject(e1, e2, join_rules, t_max):
+def weight(s1, s2, e1, e2, join_rules, t_max):
     '''
-    Returns the weight for events of the same subject
+    Returns the weight for an edge (an event connection)
     '''
     # time difference
     # TODO incorporate t_min
-    w_t = (e2['t'] - e1['t']).total_seconds() / \
-        t_max.total_seconds()
-    I_e = {}
-    if e1['type'] == e2['type']:
-        w_e, I_e = event_difference(e1, e2, join_rules)
-    else:
-        w_e = join_rules['w_e_default']
-    return w_t, w_e, 0, I_e
-
-
-def weight(s1, s2, e1, e2, join_rules, t_max):
     w_t = (e2['t'] - e1['t']).total_seconds() / \
         t_max.total_seconds()
     w_e, I_e = event_difference(e1, e2, join_rules)
@@ -137,7 +126,9 @@ def build_eventgraph(subjects, events, join_rules):
                 for e1 in s_events_dict[t]:
                     for e2 in s_events_dict[times[i + 1]]:
                         t_max = get_t_max(e1, e2, join_rules)
-                        w_t, w_e, w_s, I_e = weight_same_subject(e1, e2, join_rules, t_max)
+                        s1 = subjects[e1['id']]
+                        s2 = subjects[e2['id']]
+                        w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max)
                         A[e1['i'], e2['i']] = w_t + w_e + w_s
                         c2 += 1
             '''
@@ -162,12 +153,18 @@ def build_eventgraph(subjects, events, join_rules):
                         break
                     elif e2['id'] != e1['id']:
                         break
-                    w_t, w_e, w_s, I_e  = weight_same_subject(e1, e2, join_rules, t_max)
+                    s1 = subjects[e1['id']]
+                    s2 = subjects[e2['id']]
+                    w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max)
                     A[e1['i'], e2['i']] = w_t + w_e + w_s
                     c2 += 1
+        print("==========================================================")
+        print("TEG construction")
+        print("==========================================================")
         print("Number of events", len(events))
-        print("Edges connecting events of different patients: ", c1)
-        print("Edges connecting events of the same patients: ", c2)
+        print("Inter-patient event connections: ", c1)
+        print("Same-patient event connections: ", c2)
+        print("Total connections: ", c1 + c2)
         if c1 == 0:
             return A, False
     return A, True

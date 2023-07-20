@@ -17,6 +17,9 @@ from teg.queries_chart_events import *
 from teg.queries import *
 
 def events(conn, event_list, conf, hadms=()):
+    print("==========================================================")
+    print('Events from MIMIC-III')
+    print("==========================================================")
     all_events = list()
     for event_name in event_list:
         if event_name in EVENTS:
@@ -196,7 +199,8 @@ def process_events_PI(all_events, conf):
         all_events += sub_adm_events
 
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
-    print("Events in TEG:")
+    print("==========================================================")
+    print("Events in TEG for PI:")
     print("==========================================================")
     for key, val in groupby(all_events, key=lambda x: x['parent_type']):
         print(key, len(list(val)))
@@ -268,7 +272,8 @@ def process_events_NPI(all_events, NPI_t, conf):
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
     for i in range(len(all_events)):
         all_events[i]['i'] = i
-    print("Events in TEG:")
+    print("==========================================================")
+    print("Events in TEG for NPI:")
     print("==========================================================")
     for key, val in groupby(all_events, key=lambda x: x['parent_type']):
         print(key, len(list(val)))

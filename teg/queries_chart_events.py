@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 from teg.schemas_PI import *
 from teg.schemas_chart_events import *
 from teg.queries_utils import *
-from teg.utils import *
+from teg.utils import get_quantile, get_quantile_interval
 from teg.queries import *
 
 # an event query : [<id>, <event_type>, <time>, **<event_attributes>$]
@@ -156,6 +156,7 @@ def get_chart_events(conn, event_name, conf, hadms=()):
             df.drop(['row_number'], axis=1, inplace=True)
         df['numeric_value'] = df['value']
         df['value'] = df['value'].apply(lambda x: get_quantile(x, Q))
+        df['Q_I'] = df['value'].apply(lambda x: get_quantile_interval(x, Q))
         df.drop(['day'], axis=1, inplace=True)
     elif conf['unique_chartvalue_per_day']:
         df['row_number'] = df.sort_values(['t'], ascending=[True]) \

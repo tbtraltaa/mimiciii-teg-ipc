@@ -45,18 +45,12 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
             s1 = patients[e1['id']]
             s2 = patients[e2['id']]
             t_max = get_t_max(e1, e2, join_rules)
-            if e1['id'] != e2['id'] and e1['type'] == e2['type']:
-                w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max )
-                attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
-                attrs[key] += "Common event attributes\n"
-                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
-                attrs[key] += "Common patient attributes\n"
-                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_s.items()])
-            elif e1['id'] == e2['id']:
-                w_t, w_e, w_s, I_e = weight_same_subject(e1, e2, join_rules, t_max)
-                attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}\n"
-                attrs[key] += "Common event attributes\n"
-                attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
+            w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max )
+            attrs[key] = f"Time diff: {w_t}\nEvent diff: {w_e}\nPatient diff: {w_s}"
+            attrs[key] += "\nEvent Intersection:\n"
+            attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_e.items()])
+            attrs[key] += "\nPatient Intersection:\n"
+            attrs[key] += "\n".join([str(k) + ": " + str(v) for k, v in I_s.items()])
             #attrs[key]['title'] = attrs[key]['value']
         nx.set_edge_attributes(G, values=attrs, name='title')
         attrs = dict([(key, val)
@@ -66,7 +60,7 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
         attrs = dict([(key, {'value': val, 'title': val})
                      for key, val in A.items()])
         nx.set_edge_attributes(G, attrs)
-    print(nx.is_directed_acyclic_graph(G))
+    # print(nx.is_directed_acyclic_graph(G))
     return G
 
 
