@@ -56,7 +56,7 @@ conf = {
     'PC_percentile': [97, 100],
     'PC_percentile_max_n': False,
     'path_percentile': [97, 100],
-    'PI_sql': 'multiple', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
+    'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
