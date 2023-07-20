@@ -13,6 +13,7 @@ def get_quantile(val, Q):
     prev_idx = 0
     for idx in Q.index:
         if Q.loc[prev_q][0] <= val and val < Q.loc[idx][0]:
+            prev_idx = idx
             break
         if Q.loc[prev_idx][0] != Q.loc[idx][0]:
             prev_q = idx
@@ -34,9 +35,10 @@ def get_quantile_mimic_extract(val, Q):
     prev_idx = 0
     for idx in Q.index:
         if Q.loc[prev_q] <= val and val < Q.loc[idx]:
+            prev_idx = idx
             break
-        if Q.loc[prev_idx] != Q.loc[idx]:
-            prev_q = idx
+        elif Q.loc[prev_idx] != Q.loc[idx]:
+            prev_q = idx 
         prev_idx = idx
     val1 = round(Q.loc[prev_q], 1)
     val2 = round(Q.loc[idx], 1)

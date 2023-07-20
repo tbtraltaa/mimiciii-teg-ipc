@@ -47,11 +47,15 @@ def get_patient_demography(conn, conf, hadms=()):
             ON a.hadm_id = o.hadm_id
             '''
     where = f''' a.diagnosis != 'NEWBORN'
+        AND a.admission_type != 'NEWBORN'
         AND a.hadm_id is NOT NULL
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
         AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
         '''
+    if conf['admission_type']:
+        where += f" AND a.admission_type='{conf['admission_type']}'" 
+    # survived patients
     where += ' AND a.hospital_expire_flag=0'
     if hadms:
         where += f' AND a.hadm_id IN {hadms}'
@@ -193,8 +197,8 @@ def get_patient_demography(conn, conf, hadms=()):
         # drop subsequent admissions
         df.drop_duplicates('subject_id', inplace=True)
     print("First admissions", len(df))
-    if hadms:
-        df = add_chronic_illness(df)
+    #if hadms:
+    df = add_chronic_illness(conn, df, conf)
     df.drop('admittime', axis=1, inplace=True)
     df.drop('subject_id', axis=1, inplace=True)
     # compute the age interval
@@ -358,11 +362,14 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
     where += f'''
         AND a.hospital_expire_flag=0
         AND a.diagnosis != 'NEWBORN'
+        AND a.admission_type != 'NEWBORN'
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
         AND {t_table}.{time_col} - a.admittime <= '{conf['max_hours']} hours'
         AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
         '''
+    if conf['admission_type']:
+        where += f" AND a.admission_type = '{conf['admission_type']}'"
     if conf['starttime'] and conf['endtime']:
         where += f" AND {t_table}.{time_col} >= '{conf['starttime']}'"
         where += f" AND {t_table}.{time_col} <= '{conf['endtime']}'"
@@ -523,11 +530,14 @@ def get_icustays(conn, conf, hadms=()):
     where += f'''
         AND a.hospital_expire_flag=0
         AND a.diagnosis != 'NEWBORN'
+        AND a.admission_type != 'NEWBORN'
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) >= {conf['min_age']}
         AND EXTRACT(YEAR FROM AGE(a.admittime, p.dob)) <= {conf['max_age']}
         AND tb.{time_col} - a.admittime <= '{conf['max_hours']} hours'
         AND a.dischtime - a.admittime >= '{conf['min_los_hours']} hours'
         '''
+    if conf['admission_type']:
+        where += f" AND a.admission_type='{conf['admission_type']}'"
     if conf['starttime'] and conf['endtime']:
         where += f" AND tb.{time_col} >= '{conf['starttime']}'"
         where += f" AND tb.{time_col} < '{conf['endtime']}'"

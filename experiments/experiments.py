@@ -24,11 +24,12 @@ from teg.event_utils import *
 from teg.run_experiments import *
 from teg.PI_risk_factors import *
 
-options_set(nthreads=16)
+options_set(nthreads=12)
 
 # Experiment configuration
 conf = {
     'patient_history': timedelta(weeks=24), # 6 months
+    'admission_type': 'EMERGENCY',
     'duration': False,
     'max_hours': 336,
     'min_los_hours': 24,
@@ -48,13 +49,14 @@ conf = {
     'node label': True,
     'edge label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
-    'PI_states': {0: 0, 1: 1},
+    'PI_states': {0: 0, 2: 1},
     'PI_exclude_mid_stages': True,
+    'PI_daily_max_stage': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
-    'PC_percentile': [95, 100],
+    'PC_percentile': [97, 100],
     'PC_percentile_max_n': False,
-    'path_percentile': [95, 100],
-    'PI_sql': 'one', #multiple, one_or_multiple, no_PI_stages, no_PI_events
+    'path_percentile': [97, 100],
+    'PI_sql': 'multiple', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
@@ -64,20 +66,20 @@ conf = {
     'Top_n_PC': 20,
     'PI_vitals': True, # Use a list of vitals related to PI
     'skip_repeat': True,
-    'skip_repeat_intervention': True,
+    'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
     'drug_percentile': [40, 60],
     'input_percentile': [40, 80],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 10,
+    'hadm_limit': False,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
     'PC_path': True,
     'n_patient_paths': [1, 3], # n highest PC paths of a patient
-    'vis': True,
-    'vis_PC': True,
-    'plot': True,
+    'vis': False,
+    'vis_PC': False,
+    'plot': False,
     'PC_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
@@ -87,12 +89,11 @@ conf = {
         [
         'hadm_id',
         'gender', 
-        'admission_type',
+        #'admission_type',
         'insurance',
-        'diagnosis',
         'los',
         'age',
-        'oasis'] #+ list(CHRONIC_ILLNESS.keys())
+        'oasis'] + list(CHRONIC_ILLNESS.keys())
 }
 
 # Event graph configuration
@@ -129,7 +130,7 @@ join_rules = {
     'duration_similarity': timedelta(days=2),
     'sequential_join': True,
     'max_pi_state': 1,
-    'max_pi_stage': 1,
+    'max_pi_stage': 2,
     'include_numeric': True
 }
 
@@ -231,7 +232,7 @@ def TEG_PC_PI_NPI(event_list, join_rules, conf, fname):
     #print(len(braden_events))
     #braden_events = remove_events_after_t(braden_events, PI_hadm_stage_t)
     braden_events = [e for e in PI_events if 'Braden Score' in e['type']]
-    patient_BS = get_patient_Braden_scores(braden_events)
+    patient_BS = get_patient_max_Braden_Scores(braden_events)
     plot_time_series(PI_patient_PC, patient_BS)
     for idd in PI_patient_PC:
         if idd in patient_BS:
@@ -308,9 +309,6 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
     patient_BS = get_patient_max_Braden_Scores(braden_events, conf['PC_time_unit'])
     plot_time_series(pi_PPC, patient_BS, conf)
     plot_time_series_average(pi_PPC, patient_BS, conf)
-    conf['PC_BS_nnz'] = 0.05
-    plot_time_series(pi_PPC, patient_BS, conf)
-    plot_time_series_average(pi_PPC, patient_BS, conf)
     for idd in pi_PPC:
         if idd in patient_BS:
             print(idd, len(pi_PPC[idd]['PC']), len(patient_BS[idd]['BS']))
@@ -319,8 +317,8 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
 
         
 if __name__ == "__main__":
-    fname = 'output/TEG-PI-NPI-RISKS'
-    fname = 'output/TEG-PI-ONLY-RISKS-5'
-    TEG_PC_PI_ONLY(EVENTS_INCLUDED, join_rules, conf, fname)
+    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P97'
+    #TEG_PC_PI_ONLY(EVENTS_INCLUDED, join_rules, conf, fname)
     #TEG_PC_PI_ONLY(ALL_EVENTS, join_rules, conf, fname)
-    #TEG_PC_PI_NPI(EVENTS, join_rules, conf, fname)
+    #TEG_PC_PI_NPI(PI_RISK_EVENTS, join_rules, conf, fname)
+    TEG_PC_PI_NPI_RISKS(PI_RISK_EVENTS, join_rules, conf, fname)

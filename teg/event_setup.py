@@ -13,7 +13,6 @@ PI_RISK_EVENTS = [
     'Services',
     'Intervention',
     'Vitals/Labs',
-    'CPT',
     'PI Stage']
 
 EVENTS_INCLUDED = [

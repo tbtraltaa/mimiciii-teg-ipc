@@ -7,6 +7,9 @@ from pyvis import network as net
 from scipy.sparse import dok_matrix
 
 
+options_set(nthreads=12)
+
+
 class GS(Type):
 
     _base_name = "UDT"

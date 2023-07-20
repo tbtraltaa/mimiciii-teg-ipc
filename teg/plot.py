@@ -5,6 +5,7 @@ import seaborn as sns
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import timedelta
+from scipy.signal import savgol_filter
 
 def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure'):
     #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
@@ -326,6 +327,76 @@ def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NP
     fig.update_yaxes(title_text = "Braden Scale", secondary_y=True)
     fig.show()
 
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    for p_id, color in zip(patient_PC, colors):
+        fig.add_trace(
+            go.Scatter(
+                x = patient_PC[p_id]['t'],
+                y = patient_PC[p_id]['PC'],
+                name = p_id,
+                mode='markers',
+                line_color = color,
+                fill=None),
+            secondary_y=False)
+        if p_id in patient_BS:
+            fig.add_trace(
+                go.Scatter(
+                    x = patient_BS[p_id]['t'],
+                    y = patient_BS[p_id]['BS'],
+                    name = p_id,
+                    mode='markers',
+                    line= dict(color=color, dash='dot'),
+                    fill=None),
+                secondary_y=True)
+        if PI_NPI_match is None:
+            continue
+        if p_id.split('-')[1] in PI_NPI_match:
+            print('Match')
+            npi_hadm_id = PI_NPI_match[p_id.split('-')[1]]
+            npi_id = [idd for idd in patients_NPI_PC if npi_hadm_id in idd][0]
+            fig.add_trace(
+                go.Scatter(
+                    x = patients_NPI_PC[npi_id]['t'],
+                    y = patients_NPI_PC[npi_id]['PC'],
+                    name = p_id,
+                    mode='lines+markers',
+                    line= dict(color=color, dash='dash'),
+                    fill=None),
+                    secondary_y=False)
+
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+    for p_id, color in zip(patient_PC, colors):
+        fig.add_trace(
+            go.Scatter(
+                x = patient_PC[p_id]['t'],
+                y = patient_PC[p_id]['PC'],
+                name = p_id,
+                mode='markers',
+                line_color = color,
+                fill=None))
+    # label x-axes
+    fig.update_xaxes(title_text = f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
+    # label y-axes
+    fig.update_yaxes(title_text = "PC value")
+    fig.show()
+    fig = make_subplots(specs=[[{"secondary_y": False}]])
+    for p_id, color in zip(patient_PC, colors):
+        if p_id in patient_BS:
+            fig.add_trace(
+                go.Scatter(
+                    x = patient_BS[p_id]['t'],
+                    y = patient_BS[p_id]['BS'],
+                    name = p_id,
+                    mode='markers',
+                    line= dict(color=color, dash='dot'),
+                    fill=None))
+
+    # label x-axes
+    fig.update_xaxes(title_text = f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
+    # label y-axes
+    fig.update_yaxes(title_text = "Braden Scale")
+    fig.show()
+
 def plot_time_series_average(patient_PC, patient_BS, conf):
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=2).as_hex())
@@ -361,16 +432,31 @@ def plot_time_series_average(patient_PC, patient_BS, conf):
     y1_avg = y1_sum / nnz1
     y2_avg = y2_sum / nnz2
     n_p = len(patient_PC)
-    x_PC = [i for i in x if float(nnz1[i])/n_p > conf['PC_BS_nnz']]
-    x_BS = [ i for i in x if float(nnz2[i])/n_p > conf['PC_BS_nnz']]
+    x_PC = x
+    x_BS = x
+    '''
+    x_PC = [i for i in x if float(nnz1[i])/n_p >= conf['PC_BS_nnz']]
+    x_BS = [ i for i in x if float(nnz2[i])/n_p >= conf['PC_BS_nnz']]
     y1_avg = [y1_avg[i] for i in x_PC]
     y2_avg = [y2_avg[i] for i in x_BS]
+    '''
     fig.add_trace(
         go.Scatter(
             x = x_PC,
             y = y1_avg,
             name = 'Average PC values',
-            mode='lines+markers',
+            #mode='lines+markers',
+            mode='markers',
+            line_color = colors[0],
+            fill=None),
+        secondary_y=False)
+    fig.add_trace(
+        go.Scatter(
+            x = x_PC,
+            y = savgol_filter(y1_avg, 51, 3),
+            name = 'Smoothed Average PC values',
+            #mode='lines+markers',
+            mode='lines',
             line_color = colors[0],
             fill=None),
         secondary_y=False)
@@ -379,8 +465,16 @@ def plot_time_series_average(patient_PC, patient_BS, conf):
             x = x_BS,
             y = y2_avg,
             name = 'Average Braden Scale',
-            mode='lines+markers',
-            line= dict(color=colors[1], dash='dot'),
+            mode='markers',
+            fill=None),
+        secondary_y=True)
+
+    fig.add_trace(
+        go.Scatter(
+            x = x_BS,
+            y = savgol_filter(y2_avg, 51, 3),
+            name = 'Smoothed Average Braden Scale',
+            mode='lines',
             fill=None),
         secondary_y=True)
 

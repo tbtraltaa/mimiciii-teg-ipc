@@ -4,8 +4,29 @@ import os.path
 import matplotlib.pyplot as plt
 
 from teg.schemas import *
+from teg.PI_risk_factors import *
 
-def add_chronic_illness(df):
+def add_chronic_illness(conn, df, conf):
+    'Add chronic illness info'
+    # it is slow to extract these features if the number of
+    # patients are large.
+    df_chronic = get_chronic_illness(conn, conf)
+    df_chronic = df_chronic.set_index('hadm_id')
+    q = f'''
+        SELECT DISTINCT icd.icd9_code, icd.subject_id 
+        FROM {schema}.diagnoses_icd icd
+        INNER JOIN {schema}.admissions a
+        ON icd.hadm_id = a.hadm_id
+        '''
+    print(df_chronic)
+    for ill in CHRONIC_ILLNESS:
+        df[ill] = 0
+    for i, row in df.iterrows():
+        for ill in CHRONIC_ILLNESS:
+            df.loc[i, ill] = df_chronic.loc[row['hadm_id']][ill]
+    return df
+
+def add_chronic_illness_old(conn, df, conf):
     'Add chronic illness info'
     # it is slow to extract these features if the number of
     # patients are large.
@@ -36,6 +57,47 @@ def add_chronic_illness(df):
             if df_icd9.shape[0] > 0:
                 df.loc[i, ill] = 1
                 break
+    return df
+
+def get_chronic_illness(conn, conf):
+    'get chronic illness info for all admissions'
+    fname = f'''data/Chronic-illness-{conf['patient_history']}.h5'''
+    if os.path.exists(fname):
+        return pd.read_hdf(fname) 
+    # it is slow to extract these features if the number of
+    # patients are large.
+    q = f'''SELECT hadm_id, subject_id, admittime FROM {schema}.admissions'''
+    df = pd.read_sql_query(q, conn)
+    df.set_index('hadm_id')
+    for ill in CHRONIC_ILLNESS:
+        df[ill] = 0
+    q = f'''
+        SELECT DISTINCT icd.icd9_code, icd.subject_id 
+        FROM {schema}.diagnoses_icd icd
+        INNER JOIN {schema}.admissions a
+        ON icd.hadm_id = a.hadm_id
+        '''
+    for i, row in df.iterrows():
+        for ill in CHRONIC_ILLNESS:
+            icd9_codes, curr_hadm = CHRONIC_ILLNESS[ill]
+            where = f'''
+                    WHERE icd.subject_id = {row['subject_id']}
+                    AND a.admittime > '{str(row['admittime'] - conf['patient_history'])}'
+                    AND (icd.icd9_code like '{icd9_codes[0]}'
+                    '''
+            for code in icd9_codes[1:]:
+                where += f" OR icd.icd9_code like '{code}'"
+            where += ')'
+            if curr_hadm:
+                where += f" AND a.admittime <= '{str(row['admittime'])}'"
+            else:
+                 where = f" AND a.admittime < '{str(row['admittime'])}'"
+            df_icd9 = pd.read_sql_query(q + where, conn)
+            if df_icd9.shape[0] > 0:
+                df.loc[i, ill] = 1
+                break
+    if not os.path.exists(fname):
+        df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
     return df
 
 def input_filter(conn, conf, fname='output/'):

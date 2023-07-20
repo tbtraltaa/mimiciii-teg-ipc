@@ -110,7 +110,6 @@ conf = {
         'gender', 
         'admission_type',
         'insurance',
-        #'diagnosis',
         'los',
         'age',
         'oasis']

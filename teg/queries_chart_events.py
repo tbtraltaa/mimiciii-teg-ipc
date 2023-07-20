@@ -193,9 +193,8 @@ def get_chart_events(conn, event_name, conf, hadms=()):
         df['type'] = df['type'] + ' ' + df['value'].astype(str)
     # each row is converted into a dictionary indexed by column names
     events = df.to_dict('records')
-    '''
     # Taking max PI stage per day
-    if event_name == 'PI Stage':
+    if 'PI Stage' in event_name and conf['PI_daily_max_stage']:
         # take maximum stage of a day
         sorted_events = sorted(events, key=lambda x: (x['id'], x['t'].days, -x['pi_stage']))
         id_ = None
@@ -207,7 +206,6 @@ def get_chart_events(conn, event_name, conf, hadms=()):
                 id_ = e['id']
                 day = e['t'].days
         events = events_daily_max
-    '''
     # old code. it assumes only querying PI events
     if conf['duration']:
         df['duration'] = timedelta(days=0)
