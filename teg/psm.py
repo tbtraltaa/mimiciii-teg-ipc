@@ -22,7 +22,6 @@ def get_psm(df, conf, fname):
     psm.knn_matched(matcher='propensity_logit', replacement=False, caliper=0.02, drop_unmatched=True)
     psm.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity score', names = ['PI', 'NPI'], colors=['#E69F00', '#56B4E9'])
     plt.savefig(fname + '_propensity_score')
-    plt.show()
     plt.clf()
     plt.cla()
     psm.effect_size_plot(title='Standardized Mean differences across covariates before and after matching')

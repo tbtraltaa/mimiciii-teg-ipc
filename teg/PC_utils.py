@@ -30,6 +30,33 @@ def process_PC_values(PC_values, conf):
     print("Nodes above percentile", len(PC_P))
     return PC_all, PC_nz, PC_P
 
+def process_event_type_PC(events, PC_values, conf):
+    '''
+    Returns dictionaries of all PC values, non-zero PC values,
+    and PC values above the percentile 
+    '''
+    event_type_PC = {}
+    max_PC = float(max(PC_values))
+    for e in events:
+        e_type = e['type']
+        val = PC_values[e['i']]
+        if val == 0:
+            continue
+        v = float(val) / max_PC if conf['scale_PC'] else float(val)
+        if e_type not in event_type_PC:
+            event_type_PC[e_type] = v
+        else:
+            event_type_PC[e_type] += v
+    vals = list(event_type_PC.values())
+    P_min = np.percentile(vals, conf['PC_percentile'][0])
+    P_max = np.percentile(vals, conf['PC_percentile'][1])
+    print("None zero event type PC", len(vals))
+    print("Min, Max event type PC ", min(vals), max(vals))
+    print("Percentile", P_min, P_max)
+    event_type_PC_P = dict([(e_type, v) for e_type, v in event_type_PC.items() if v >= P_min and v <= P_max])
+    print("Event types PC above percentile", len(event_type_PC_P))
+    return event_type_PC, event_type_PC_P
+
 def get_patient_PC(events, PC):
     '''
     Return PC values with time points
@@ -42,6 +69,18 @@ def get_patient_PC(events, PC):
             if PC[e['i']] > 0:
                 patient_PC[p_id]['t'].append(e['t'])
                 patient_PC[p_id]['PC'].append(PC[e['i']])
+    return patient_PC
+
+def get_patient_PC_total(events, PC):
+    '''
+    Return PC values with time points
+    '''
+    patient_PC = {}
+    for e in events:
+        if e['id'] not in patient_PC:
+            patient_PC[e['id']] = PC[e['i']]
+        else:
+            patient_PC[e['id']] += PC[e['i']]
     return patient_PC
 
 def get_patient_max_PC(events, PC, time_unit = timedelta(days=1, hours=0)):

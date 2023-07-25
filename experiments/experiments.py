@@ -8,21 +8,12 @@ warnings.filterwarnings('ignore')
 
 from pygraphblas import *
 
-from teg.schemas import *
 from teg.event_setup import *
 from teg.events import *
-from teg.eventgraphs import *
-from teg.apercolation import *
-from teg.PC_utils import *
-from teg.graph_vis import *
-from teg.build_graph import *
 from teg.paths import *
 from teg.plot import *
 from teg.psm import *
-from teg.pca import *
-from teg.event_utils import *
 from teg.run_experiments import *
-from teg.PI_risk_factors import *
 
 options_set(nthreads=12)
 
@@ -53,7 +44,9 @@ conf = {
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
-    'PC_percentile': [97, 100],
+    'PC_percentile': [90, 100],
+    'PC_path': False,
+    'event_type_PC_P': True,
     'PC_percentile_max_n': False,
     'path_percentile': [95, 100],
     'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
@@ -73,18 +66,16 @@ conf = {
     'input_percentile': [40, 80],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': False,
+    'hadm_limit': 100,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
-    'PC_path': True,
     'n_patient_paths': [1, 3], # n highest PC paths of a patient
-    'vis': False,
-    'vis_PC': False,
-    'plot': False,
+    'vis': True,
     'PC_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
     'iterations': 10,
+    'iter_type': 'event_type_PC', # event_type_PC or event_PC
     'PC_P_events': False,
     'psm_features':
         [
@@ -254,7 +245,6 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
     # Remove invalid admissions
     PI_df = PI_df[PI_df['hadm_id'].isin(list(PI_hadm_stage_t.keys()))]
     PI_df = PI_df[conf['psm_features']]
-    print(PI_df.columns)
     # Non PI patients
     conf['PI_sql'] = 'no_PI_events'
     conf['hadm_limit'] = conf['NPI_hadm_limit']
@@ -264,12 +254,9 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
     # Check if PI and NPI admissions intersect
     int_df = pd.merge(PI_df, NPI_df, how ='inner', on =['hadm_id'])
     print('Intersection of PI and NPI patients', len(int_df))
-    print(int_df)
     # Exclude the intersection if exists
     NPI_df = NPI_df.loc[~NPI_df['hadm_id'].isin(PI_df['hadm_id'])]
     int_df = pd.merge(PI_df, NPI_df, how ='inner', on =['hadm_id'])
-    print(len(int_df))
-    print(int_df)
     # Label admissions as PI or Non PI
     NPI_df['PI'] = 0
     PI_df['PI'] = 1
@@ -294,7 +281,7 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
     NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
     if conf['PC_P_events']:
         conf['PC_path'] = True
-    pi_events_P, npi_events_P, pi_PPC, npi_PPC = run_iterations(PI_admissions,
+    pi_events_P, npi_events_P, PI_results, NPI_results = run_iterations(PI_admissions,
                                                 NPI_admissions,
                                                 PI_events,
                                                 NPI_events,
@@ -305,22 +292,11 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
                                                 vis_last_iter = True,
                                                 PC_path_last_iter = True)
 
-    braden_events = get_chart_events(conn, 'Braden Score', conf, PI_hadms)
-    print(len(braden_events))
-    braden_events = remove_events_after_t(braden_events, PI_hadm_stage_t)
-    #braden_events = [e for e in PI_events if 'Braden Score' in e['type']]
-    patient_BS = get_patient_max_Braden_Scores(braden_events, conf['PC_time_unit'])
-    plot_time_series(pi_PPC, patient_BS, conf)
-    plot_time_series_average(pi_PPC, patient_BS, conf)
-    for idd in pi_PPC:
-        if idd in patient_BS:
-            print(idd, len(pi_PPC[idd]['PC']), len(patient_BS[idd]['BS']))
-        else:
-            print(idd, len(pi_PPC[idd]['PC']))
+    plot_PC_and_BS(conn, conf, PI_results['patient_PC'], PI_hadms, PI_hadm_stage_t)
 
         
 if __name__ == "__main__":
-    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P97'
+    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P95'
     #TEG_PC_PI_ONLY(EVENTS_INCLUDED, join_rules, conf, fname)
     #TEG_PC_PI_ONLY(ALL_EVENTS, join_rules, conf, fname)
     #TEG_PC_PI_NPI(PI_RISK_EVENTS, join_rules, conf, fname)

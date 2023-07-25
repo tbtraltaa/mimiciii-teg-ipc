@@ -10,10 +10,9 @@ from teg.build_graph import *
 from teg.paths import *
 
 def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fname):
-    conf['vis_PC'] = False
-    G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+    # no PC visualization if PC is None
+    G = build_networkx_graph(A, events, patients, None, conf, join_rules)
     visualize_graph(G, fname = fname + "-Graph-No-PC")
-    conf['vis_PC'] = True
     G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
     visualize_graph(G, fname = fname + "-Graph")
     g = Network(
@@ -70,10 +69,9 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         visualize_vertices(G, list(PC_P.keys()), fname+"V_percentile")
     '''
     if conf['vis']:
-        conf['vis_PC'] = False
-        G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+        # no PC visualization if PC is None
+        G = build_networkx_graph(A, events, patients, None, conf, join_rules)
         visualize_graph(G, fname = fname + "-Graph-No-PC")
-        conf['vis_PC'] = True
         G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
         visualize_graph(G, fname = fname + "-Graph")
         for n_paths in conf['n_patient_paths']:

@@ -17,23 +17,27 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     #        else (e['i'], e['id']) for e in events])
     attrs = dict([(e['i'], e['id']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
-    shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
-    shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
-    shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
-    nx.set_node_attributes(G, shapes, 'shape')
-    if not conf['scale_PC']:
-        max_PC = max(PC.values())
-        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                else (i, v/max_PC * 120) for i, v in PC.items()])
-    else:
-        PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                else (i, v * 120) for i, v in PC.items()])
-    if conf['vis_PC']:
+    if PC is not None:
+        if conf['scale_PC']:
+            max_PC = max(PC.values())
+            PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v/max_PC * 120) for i, v in PC.items()])
+        else:
+            PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v * 10000) for i, v in PC.items()])
+        shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
+        shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
+        shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
+        nx.set_node_attributes(G, shapes, 'shape')
         nx.set_node_attributes(G, PC_scaled, 'size')
-
+        attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
+            for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
+    else:
+        shapes = dict([(i, 'dot') for i in range(len(events))])
+        shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
+        shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
+        attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v) for k, v in e.items()])) for e in events])
     #nx.set_node_attributes(G, PC_scaled, 'value')
-    attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
-        for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
     if conf['edge label']:

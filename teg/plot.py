@@ -7,10 +7,95 @@ from plotly.subplots import make_subplots
 from datetime import timedelta
 from scipy.signal import savgol_filter
 
+from teg.event_utils import *
+from teg.queries_chart_events import get_chart_events
+
+def plot_event_type_PC(PC, conf, percentile='', nbins = 30, title = '', fname='ET_Figure'):
+    #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
+    #df = pd.DataFrame({'type': list(PC_type.keys()), 'val': list(PC_type.values())})
+    #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
+    n = len(PC)
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    if title:
+        plt.title(f"{title}: Event type PC distribution " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution " + str(percentile))
+    plt.hist(list(PC.values()), bins=30, rwidth=0.7)
+    plt.xlabel("Nonzero PC values")
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}_1")
+    plt.clf()
+    plt.cla()
+
+    plt.figure(figsize=(14, 8))
+    #df['val_log10'] = np.log10(list(PC.values()))
+    #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
+    if title:
+        plt.title(f"{title}: Event type PC distribution after Log transformation " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution after Log transformation " + str(percentile))
+
+    plt.hist(np.log10(list(PC.values())), bins=20, rwidth=0.7)
+    plt.xlabel("Nonzero PC values")
+    #plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.savefig(f"{fname}_2")
+    plt.clf()
+    plt.cla()
+
+
+    plt.figure(figsize=(14, 8))
+    PC_sorted = dict(sorted(PC.items(), key=lambda x: x[1]))
+    top_n = conf['Top_n_PC'] if len(PC) > conf['Top_n_PC'] else len(PC)
+    vals = []
+    labels = []
+    for event_type in list(PC_sorted.keys())[n-top_n:]:
+        labels.append(event_type)
+        vals.append(PC_sorted[event_type])
+    y_pos  =  range(0, 2*len(PC_sorted), 2)[:top_n]
+    plt.barh(y_pos, vals, align='center')
+    plt.yticks(y_pos, labels=labels, fontsize=14)
+    if title:
+        plt.title(f"{title}: Top event type PC" + str(percentile))
+    else:
+        plt.title(f"Top event type PC" + str(percentile))
+    plt.xlabel("Event type PC")
+    #plt.xticks(rotation='vertical')
+    # Tweak spacing to prevent clipping of tick-labels
+    #plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout()
+    plt.savefig(f"{fname}_3")
+    plt.clf()
+    plt.cla()
+
+    total_PC = sum(list(PC_sorted.values()))
+    PC_p = list(PC_sorted.values())
+    PC_P = [v / total_PC for v in PC_p]
+    plt.figure(figsize=(14, 8))
+    y_pos  =  range(0, 2*len(PC_sorted), 2)
+    plt.barh(y_pos, PC_p, align='center')
+    plt.yticks(y_pos, labels=list(PC_sorted.keys()))
+    if title:
+        plt.title(f"{title}: Portion of total event type PC " + str(percentile))
+    else:
+        plt.title("Portion of total event PC " + str(percentile))
+    plt.xlabel("Portion of total event type PC")
+    # Tweak spacing to prevent clipping of tick-labels
+    plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout()
+    plt.savefig(f"{fname}_6")
+    plt.clf()
+    plt.cla()
+
 def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure'):
     #PC_t = dict([(events[i]['type'], v) for i, v in PC.items()])
     #df = pd.DataFrame({'type': list(PC_type.keys()), 'val': list(PC_type.values())})
     #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
+    n = len(PC)
     plt.clf()
     plt.cla()
     plt.figure(figsize=(14, 8))
@@ -67,13 +152,13 @@ def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure')
     '''
 
     plt.figure(figsize=(14, 8))
-    PC_sorted = dict(sorted(PC.items(), key=lambda x: x[1], reverse=True))
+    PC_sorted = dict(sorted(PC.items(), key=lambda x: x[1]))
     top_n = conf['Top_n_PC'] if len(PC) > conf['Top_n_PC'] else len(PC)
     vals = []
     labels = []
-    for i in list(PC_sorted.keys())[:top_n]:
-        labels = [events[i]['type']] + labels
-        vals = [PC_sorted[i]] + vals
+    for i in list(PC_sorted.keys())[n-top_n:]:
+        labels.append(events[i]['type'])
+        vals.append(PC_sorted[i])
     y_pos  =  range(0, 2*len(PC_sorted), 2)[:top_n]
     plt.barh(y_pos, vals, align='center')
     plt.yticks(y_pos, labels=labels, fontsize=14)
@@ -277,6 +362,22 @@ def plot_PC_by_parent_type(events, PC, conf, percentile='', nbins=30, title=''):
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
     plt.show()
+
+
+def plot_PC_and_BS(conn, conf, patient_PC, PI_hadms, PI_hadm_stage_t):
+    braden_events = get_chart_events(conn, 'Braden Score', conf, PI_hadms)
+    print('Braden Scale events: ', len(braden_events))
+    braden_events = remove_events_after_t(braden_events, PI_hadm_stage_t)
+    #braden_events = [e for e in PI_events if 'Braden Score' in e['type']]
+    patient_BS = get_patient_max_Braden_Scores(braden_events, conf['PC_time_unit'])
+    plot_time_series(patient_PC, patient_BS, conf)
+    plot_time_series_average(patient_PC, patient_BS, conf)
+    for idd in patient_PC:
+        if idd in patient_BS:
+            print(idd, len(patient_PC[idd]['PC']), len(patient_BS[idd]['BS']))
+        else:
+            print(idd, len(patient_PC[idd]['PC']))
+
 
 def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NPI_match = None):
     #extract color palette, the palette can be changed

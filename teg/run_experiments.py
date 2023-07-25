@@ -43,16 +43,32 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     if max(PC_values) == 0:
         return None, None, None, None
     PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
+    event_type_PC, event_type_PC_P = process_event_type_PC(events, PC_values, conf) 
     patient_PC = get_patient_max_PC(events, PC_all, conf['PC_time_unit'])
-    if conf['plot']:
+    patient_PC_total = get_patient_PC_total(events, PC_all)
+    if conf['vis']:
         plot_PC(events, PC_nz, conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10, title=title, fname=f"{fname}_P")
-    if conf['vis'] and conf['PC_path']:
-        simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
-        visualize(admissions, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname+'_Paths_')
-    elif conf['vis']:
-        simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
-    return PC_all, PC_nz, PC_P, patient_PC
+        plot_event_type_PC(event_type_PC, conf, title=title, fname=f"{fname}_event_type")
+        plot_event_type_PC(event_type_PC_P,
+                           conf, 
+                           conf['PC_percentile'],
+                           title=title,
+                           fname=f"{fname}_event_type_P")
+        if conf['PC_path']:
+            simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
+            visualize(admissions, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname+'_Paths_')
+        else:
+            simple_visualization(A, events, admissions, PC_all, PC_P, conf, join_rules, fname)
+    results = {}
+    results['PC_all'] = PC_all
+    results['PC_nz'] = PC_nz
+    results['PC_P'] = PC_P
+    results['patient_PC'] = patient_PC
+    results['patient_PC_total'] = patient_PC_total
+    results['event_type_PC'] = event_type_PC
+    results['event_type_PC_P'] = event_type_PC_P
+    return results
 
 
 def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, join_rules, fname, title='', 
@@ -68,41 +84,47 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
         if len(I) != 0:
             PI_events = remove_event_type(PI_events, I) 
             NPI_events = remove_event_type(NPI_events, I) 
-        PI_PC_all, PI_PC_nz, PI_PC_P, PI_patient_PC = run_experiments(PI_admissions,
-                                                       PI_events,
-                                                       conf,
-                                                       join_rules,
-                                                       fname + f'_PI_{i}', 'PI: ' + title)
-        if PI_PC_P is None:
-            return PI_events, NPI_events, PI_patient_PC, None
-        PI_etypes_P = get_event_types(PI_events, PI_PC_P)
-
-        NPI_PC_all, NPI_PC_nz, NPI_PC_P, NPI_patient_PC = run_experiments(NPI_admissions,
-                                                          NPI_events,
-                                                          conf,
-                                                          join_rules,
-                                                          fname + f'_NPI_{i}', 'NPI: ' + title)
-        if NPI_PC_P is None:
-            return PI_events, NPI_events, None, None
-        NPI_etypes_P = get_event_types(NPI_events, NPI_PC_P)
-        PI_types, NPI_types, I = intersection_and_differences(PI_etypes_P, NPI_etypes_P)
+        PI_results = run_experiments(PI_admissions,
+                                       PI_events,
+                                       conf,
+                                       join_rules,
+                                       fname + f'_PI_{i+1}', 'PI: ' + title)
+        NPI_results = run_experiments(NPI_admissions,
+                                          NPI_events,
+                                          conf,
+                                          join_rules,
+                                          fname + f'_NPI_{i+1}', 'NPI: ' + title)
+        if NPI_results['PC_P'] is None or PI_results['PC_P'] is None:
+            return PI_events, NPI_events, PI_results, NPI_results
+        if conf['iter_type'] == 'event_type_PC':
+            PI_event_types = set(list(PI_results['event_type_PC_P'].keys()))
+            NPI_event_types = set(list(NPI_results['event_type_PC_P'].keys()))
+        elif conf['iter_type'] == 'event_PC':
+            PI_event_types = get_event_types(PI_events, PI_results['PC_P'])
+            NPI_event_types = get_event_types(NPI_events, NPI_results['PC_P'])
+        PI_types, NPI_types, I = intersection_and_differences(PI_event_types, NPI_event_types)
         if I == [] and vis_last_iter and PC_path_last_iter:
             conf['vis'] = True
-            conf['plot'] = True
             vis_last_iter = False
             conf['PC_path'] = True
             PC_path_last_iter = False
+            i -= 1
         elif I == [] and vis_last_iter and not PC_path_last_iter:
             conf['vis'] = True
-            conf['plot'] = True
+            conf['PC_path'] = False
             vis_last_iter = False
+            i -= 1
+        elif I == [] and not vis_last_iter and PC_path_last_iter:
+            conf['PC_path'] = True
+            PC_path_last_iter = False
+            i -= 1
         elif I == [] and not vis_last_iter and not PC_path_last_iter:
             break
         i += 1
     if conf['PC_P_events']:
         PI_events = get_top_events(PI_events, PI_PC_P, conf, I)
         NPI_events = get_top_events(NPI_events, NPI_PC_P, conf, I)
-    return PI_events, NPI_events, PI_patient_PC, NPI_patient_PC
+    return PI_events, NPI_events, PI_results, NPI_results
 
 
 def check_PC_values(A, states):

@@ -57,7 +57,8 @@ PATIENTS = {
         'religion',
         'marital_status',
         'ethnicity',
-        'diagnosis']}
+        #'diagnosis'
+        ]}
 
 
 # {<event_name>: [<event_name>, <event_table>, <time_column>, <main attr>]}
