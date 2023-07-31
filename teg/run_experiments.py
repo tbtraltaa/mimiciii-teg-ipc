@@ -13,6 +13,7 @@ from teg.percolation import PC_with_target_path_nx
 from teg.apercolation import *
 from teg.event_utils import *
 from teg.PC_utils import *
+from teg.utils import *
 from teg.graph_vis import *
 from teg.build_graph import *
 from teg.paths import *
@@ -43,14 +44,23 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     if max(PC_values) == 0:
         return None, None, None, None
     PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
-    event_type_PC, event_type_PC_P = process_event_type_PC(events, PC_values, conf) 
+    PC_P_ET, PC_P_ET_freq, PC_P_ET_avg = get_event_type_PC(events, PC_P)
+    ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg \
+        = process_event_type_PC(events, PC_values, conf) 
     patient_PC = get_patient_max_PC(events, PC_all, conf['PC_time_unit'])
     patient_PC_total = get_patient_PC_total(events, PC_all)
     if conf['vis']:
         plot_PC(events, PC_nz, conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10, title=title, fname=f"{fname}_P")
-        plot_event_type_PC(event_type_PC, conf, title=title, fname=f"{fname}_event_type")
-        plot_event_type_PC(event_type_PC_P,
+        plot_event_type_PC(ET_PC,
+                           ET_PC_freq,
+                           ET_PC_avg,
+                           conf,
+                           title=title,
+                           fname=f"{fname}_event_type")
+        plot_event_type_PC(ET_PC_P, 
+                           ET_PC_P_freq,
+                           ET_PC_P_avg,
                            conf, 
                            conf['PC_percentile'],
                            title=title,
@@ -64,10 +74,17 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     results['PC_all'] = PC_all
     results['PC_nz'] = PC_nz
     results['PC_P'] = PC_P
+    results['PC_P_ET'] = PC_P_ET
+    results['PC_P_ET_freq'] = PC_P_ET_freq
+    results['PC_P_ET_avg'] = PC_P_ET_avg
     results['patient_PC'] = patient_PC
     results['patient_PC_total'] = patient_PC_total
-    results['event_type_PC'] = event_type_PC
-    results['event_type_PC_P'] = event_type_PC_P
+    results['ET_PC'] = ET_PC
+    results['ET_PC_freq'] = ET_PC_freq
+    results['ET_PC_P'] = ET_PC_P
+    results['ET_PC_P_freq'] = ET_PC_P_freq
+    results['ET_PC_avg'] = ET_PC_avg
+    results['ET_PC_P_avg'] = ET_PC_P_avg
     return results
 
 
@@ -76,14 +93,16 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
     I = []
     #for i in range(conf['iterations']):
     i = 0
+    df = None
+    last_iter = False
     while True:
 
         print("==========================================================")
         print(f"Iteration: {i + 1}")
         print("==========================================================")
         if len(I) != 0:
-            PI_events = remove_event_type(PI_events, I) 
-            NPI_events = remove_event_type(NPI_events, I) 
+            PI_events = remove_event_types(PI_events, I) 
+            NPI_events = remove_event_types(NPI_events, I) 
         PI_results = run_experiments(PI_admissions,
                                        PI_events,
                                        conf,
@@ -97,33 +116,65 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
         if NPI_results['PC_P'] is None or PI_results['PC_P'] is None:
             return PI_events, NPI_events, PI_results, NPI_results
         if conf['iter_type'] == 'event_type_PC':
-            PI_event_types = set(list(PI_results['event_type_PC_P'].keys()))
-            NPI_event_types = set(list(NPI_results['event_type_PC_P'].keys()))
+            PI_types, NPI_types, I = dict_intersection_and_differences(
+                                        PI_results['ET_PC_P'],
+                                        NPI_results['ET_PC_P'])
         elif conf['iter_type'] == 'event_PC':
-            PI_event_types = get_event_types(PI_events, PI_results['PC_P'])
-            NPI_event_types = get_event_types(NPI_events, NPI_results['PC_P'])
-        PI_types, NPI_types, I = intersection_and_differences(PI_event_types, NPI_event_types)
-        if I == [] and vis_last_iter and PC_path_last_iter:
+            PI_types, NPI_types, I = dict_intersection_and_differences(
+                                        PI_results['PC_P_ET'],
+                                        NPI_results['PC_P_ET'])
+        elif conf['iter_type'] == 'average_event_PC':
+            PI_types, NPI_types, I = dict_intersection_and_differences(
+                                        PI_results['ET_PC_P_avg'],
+                                        NPI_results['ET_PC_P_avg'])
+
+        print("==========================================================")
+        print(f"Intersections")
+        print("==========================================================")
+        pprint.pprint(I)
+        if df is None and not last_iter:
+            df = get_event_type_df(PI_types, 
+                                   NPI_types, 
+                                   I, 
+                                   i + 1, 
+                                   PI_results,
+                                   NPI_results, 
+                                   conf)
+        elif df is not None and not last_iter:
+            df_i = get_event_type_df(PI_types, 
+                                     NPI_types,
+                                     I, 
+                                     i + 1,
+                                     PI_results,
+                                     NPI_results,
+                                     conf)
+            df = pd.concat([df_i, df], ignore_index=True) 
+        if len(I) == 0 and vis_last_iter and PC_path_last_iter:
             conf['vis'] = True
             vis_last_iter = False
             conf['PC_path'] = True
             PC_path_last_iter = False
             i -= 1
-        elif I == [] and vis_last_iter and not PC_path_last_iter:
+            last_iter = True
+        elif len(I) == 0 and vis_last_iter and not PC_path_last_iter:
             conf['vis'] = True
             conf['PC_path'] = False
             vis_last_iter = False
             i -= 1
-        elif I == [] and not vis_last_iter and PC_path_last_iter:
+            last_iter = True
+        elif len(I) == 0 and not vis_last_iter and PC_path_last_iter:
             conf['PC_path'] = True
             PC_path_last_iter = False
             i -= 1
-        elif I == [] and not vis_last_iter and not PC_path_last_iter:
+            last_iter = True
+        elif len(I) == 0 and not vis_last_iter and not PC_path_last_iter:
             break
         i += 1
     if conf['PC_P_events']:
-        PI_events = get_top_events(PI_events, PI_PC_P, conf, I)
-        NPI_events = get_top_events(NPI_events, NPI_PC_P, conf, I)
+        PI_events = get_top_events(PI_events, PI_results['PC_P'], conf, I)
+        NPI_events = get_top_events(NPI_events, NPI_results['PC_P'], conf, I)
+    print(df)
+    df.to_csv(f"{fname}_results.csv")
     return PI_events, NPI_events, PI_results, NPI_results
 
 

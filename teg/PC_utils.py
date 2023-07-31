@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
 from datetime import timedelta
 
 from teg.event_utils import group_events_by_patient
+
 
 def process_PC_values(PC_values, conf):
     '''
@@ -30,32 +32,46 @@ def process_PC_values(PC_values, conf):
     print("Nodes above percentile", len(PC_P))
     return PC_all, PC_nz, PC_P
 
+
 def process_event_type_PC(events, PC_values, conf):
     '''
     Returns dictionaries of all PC values, non-zero PC values,
     and PC values above the percentile 
     '''
-    event_type_PC = {}
+    # ET stands for Event Type
+    ET_PC = {}
+    ET_PC_freq= {}
     max_PC = float(max(PC_values))
     for e in events:
-        e_type = e['type']
         val = PC_values[e['i']]
         if val == 0:
             continue
         v = float(val) / max_PC if conf['scale_PC'] else float(val)
-        if e_type not in event_type_PC:
-            event_type_PC[e_type] = v
+        if e['type'] not in ET_PC:
+            # value and freq
+            ET_PC[e['type']] = v
+            ET_PC_freq[e['type']] = 1 
         else:
-            event_type_PC[e_type] += v
-    vals = list(event_type_PC.values())
+            ET_PC[e['type']] += v
+            ET_PC_freq[e['type']] += 1
+    vals = list(ET_PC.values())
     P_min = np.percentile(vals, conf['PC_percentile'][0])
     P_max = np.percentile(vals, conf['PC_percentile'][1])
     print("None zero event type PC", len(vals))
     print("Min, Max event type PC ", min(vals), max(vals))
     print("Percentile", P_min, P_max)
-    event_type_PC_P = dict([(e_type, v) for e_type, v in event_type_PC.items() if v >= P_min and v <= P_max])
-    print("Event types PC above percentile", len(event_type_PC_P))
-    return event_type_PC, event_type_PC_P
+    ET_PC_P = dict([(et, v) for et, v in ET_PC.items() \
+            if v >= P_min and v <= P_max and ET_PC_freq[et] >= conf['ET_PC_min_freq']])
+    ET_PC_P_freq = dict([(et, ET_PC_freq[et]) for et, v in ET_PC_P.items()])
+    print("Event types PC above percentile", len(ET_PC_P))
+    ET_PC_avg = dict([(t, v/ET_PC_freq[t]) for t, v in ET_PC.items() if ET_PC_freq[t] >= conf['ET_PC_min_freq']])
+    vals = list(ET_PC_avg.values())
+    P_min = np.percentile(vals, conf['PC_percentile'][0])
+    P_max = np.percentile(vals, conf['PC_percentile'][1])
+    ET_PC_P_avg = dict([(t, v) for t, v in ET_PC_avg.items() if v >= P_min and v <= P_max])
+    print("Average Event PC above percentile", len(ET_PC_P_avg))
+    return ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg
+
 
 def get_patient_PC(events, PC):
     '''
@@ -105,3 +121,109 @@ def get_patient_max_PC(events, PC, time_unit = timedelta(days=1, hours=0)):
                 patient_PC[p_id]['PC'][-1] = PC[e['i']]
                 max_PC = PC[e['i']]
     return patient_PC
+
+
+def get_event_type_PC(events, PC):
+    ET_PC = {}
+    ET_PC_freq = {}
+    for i in PC:
+        if PC[i] == 0:
+            continue
+        if events[i]['type'] not in ET_PC:
+            ET_PC[events[i]['type']] = PC[i]
+            ET_PC_freq[events[i]['type']] = 1
+        else:
+            ET_PC[events[i]['type']] += PC[i]
+            ET_PC_freq[events[i]['type']] += 1
+    ET_PC_AVG = dict([(t, v/ET_PC_freq[t]) for t, v in ET_PC.items()])
+    return ET_PC, ET_PC_freq, ET_PC_AVG
+
+
+def get_event_type_df(PI_types, NPI_types, I, i, PI_results, NPI_results, conf):
+    if conf['iter_type'] == 'event_PC':
+        PI_ET = PI_results['PC_P_ET']
+        PI_ET_freq = PI_results['PC_P_ET_freq']
+        NPI_ET = NPI_results['PC_P_ET']
+        NPI_ET_freq = NPI_results['PC_P_ET_freq']
+        PI_ET_avg = PI_results['PC_P_ET_avg'] 
+        NPI_ET_avg = NPI_results['PC_P_ET_avg'] 
+    elif conf['iter_type'] == 'event_type_PC':
+        PI_ET = PI_results['ET_PC_P']
+        PI_ET_freq = PI_results['ET_PC_P_freq']
+        NPI_ET = NPI_results['ET_PC_P']
+        NPI_ET_freq = NPI_results['ET_PC_P_freq']
+        PI_ET_avg = PI_results['ET_PC_avg'] 
+        NPI_ET_avg = NPI_results['ET_PC_avg'] 
+    elif conf['iter_type'] == 'average_event_PC':
+        PI_ET = PI_results['ET_PC']
+        PI_ET_freq = PI_results['ET_PC_freq']
+        NPI_ET = NPI_results['ET_PC']
+        NPI_ET_freq = NPI_results['ET_PC_freq']
+        PI_ET_avg = PI_results['ET_PC_avg'] 
+        NPI_ET_avg = NPI_results['ET_PC_avg'] 
+    df = pd.DataFrame(columns=['Iteration',
+                               'Event Type',
+                               'Result',
+                               'Event Type PC (PI)',
+                               'Event Type PC (NPI)',
+                               'Event Count (PI)',
+                               'Event Count (NPI)',
+                               'Avg Event PC (PI)',
+                               'Avg Event PC (NPI)',
+                               ])
+    for t in PI_types:
+        df = df.append({'Event Type': t,
+                        'Result': 'PI',
+                        'Event Type PC (PI)': PI_ET[t],
+                        'Event Type PC (NPI)': NPI_ET[t] if t in NPI_ET else np.nan,
+                        'Iteration': i,
+                        'Event Count (PI)': PI_ET_freq[t],
+                        'Event Count (NPI)': NPI_ET_freq[t] if t in NPI_ET_freq else np.nan,
+                        'Avg Event PC (PI)': PI_ET_avg[t],
+                        'Avg Event PC (NPI)': NPI_ET_avg[t] if t in NPI_ET_avg else np.nan,
+                        }, 
+                       ignore_index=True)
+    for t in NPI_types:
+        df = df.append({'Event Type': t,
+                        'Result': 'NPI',
+                        'Event Type PC (PI)': PI_ET[t] if t in PI_ET else np.nan,
+                        'Event Type PC (NPI)': NPI_ET[t],
+                        'Iteration': i,
+                        'Event Count (PI)': PI_ET_freq[t] if t in PI_ET_freq else np.nan,
+                        'Event Count (NPI)': NPI_ET_freq[t],
+                        'Avg Event PC (PI)': PI_ET_avg[t] if t in PI_ET_avg else np.nan,
+                        'Avg Event PC (NPI)': NPI_ET_avg[t],
+                        }, 
+                       ignore_index=True)
+    for t in I:
+        df = df.append({'Event Type': t,
+                        'Result': 'PI and NPI',
+                        'Event Type PC (PI)': PI_ET[t],
+                        'Event Type PC (NPI)': NPI_ET[t],
+                        'Iteration': i,
+                        'Event Count (PI)': PI_ET_freq[t],
+                        'Event Count (NPI)': NPI_ET_freq[t],
+                        'Avg Event PC (PI)': PI_ET_avg[t],
+                        'Avg Event PC (NPI)': NPI_ET_avg[t],
+                        }, ignore_index=True)
+    if conf['iter_type'] == 'average_event_PC':
+        df = df.sort_values(by=['Iteration',
+                                'Event Type',
+                                'Result',
+                                'Avg Event PC (PI)',
+                                'Avg Event PC (NPI)',
+                                'Event Type PC (PI)',
+                                'Event Type PC (NPI)'],
+                            ascending=[False, True, True, False, True, False, True],
+                            ignore_index=True)
+    else:
+        df = df.sort_values(by=['Iteration',
+                                'Event Type',
+                                'Result',
+                                'Event Type PC (PI)',
+                                'Event Type PC (NPI)',
+                                'Avg Event PC (PI)',
+                                'Avg Event PC (NPI)'],
+                            ascending=[False, True, True, False, True, False, True],
+                            ignore_index=True)
+    return df

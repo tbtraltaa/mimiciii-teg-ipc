@@ -45,6 +45,7 @@ conf = {
     'PI_daily_max_stage': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
     'PC_percentile': [90, 100],
+    'ET_PC_min_freq': 0,
     'PC_path': False,
     'event_type_PC_P': True,
     'PC_percentile_max_n': False,
@@ -66,11 +67,11 @@ conf = {
     'input_percentile': [40, 80],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 100,
+    'hadm_limit': 200,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
     'n_patient_paths': [1, 3], # n highest PC paths of a patient
-    'vis': True,
+    'vis': False,
     'PC_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
@@ -296,7 +297,7 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
 
         
 if __name__ == "__main__":
-    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P95'
+    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P80'
     #TEG_PC_PI_ONLY(EVENTS_INCLUDED, join_rules, conf, fname)
     #TEG_PC_PI_ONLY(ALL_EVENTS, join_rules, conf, fname)
     #TEG_PC_PI_NPI(PI_RISK_EVENTS, join_rules, conf, fname)

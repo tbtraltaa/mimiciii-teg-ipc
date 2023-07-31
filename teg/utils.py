@@ -1,6 +1,38 @@
 import pandas as pd
 
 
+def dict_intersection_and_differences(D1, D2):
+    '''
+    Intersection and differences of two dictionaries
+    based on dictionary keys
+    '''
+    A = set(D1.keys())
+    B = set(D2.keys())
+    I = A & B
+    A_minus_B  = A - I
+    B_minus_A = B - I
+    A_minus_B_dict = {}
+    B_minus_A_dict = {}
+    I_dict = {}
+    for key in I:
+        I_dict[key] = [D1[key], D2[key]]
+    for key in A_minus_B:
+        A_minus_B_dict[key] = D1[key]
+    for key in B_minus_A:
+        B_minus_A_dict[key] = D2[key]
+    return A_minus_B_dict, B_minus_A_dict, I_dict
+
+def list_intersection_and_differences(L1, L2):
+    '''
+    List intersection and differences
+    '''
+    A = set(L1)
+    B = set(L2)
+    I = A & B
+    A_minus_B  = A - I
+    B_minus_A = B - I
+    return list(A_minus_B), list(B_minus_A), list(I)
+
 def get_quantile(val, Q, conf):
     # for '0.25 to 1', 0.25 is taken
     if type(val) == str:

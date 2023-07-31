@@ -18,24 +18,13 @@ def get_top_events(events, PC_P, conf, I = []):
             break
     return top_events
 
-def intersection_and_differences(A, B):
-    I = A & B
-    A_minus_B  = list(A - I)
-    B_minus_A = list(B - I)
-    I = list(I)
-    #print("A - B: ")
-    #print(A_minus_B)
-    #print("B - A")
-    #print(B_minus_A)
-    print("Intersection: ")
-    pprint.pprint(I)
-    return A_minus_B, B_minus_A, I
 
 def get_event_types(events, PC):
     etypes = set()
     for i, val in PC.items():
-            etypes.add(events[i]['type'])
+        etypes.add(events[i]['type'])
     return etypes
+
 
 def group_events_by_parent_type1(events):
     events_grouped = dict()
@@ -71,18 +60,17 @@ def sort_and_index_events(events):
         sorted_events[i]['i'] = i
     return sorted_events
 
-def remove_event_type(events, types):
+def remove_event_types(events, types):
     '''
     Events are assumed to be ordered by type and time
     '''
     events_copy = copy.copy(events)
     indices = list()
     # iterate from the last
-    for i in range(len(events)-1, -1, -1):
+    n = len(events)
+    for i in range(n-1, -1, -1):
         if events[i]['type'] in types:
-            indices.append(i)
-    for i in indices:
-        del events_copy[i]
+            del events_copy[i]
     # reindex events
     for i in range(len(events_copy)):
         events_copy[i]['i'] = i
