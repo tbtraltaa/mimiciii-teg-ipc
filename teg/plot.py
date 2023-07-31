@@ -25,8 +25,9 @@ def plot_event_type_PC(PC, PC_freq, PC_avg, conf, percentile='', nbins = 30, tit
         plt.title(f"Event type PC distribution " + str(percentile))
     plt.hist(list(PC.values()), bins=30, rwidth=0.7)
     plt.xlabel("Event type PC values")
-    plt.xscale("log")
-    plt.yscale("log")
+    if not percentile:
+        plt.xscale("log")
+        plt.yscale("log")
     plt.ylabel("Frequency")
     plt.savefig(f"{fname}_1")
     plt.clf()
@@ -61,9 +62,9 @@ def plot_event_type_PC(PC, PC_freq, PC_avg, conf, percentile='', nbins = 30, tit
     plt.barh(y_pos, vals, align='center')
     plt.yticks(y_pos, labels=labels, fontsize=14)
     if title:
-        plt.title(f"{title}: Top event type PC" + str(percentile))
+        plt.title(f"{title}: Top event type PC " + str(percentile))
     else:
-        plt.title(f"Top event type PC" + str(percentile))
+        plt.title(f"Top event type PC " + str(percentile))
     plt.xlabel("Event type PC")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
@@ -79,7 +80,7 @@ def plot_event_type_PC(PC, PC_freq, PC_avg, conf, percentile='', nbins = 30, tit
     plt.barh(y_pos, list(PC_freq.values()), align='center')
     plt.yticks(y_pos, labels=list(PC_freq.keys()))
     if title:
-        plt.title(f"{title}: Event frequency" + str(percentile))
+        plt.title(f"{title}: Event frequency " + str(percentile))
     else:
         plt.title("Event frequency " + str(percentile))
     plt.xlabel("Event frequency")
@@ -137,8 +138,9 @@ def plot_PC(events, PC, conf, percentile='', nbins=30, title='', fname='Figure')
         plt.title(f"PC value distribution " + str(percentile))
     plt.hist(list(PC.values()), bins=30, rwidth=0.7)
     plt.xlabel("Nonzero PC values")
-    plt.xscale("log")
-    plt.yscale("log")
+    if not percentile:
+        plt.xscale("log")
+        plt.yscale("log")
     plt.ylabel("Frequency")
     plt.savefig(f"{fname}_1")
     plt.clf()
@@ -250,8 +252,9 @@ def plot_PC_by_parent_type(events, PC, conf, percentile='', nbins=30, title=''):
         plt.title(f"PC value distribution " + str(percentile))
     plt.hist(list(PC.values()), bins=30, rwidth=0.7)
     plt.xlabel("Nonzero PC values")
-    plt.xscale("log")
-    plt.yscale("log")
+    if not percentile:
+        plt.xscale("log")
+        plt.yscale("log")
     plt.ylabel("Frequency")
     plt.show()
 
@@ -576,3 +579,262 @@ def plot_time_series_average(patient_PC, patient_BS, conf):
     fig.update_yaxes(title_text="Average PC value", secondary_y=False)
     fig.update_yaxes(title_text="Average Braden Scale", secondary_y=True)
     fig.show()
+
+def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname='ET_PI_NPI'):
+    PI_c = 'red'
+    NPI_c = 'blue'
+    if not percentile:
+        PI_PC = PI_R['ET_PC']
+        PI_PC_freq = PI_R['ET_PC_freq']
+        PI_PC_avg = PI_R['ET_PC_avg']
+        NPI_PC = NPI_R['ET_PC']
+        NPI_PC_freq = NPI_R['ET_PC_freq']
+        NPI_PC_avg = NPI_R['ET_PC_avg']
+    else:
+        PI_PC = PI_R['ET_PC_P']
+        PI_PC_freq = PI_R['ET_PC_P_freq']
+        PI_PC_avg = PI_R['ET_PC_P_avg']
+        NPI_PC = NPI_R['ET_PC_P']
+        NPI_PC_freq = NPI_R['ET_PC_P_freq']
+        NPI_PC_avg = NPI_R['ET_PC_P_avg']
+
+    PI_n = len(PI_PC)
+    NPI_n = len(NPI_PC)
+    max_n = PI_n if PI_n > NPI_n else NPI_n
+    PI_l = 'PI'
+    NPI_l = 'NPI'
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    if title:
+        plt.title(f"{title}: Event type PC distribution " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution " + str(percentile))
+    plt.hist(list(PI_PC.values()), bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(list(NPI_PC.values()), bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.xlabel("Event type PC values")
+    if percentile == '':
+        plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+        plt.xscale("log")
+        plt.yscale("log")
+    else:
+        plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.savefig(f"{fname}_1")
+    plt.clf()
+    plt.cla()
+
+    plt.figure(figsize=(14, 8))
+    #df['val_log10'] = np.log10(list(PC.values()))
+    #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
+    if title:
+        plt.title(f"{title}: Event type PC distribution after Log transformation " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution after Log transformation " + str(percentile))
+
+    plt.hist(np.log10(list(PI_PC.values())), bins=20, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(np.log10(list(NPI_PC.values())), bins=20, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.axvline(np.log10(PI_R['ET_P'][0]), color=PI_c, linestyle='dashed', linewidth=1)
+    plt.axvline(np.log10(NPI_R['ET_P'][0]), color=NPI_c, linestyle='dashed', linewidth=1)
+    plt.xlabel("Event type PC values")
+    #plt.yscale("log")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.savefig(f"{fname}_2")
+    plt.clf()
+    plt.cla()
+
+
+    plt.figure(figsize=(14, 8))
+    PI_PC = dict(sorted(PI_PC.items(), key=lambda x: x[1], reverse=True))
+    NPI_PC = dict(sorted(NPI_PC.items(), key=lambda x: x[1], reverse=True))
+    PI_top_n = conf['Top_n_PC'] if PI_n > conf['Top_n_PC'] else PI_n
+    NPI_top_n = conf['Top_n_PC'] if NPI_n > conf['Top_n_PC'] else NPI_n
+    max_top_n = PI_top_n if PI_top_n > NPI_top_n else NPI_top_n
+    PI_minor = True if PI_top_n <= NPI_top_n else False
+    vals = []
+    labels = []
+    for event_type in list(NPI_PC.keys())[:NPI_top_n]:
+        labels.append(event_type)
+        vals.append(NPI_PC[event_type])
+    y_pos  =  range(8 * (max_top_n + 1)-4, 0, -8)
+    for i in range(len(y_pos) - len(vals)):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=NPI_c, label=NPI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=NPI_c, minor= not PI_minor)
+    vals = []
+    labels = []
+    for event_type in list(PI_PC.keys())[:PI_top_n]:
+        labels.append(event_type)
+        vals.append(PI_PC[event_type])
+    y_pos  =  range(8 * (max_top_n + 1), 0, -8)
+    for i in range(len(y_pos) - len(vals)):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=PI_c, label=PI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=PI_c, minor=PI_minor)
+    if title:
+        plt.title(f"{title}: Top event type PC " + str(percentile))
+    else:
+        plt.title(f"Top event type PC " + str(percentile))
+    plt.xlabel("Event type PC")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}_3")
+    plt.clf()
+    plt.cla()
+
+    plt.figure(figsize=(14, 8))
+    PI_minor = True if PI_n <= NPI_n else False
+    NPI_PC_freq = dict(sorted(NPI_PC_freq.items(), key=lambda x: x[1], reverse=True))
+    y_pos  =  range(8 * (max_n + 1) - 4, 0, -8)
+    vals = list(NPI_PC_freq.values())
+    labels = list(NPI_PC_freq.keys())
+    for i in range(len(y_pos) - NPI_n):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=NPI_c, label=NPI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=NPI_c, minor=not PI_minor)
+    PI_PC_freq = dict(sorted(PI_PC_freq.items(), key=lambda x: x[1], reverse=True))
+    y_pos  =  range(8 * (max_n + 1), 0, -8)
+    vals = list(PI_PC_freq.values())
+    labels = list(PI_PC_freq.keys())
+    for i in range(len(y_pos) - PI_n):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=PI_c, label=PI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=PI_c, minor=PI_minor)
+
+    if title:
+        plt.title(f"{title}: Event frequency " + str(percentile))
+    else:
+        plt.title("Event frequency " + str(percentile))
+    plt.xlabel("Event frequency")
+    # Tweak spacing to prevent clipping of tick-labels
+    #plt.subplots_adjust(bottom=0.15)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}_4")
+    plt.clf()
+    plt.cla()
+
+    plt.figure(figsize=(14, 8))
+    y_pos  =  range(8 * (max_n + 1) -4, 0, -8)
+    vals = list(NPI_PC.values())
+    labels = list(NPI_PC.keys())
+    for i in range(len(y_pos) - NPI_n):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=NPI_c, label=NPI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=NPI_c, minor=not PI_minor)
+    y_pos  =  range(8 * (max_n + 1), 0, -8)
+    vals = list(PI_PC.values())
+    labels = list(PI_PC.keys())
+    for i in range(len(y_pos) - PI_n):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=PI_c, label=PI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=PI_c, minor=PI_minor)
+    if title:
+        plt.title(f"{title}: Event type PC " + str(percentile))
+    else:
+        plt.title("Event type PC " + str(percentile))
+    plt.xlabel("Event type PC")
+    # Tweak spacing to prevent clipping of tick-labels
+    plt.subplots_adjust(bottom=0.15)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}_5")
+    plt.clf()
+    plt.cla()
+
+    PI_n_avg = len(PI_PC_avg)
+    NPI_n_avg = len(NPI_PC_avg)
+    max_n_avg = PI_n_avg if PI_n_avg > NPI_n_avg else NPI_n_avg
+    PI_minor = True if PI_n_avg <= NPI_n_avg else False
+    plt.figure(figsize=(14, 8))
+    NPI_PC_avg = dict(sorted(NPI_PC_avg.items(), key=lambda x: x[1], reverse=True))
+    y_pos  =  range(8* (max_n_avg + 1) - 4, 0, -8)
+    vals = list(NPI_PC_avg.values())
+    labels = list(NPI_PC_avg.keys())
+    for i in range(len(y_pos) - NPI_n_avg):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=NPI_c, label=NPI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=NPI_c, minor=not PI_minor)
+
+    PI_PC_avg = dict(sorted(PI_PC_avg.items(), key=lambda x: x[1], reverse=True))
+    y_pos  =  range(8* (max_n_avg + 1), 0, -8)
+    vals = list(PI_PC_avg.values())
+    labels = list(PI_PC_avg.keys())
+    for i in range(len(y_pos) - PI_n_avg):
+        vals.append(0)
+        labels.append('')
+    plt.barh(y_pos, vals, align='center', color=PI_c, label=PI_l)
+    plt.yticks(y_pos, labels=labels, fontsize=10, color=PI_c, minor=PI_minor)
+    if title:
+        plt.title(f"{title}: Average event PC " + str(percentile))
+    else:
+        plt.title("Average event PC " + str(percentile))
+    plt.xlabel("Average event PC")
+    plt.legend()
+    # Tweak spacing to prevent clipping of tick-labels
+    #plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout()
+    plt.savefig(f"{fname}_6")
+    plt.clf()
+    plt.cla()
+
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    if percentile == '':
+        PI_PPC = PI_R['patient_PC_total']
+        NPI_PPC = NPI_R['patient_PC_total']
+    else:
+        PI_PPC = PI_R['patient_PC_P']
+        NPI_PPC = NPI_R['patient_PC_P']
+    if title:
+        plt.title(f"{title}: Patient PC " + str(percentile))
+    else:
+        plt.title(f"Patient PC " + str(percentile))
+    plt.hist(list(PI_PPC.values()), bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(list(NPI_PPC.values()), bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.xlabel("Patient PC")
+    if percentile == '':
+        plt.axvline(PI_R['PPC_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['PPC_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+        plt.xscale("log")
+        plt.yscale("log")
+    else:
+        plt.axvline(PI_R['PPC_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['PPC_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.savefig(f"{fname}_7")
+    plt.clf()
+    plt.cla()
+
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    if title:
+        plt.title(f"{title}: Patient PC Log base 10 " + str(percentile))
+    else:
+        plt.title(f"Patient PC Log base 10 " + str(percentile))
+    plt.hist(np.log10(list(PI_PPC.values())), bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(np.log10(list(NPI_PPC.values())), bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.xlabel("Patient PC")
+    plt.axvline(np.log10(PI_R['PPC_P'][0]), color=PI_c, linestyle='dashed', linewidth=1)
+    plt.axvline(np.log10(NPI_R['PPC_P'][0]), color=NPI_c, linestyle='dashed', linewidth=1)
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.savefig(f"{fname}_8")
+    plt.clf()
+    plt.cla()

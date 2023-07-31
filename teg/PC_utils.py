@@ -30,7 +30,7 @@ def process_PC_values(PC_values, conf):
     print("Percentile", P_min, P_max)
     PC_P = dict([(i, v) for i, v in PC_nz.items() if v >= P_min and v <= P_max])
     print("Nodes above percentile", len(PC_P))
-    return PC_all, PC_nz, PC_P
+    return PC_all, PC_nz, PC_P, [P_min, P_max]
 
 
 def process_event_type_PC(events, PC_values, conf):
@@ -69,8 +69,9 @@ def process_event_type_PC(events, PC_values, conf):
     P_min = np.percentile(vals, conf['PC_percentile'][0])
     P_max = np.percentile(vals, conf['PC_percentile'][1])
     ET_PC_P_avg = dict([(t, v) for t, v in ET_PC_avg.items() if v >= P_min and v <= P_max])
-    print("Average Event PC above percentile", len(ET_PC_P_avg))
-    return ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg
+    print("Average Event PC Percentile", P_min, P_max)
+    print("Average Event PC above Percentile", len(ET_PC_P_avg))
+    return ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg, [P_min, P_max]
 
 
 def get_patient_PC(events, PC):
@@ -87,17 +88,25 @@ def get_patient_PC(events, PC):
                 patient_PC[p_id]['PC'].append(PC[e['i']])
     return patient_PC
 
-def get_patient_PC_total(events, PC):
+def get_patient_PC_total(events, PC, conf):
     '''
     Return PC values with time points
     '''
     patient_PC = {}
     for e in events:
+        if PC[e['i']] == 0:
+            continue
         if e['id'] not in patient_PC:
             patient_PC[e['id']] = PC[e['i']]
         else:
             patient_PC[e['id']] += PC[e['i']]
-    return patient_PC
+    vals = list(patient_PC.values())
+    P_min = np.percentile(vals, conf['PC_percentile'][0])
+    P_max = np.percentile(vals, conf['PC_percentile'][1])
+    patient_PC_P = dict([(k, v) for k, v in patient_PC.items() if v >= P_min and v <= P_max])
+    print("Patient PC Percentile", P_min, P_max)
+    print("Patient PC above Percentile", len(patient_PC_P))
+    return patient_PC, patient_PC_P, [P_min, P_max]
 
 def get_patient_max_PC(events, PC, time_unit = timedelta(days=1, hours=0)):
     '''

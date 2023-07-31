@@ -44,12 +44,11 @@ conf = {
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
-    'PC_percentile': [90, 100],
+    'PC_percentile': [95, 100],
     'ET_PC_min_freq': 0,
     'PC_path': False,
-    'event_type_PC_P': True,
     'PC_percentile_max_n': False,
-    'path_percentile': [95, 100],
+    'path_percentile': [90, 100],
     'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
@@ -67,10 +66,10 @@ conf = {
     'input_percentile': [40, 80],
     'include_numeric': True,
     'subsequent_adm': False,
-    'hadm_limit': 200,
+    'hadm_limit': False,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
-    'n_patient_paths': [1, 3], # n highest PC paths of a patient
+    'n_patient_paths': [1, 2, 3], # n highest PC paths of a patient
     'vis': False,
     'PC_BS_nnz': 0, # in percentage
     'first_hadm': True,
@@ -293,11 +292,15 @@ def TEG_PC_PI_NPI_RISKS(event_list, join_rules, conf, fname):
                                                 vis_last_iter = True,
                                                 PC_path_last_iter = True)
 
+    plot_PI_NPI(PI_results, NPI_results, conf, nbins=30,
+                title='All types', fname=f"{fname}_PI_NPI")
+    plot_PI_NPI(PI_results, NPI_results, conf, conf['PC_percentile'],
+                nbins=10, title='All types', fname=f"{fname}_PI_NPI_P")
     plot_PC_and_BS(conn, conf, PI_results['patient_PC'], PI_hadms, PI_hadm_stage_t)
 
         
 if __name__ == "__main__":
-    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P80'
+    fname = 'output/TEG-PI-NPI-RISKS-CHRONIC-ILLNESS-P90'
     #TEG_PC_PI_ONLY(EVENTS_INCLUDED, join_rules, conf, fname)
     #TEG_PC_PI_ONLY(ALL_EVENTS, join_rules, conf, fname)
     #TEG_PC_PI_NPI(PI_RISK_EVENTS, join_rules, conf, fname)

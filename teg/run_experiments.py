@@ -43,12 +43,12 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
         print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
     if max(PC_values) == 0:
         return None, None, None, None
-    PC_all, PC_nz, PC_P = process_PC_values(PC_values, conf) 
+    PC_all, PC_nz, PC_P, P = process_PC_values(PC_values, conf) 
     PC_P_ET, PC_P_ET_freq, PC_P_ET_avg = get_event_type_PC(events, PC_P)
-    ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg \
+    ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg, ET_P \
         = process_event_type_PC(events, PC_values, conf) 
     patient_PC = get_patient_max_PC(events, PC_all, conf['PC_time_unit'])
-    patient_PC_total = get_patient_PC_total(events, PC_all)
+    patient_PC_total, patient_PC_P, PPC_P = get_patient_PC_total(events, PC_all, conf)
     if conf['vis']:
         plot_PC(events, PC_nz, conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_P, conf, conf['PC_percentile'], nbins=10, title=title, fname=f"{fname}_P")
@@ -74,17 +74,21 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     results['PC_all'] = PC_all
     results['PC_nz'] = PC_nz
     results['PC_P'] = PC_P
+    results['P'] = P
     results['PC_P_ET'] = PC_P_ET
     results['PC_P_ET_freq'] = PC_P_ET_freq
     results['PC_P_ET_avg'] = PC_P_ET_avg
     results['patient_PC'] = patient_PC
     results['patient_PC_total'] = patient_PC_total
+    results['patient_PC_P'] = patient_PC_P
+    results['PPC_P'] = PPC_P
     results['ET_PC'] = ET_PC
     results['ET_PC_freq'] = ET_PC_freq
     results['ET_PC_P'] = ET_PC_P
     results['ET_PC_P_freq'] = ET_PC_P_freq
     results['ET_PC_avg'] = ET_PC_avg
     results['ET_PC_P_avg'] = ET_PC_P_avg
+    results['ET_P'] = ET_P
     return results
 
 
