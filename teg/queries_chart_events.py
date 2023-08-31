@@ -185,8 +185,10 @@ def get_chart_events(conn, event_name, conf, hadms=()):
         df[df['value'] == 'Subq Emphysema']['value'] = 'Sub Q Emphysema'
     if event_name == 'PI Stage':
         df['parent_type'] = df['type'] + ' ' + df['value'].astype(str)
+        df['event_type'] = df['type'] + ' ' + df['value'].astype(str)
     else:
         df['parent_type'] = df['type']
+        df['event_type'] = df['type']
     # Decoupling events by their value
     if UOM:
         df['type'] = df['type'] + ' ' + df['value'].astype(str) + ' ' + UOM

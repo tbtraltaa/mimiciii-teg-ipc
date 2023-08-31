@@ -358,22 +358,24 @@ def plot_PC_by_parent_type(events, PC, conf, percentile='', nbins=30, title=''):
     plt.show()
 
 
-def plot_PC_and_BS(conn, conf, patient_PC, PI_hadms, PI_hadm_stage_t):
+def plot_PC_and_BS(conn, conf, patient_PC, PI_hadms, PI_hadm_stage_t, fname):
     braden_events = get_chart_events(conn, 'Braden Score', conf, PI_hadms)
     print('Braden Scale events: ', len(braden_events))
     braden_events = remove_events_after_t(braden_events, PI_hadm_stage_t)
     #braden_events = [e for e in PI_events if 'Braden Score' in e['type']]
     patient_BS = get_patient_max_Braden_Scores(braden_events, conf['PC_time_unit'])
-    plot_time_series(patient_PC, patient_BS, conf)
-    plot_time_series_average(patient_PC, patient_BS, conf)
+    plot_time_series(patient_PC, patient_BS, conf, f'{fname}_points')
+    plot_time_series_average(patient_PC, patient_BS, conf, f'{fname}_avg')
+    '''
     for idd in patient_PC:
         if idd in patient_BS:
             print(idd, len(patient_PC[idd]['PC']), len(patient_BS[idd]['BS']))
         else:
             print(idd, len(patient_PC[idd]['PC']))
+    '''
 
 
-def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NPI_match = None):
+def plot_time_series(patient_PC, patient_BS, conf, fname, patients_NPI_PC = None, PI_NPI_match = None):
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=len(patient_PC)).as_hex())
     
@@ -420,7 +422,7 @@ def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NP
     # label y-axes
     fig.update_yaxes(title_text = "PC value", secondary_y=False)
     fig.update_yaxes(title_text = "Braden Scale", secondary_y=True)
-    fig.show()
+    fig.write_html(f"{fname}_PC_BS.html")
 
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     for p_id, color in zip(patient_PC, colors):
@@ -473,7 +475,8 @@ def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NP
     fig.update_xaxes(title_text = f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
     # label y-axes
     fig.update_yaxes(title_text = "PC value")
-    fig.show()
+    fig.write_html(f"{fname}_PC.html")
+
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     for p_id, color in zip(patient_PC, colors):
         if p_id in patient_BS:
@@ -490,9 +493,9 @@ def plot_time_series(patient_PC, patient_BS, conf, patients_NPI_PC = None, PI_NP
     fig.update_xaxes(title_text = f"Time after admission (time unit: {str(conf['PC_time_unit'])})")
     # label y-axes
     fig.update_yaxes(title_text = "Braden Scale")
-    fig.show()
+    fig.write_html(f"{fname}_BS.html")
 
-def plot_time_series_average(patient_PC, patient_BS, conf):
+def plot_time_series_average(patient_PC, patient_BS, conf, fname):
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=2).as_hex())
     
@@ -578,9 +581,11 @@ def plot_time_series_average(patient_PC, patient_BS, conf):
     # label y-axes
     fig.update_yaxes(title_text="Average PC value", secondary_y=False)
     fig.update_yaxes(title_text="Average Braden Scale", secondary_y=True)
-    fig.show()
+    fig.write_html(f"{fname}_PC_BS_smooth.html")
 
 def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname='ET_PI_NPI'):
+    if PI_R is None or NPI_R is None:
+        return
     PI_c = 'red'
     NPI_c = 'blue'
     if not percentile:
@@ -616,8 +621,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     if percentile == '':
         plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
         plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
-        plt.xscale("log")
-        plt.yscale("log")
+        #plt.xscale("log")
+        #plt.yscale("log")
     else:
         plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
         plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)

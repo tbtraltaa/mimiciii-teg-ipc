@@ -8,16 +8,24 @@ from psmpy.plotting import *
 
 from teg.queries import *
 
-def get_psm(df, conf, fname):
+def get_psm(df, fname):
+    dff = pd.DataFrame()
+    for col in df.columns:
+        if col == 'PI' or col == 'hadm_id':
+            dff[col] = df[col]
+        elif col == 'los' or col == 'oasis':
+            dff[col.upper()] = df[col]
+        else:
+            dff[col.title()] = df[col]
     category_cols = [] 
-    for col in conf['psm_features']:
-        if not is_numeric_dtype(df.dtypes[col]) and df[col].nunique() > 2:
+    for col in dff.columns:
+        if not is_numeric_dtype(dff.dtypes[col]) and dff[col].nunique() > 2:
             category_cols.append(col)
-        elif not is_numeric_dtype(df.dtypes[col]):
-            df[col] = df[col].astype('category').cat.codes
-    df = pd.get_dummies(df, columns = category_cols, dtype=int)
+        elif not is_numeric_dtype(dff.dtypes[col]):
+            dff[col] = dff[col].astype('category').cat.codes
+    dff = pd.get_dummies(dff, columns = category_cols, dtype=int)
     print('Category columns', category_cols)
-    psm = PsmPy(df, treatment='PI', indx='hadm_id', exclude = [])
+    psm = PsmPy(dff, treatment='PI', indx='hadm_id', exclude = [])
     psm.logistic_ps(balance = True)
     psm.knn_matched(matcher='propensity_logit', replacement=False, caliper=0.02, drop_unmatched=True)
     psm.plot_match(Title='Side by side matched controls', Ylabel='Number of patients', Xlabel= 'Propensity score', names = ['PI', 'NPI'], colors=['#E69F00', '#56B4E9'])
@@ -25,8 +33,9 @@ def get_psm(df, conf, fname):
     plt.clf()
     plt.cla()
     psm.effect_size_plot(title='Standardized Mean differences across covariates before and after matching')
+    # Tweak spacing to prevent clipping of tick-labels
+    plt.subplots_adjust(left=0.3)
     plt.savefig(fname + '_mean_diff')
-    plt.show()
     plt.clf()
     plt.cla()
     print(psm.effect_size)

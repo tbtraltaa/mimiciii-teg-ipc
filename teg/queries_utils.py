@@ -95,9 +95,9 @@ def get_chronic_illness(conn, conf):
             df_icd9 = pd.read_sql_query(q + where, conn)
             if df_icd9.shape[0] > 0:
                 df.loc[i, ill] = 1
-                break
     if not os.path.exists(fname):
         df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
+    print('Chronic', df)
     return df
 
 def input_filter(conn, conf, fname='output/'):

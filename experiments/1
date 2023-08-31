@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 import pprint
@@ -11,17 +10,17 @@ from pygraphblas import *
 options_set(nthreads=12)
 
 
-from teg.admissions import admissions
+from teg.schemas import *
 from teg.event_setup import *
 from teg.events import *
+from teg.paths import *
 from teg.plot import *
-from teg.plot_patients import *
+from teg.psm import *
 from teg.run_experiments import *
-from teg.queries import get_db_connection
 
 # Experiment configuration
-# P = {<EVENT TYPE>: 
-P = {
+# PC_PERCENTILE = {<EVENT TYPE>: 
+PC_PERCENTILE = {
     'Admissions': [95, 100],
     'Discharges': [95, 100],
     'ICU In': [95, 100],
@@ -40,9 +39,7 @@ P = {
     'Vitals/Labs': [95, 100]
 }
 
-M_conf = {
-    'modality': 'event_type',
-    'include_chronic_illness': True,
+conf = {
     'patient_history': timedelta(weeks=24), # 6 months
     'admission_type': 'EMERGENCY',
     'duration': False,
@@ -57,7 +54,7 @@ M_conf = {
     #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
     'endtime': False,
-    'missing_percent': [0, 100], # for mimic extract
+    'min_missing_percent': 0, # for mimic extract
     'PI_exclude_mid_stages': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
     'vitals_agg': 'daily',
@@ -71,13 +68,10 @@ M_conf = {
     'PI_daily_max_stage': True,
     'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
     'max_pi_stage':2,
-    'P': [90, 100],
-    'P_results': [90, 100],
-    'P_remove': [0, 20],
-    'P_patients': [80, 100],
+    'PC_percentile': [90, 100],
     'ET_PC_min_freq': 0,
     'PC_path': False,
-    'P_max_n': False,
+    'PC_percentile_max_n': False,
     'path_percentile': [95, 100],
     'PI_sql': 'one', #multiple, one_or_multiple, no_PI_stages, no_PI_events
     'PI_only': False, # Delete non PI patients after querying all events
@@ -88,7 +82,7 @@ M_conf = {
     'scale_PC': False, # scale by max_PC
     'Top_n_PC': 20,
     'PI_vitals': True, # Use a list of vitals related to PI
-    'skip_repeat': False,
+    'skip_repeat': True,
     'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
     'quantile_round': 2,
@@ -97,13 +91,12 @@ M_conf = {
     'include_numeric': True,
     'subsequent_adm': False,
     'hadm_limit': False,
-    'min_n': 200,
+    'min_n': 500,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
     'n_patient_paths': [1, 3, 5], # n highest PC paths of a patient
     'vis': False,
     'plot': False,
-    'plot_types_n': 30,
     'PC_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
@@ -118,7 +111,7 @@ M_conf = {
         'insurance',
         'los',
         'age',
-        'oasis']
+        'oasis'] + list(CHRONIC_ILLNESS.keys())
 }
 
 #for key in CHRONIC_ILLNESS:
@@ -146,23 +139,21 @@ t_max = {
     'Vitals/Labs': timedelta(days=2, hours=0),
 }
 
-M_join_rules = {
-    'IDs': EVENT_IDs if not M_conf['duration'] else EVENT_IDs + ['duration'],
+join_rules = {
+    'IDs': EVENT_IDs if not conf['duration'] else EVENT_IDs + ['duration'],
     "t_min": timedelta(days=0, hours=0, minutes=5),
     "t_max": t_max,
     'w_e_max': 0.3,  # maximum event difference
     # default event difference for different types of events
     'w_e_default': 1,
     'join_by_subject': True,
-    'duration': M_conf['duration'],
+    'duration': conf['duration'],
     'duration_similarity': timedelta(days=2),
     'sequential_join': True,
     'max_pi_state':1,
     'max_pi_stage':2,
     'include_numeric': True
 }
-
-M_fname = 'output/Multimodal'
 
 def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
     conn = get_db_connection()
@@ -171,34 +162,30 @@ def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
     PI_hadms = tuple(PI_df['hadm_id'].tolist())
     PI_events = events(conn, event_list, conf, PI_hadms)
     PI_events, PI_hadm_stage_t = process_events_PI(PI_events, conf)
-    PI_hadms = tuple(PI_hadm_stage_t.keys())
     PI_events_grouped = group_events_by_parent_type(PI_events)
     PI_events_P = []
     max_pi_stage = f"PI Stage {conf['max_pi_stage']}"
-    conf['vis'] = True
-    conf['plot'] = True
-    conf['PC_path'] = True
     for parent_type in PI_events_grouped:
         if max_pi_stage in parent_type:
             continue
         print('==================================================================')
         print('Parent_type: ', parent_type)
-        __type = parent_type.split('/')[0]
+        p_type = parent_type.split('/')[0]
         pi_count = len(PI_events_grouped[parent_type])
         if pi_count > conf['min_n']:
             pi_events = PI_events_grouped[parent_type] + PI_events_grouped[max_pi_stage]
             # sort by type, t and reindex
             pi_events = sort_and_index_events(pi_events)
             # choose PC percentile interval based on parent type
-            for name in P:
+            for name in PC_PERCENTILE:
                 if name in parent_type:
-                    conf['P'] = P[name]
+                    conf['PC_percentile'] = PC_PERCENTILE[name]
             results = run_experiments(PI_admissions,
                                        pi_events,
                                        conf,
                                        join_rules,
-                                       fname + f'_{__type}', f'PI: {__type}: ')
-            if results['PC_P'] is None:
+                                       fname + f'_{p_type}', f'PI: {p_type}: ')
+            if results['PI_PC_P'] is None:
                 PI_events_P += PI_events_grouped[parent_type]
             elif conf['PC_P_events']:
                 pi_events = get_top_events(pi_events, results['PC_P'], conf)
@@ -215,82 +202,116 @@ def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
     plot_PC_and_BS(conn, conf, results['patient_PC'], PI_hadms, PI_hadm_stage_t)
 
 
-def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
-    print(conf)
-    if conf['modality'] == 'parent_type':
-        PI_events_grouped = group_events_by_parent_type(r['PI_events'])
-        NPI_events_grouped = group_events_by_parent_type(['NPI_events'])
-    elif conf['modality'] == 'event_type':
-        PI_events_grouped = group_events_by_type(r['PI_events'])
-        NPI_events_grouped = group_events_by_type(r['NPI_events'])
+def MULTIMODAL_TEG_PC_PI_NPI(event_list, join_rules, conf, fname):
+    conn = get_db_connection()
+    # PI patients
+    PI_df, PI_admissions = get_patient_demography(conn, conf) 
+    print('PI Patients', len(PI_admissions))
+    PI_hadms = tuple(PI_df['hadm_id'].tolist())
+    PI_events = events(conn, event_list, conf, PI_hadms)
+    PI_events, PI_hadm_stage_t = process_events_PI(PI_events, conf)
+    # Remove invalid admissions
+    PI_df = PI_df[PI_df['hadm_id'].isin(list(PI_hadm_stage_t.keys()))]
+    PI_df = PI_df[conf['psm_features']]
+    print(PI_df.columns)
+    # Non PI patients
+    conf['PI_sql'] = 'no_PI_events'
+    conf['hadm_limit'] = conf['NPI_hadm_limit']
+    NPI_df, NPI_admissions = get_patient_demography(conn, conf) 
+    NPI_df = NPI_df[conf['psm_features']]
+    print('Non PI Patients', len(NPI_admissions))
+    # Check if PI and NPI admissions intersect
+    int_df = pd.merge(PI_df, NPI_df, how ='inner', on =['hadm_id'])
+    print('Intersection of PI and NPI patients', len(int_df))
+    print(int_df)
+    # Exclude the intersection if exists
+    NPI_df = NPI_df.loc[~NPI_df['hadm_id'].isin(PI_df['hadm_id'])]
+    int_df = pd.merge(PI_df, NPI_df, how ='inner', on =['hadm_id'])
+    print(len(int_df))
+    print(int_df)
+    # Label admissions as PI or Non PI
+    NPI_df['PI'] = 0
+    PI_df['PI'] = 1
+    df = pd.concat([PI_df, NPI_df])
+    # Propensity Score matrching
+    psm = get_psm(df, conf, fname)
+    PI_hadms = tuple(psm.matched_ids['hadm_id'].tolist())
+    if len(PI_hadm_stage_t) != len(PI_hadms):
+        PI_events = events(conn, event_list, conf, PI_hadms)
+        PI_events, PI_hadm_stage_t = process_events_PI(PI_events, conf)
+    PI_events_grouped = group_events_by_parent_type(PI_events)
+
+    NPI_t = dict()
+    NPI_hadms = list()
+    PI_NPI_match = dict()
+    for i, row in psm.matched_ids.iterrows():
+        if row['hadm_id'] in PI_hadm_stage_t:
+            NPI_t[row['matched_ID']] = PI_hadm_stage_t[row['hadm_id']]
+            NPI_hadms.append(row['matched_ID'])
+            PI_NPI_match[row['hadm_id']] = row['matched_ID']
+    NPI_hadms = tuple(NPI_hadms)
+    npi_event_list = [name for name in event_list if name != 'PI Stage']
+    NPI_events = events(conn, npi_event_list, conf, NPI_hadms)
+    NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
+    NPI_events_grouped = group_events_by_parent_type(NPI_events)
     print('PI groups', list(PI_events_grouped.keys()))
     print('NPI groups', list(NPI_events_grouped.keys()))
     PI_events_P = []
     NPI_events_P = []
     max_pi_stage = f"PI Stage {conf['max_pi_stage']}"
-    for _type in PI_events_grouped:
+    for parent_type in PI_events_grouped:
         conf['vis'] = False
         conf['plot'] = False
-        if _type not in NPI_events_grouped:
+        if parent_type not in NPI_events_grouped:
             continue
-        if max_pi_stage in _type:
+        if max_pi_stage in parent_type:
             continue
-        if 'Admissions' in _type:
-            PI_events_P += PI_events_grouped[_type]
-            NPI_events_P += NPI_events_grouped[_type]
+        if 'Admissions' in parent_type:
+            PI_events_P += PI_events_grouped[parent_type]
+            NPI_events_P += NPI_events_grouped[parent_type]
             continue
-        if 'Braden' in _type: #'Braden Score' not in _type:
-            #pprint.pprint(PI_events_grouped[_type])
+        if 'Braden' in parent_type: #'Braden Score' not in parent_type:
+            #pprint.pprint(PI_events_grouped[parent_type])
             continue
-        if 'CPT' in _type:
-            #pprint.pprint(PI_events_grouped[_type])
+        if 'CPT' in parent_type:
+            #pprint.pprint(PI_events_grouped[parent_type])
             continue
         print('==================================================================')
-        print('_type: ', _type)
-        pi_count = len(PI_events_grouped[_type])
-        npi_count = len(NPI_events_grouped[_type])
-        print(pi_count, npi_count)
-        __type = _type.replace('/', '_')
+        print('Parent_type: ', parent_type)
+        p_type = parent_type.split('/')[0]
+        pi_count = len(PI_events_grouped[parent_type])
+        npi_count = len(NPI_events_grouped[parent_type])
         if pi_count > conf['min_n'] and npi_count > conf['min_n']:
-            pi_events = PI_events_grouped[_type] + PI_events_grouped[max_pi_stage]
+            pi_events = PI_events_grouped[parent_type] + PI_events_grouped[max_pi_stage]
             # sort by type, t and reindex
             pi_events = sort_and_index_events(pi_events)
-            npi_events = NPI_events_grouped[_type] + NPI_events_grouped['Marker']
+            npi_events = NPI_events_grouped[parent_type] + NPI_events_grouped['Marker']
             # sort by type, t and reindex
             npi_events = sort_and_index_events(npi_events)
-            '''
             # choose PC percentile interval based on parent type
-            for name in P:
-                if name in _type:
-                    conf['P'] = P[name]
-            '''
+            for name in PC_PERCENTILE:
+                if name in parent_type:
+                    conf['PC_percentile'] = PC_PERCENTILE[name]
             # PPC Patient PC
-            pi_events, npi_events, PI_results, NPI_results = run_iterations(\
-                                                       r['PI_admissions'],
-                                                       r['NPI_admissions'],
+            pi_events, npi_events, PI_results, NPI_results = run_iterations(PI_admissions,
+                                                       NPI_admissions,
                                                        pi_events,
                                                        npi_events,
                                                        conf,
                                                        join_rules,
-                                                       fname + f'_{__type}',
-                                                       _type,
-                                                       vis_last_iter = False,
-                                                       PC_path_last_iter = False)
-            if conf['modality'] == 'parent_type':
-                PI_events_P += [e for e in pi_events if e['parent_type'] == _type]
-                NPI_events_P += [e for e in npi_events if e['parent_type'] == _type]
-            elif conf['modality'] == 'event_type':
-                PI_events_P += [e for e in pi_events if e['event_type'] == _type]
-                NPI_events_P += [e for e in npi_events if e['event_type'] == _type]
-            if PI_results is None or NPI_results is None:
-                continue
+                                                       fname + f'_{p_type}',
+                                                       p_type,
+                                                       vis_last_iter = True,
+                                                       PC_path_last_iter = True)
             plot_PI_NPI(PI_results, NPI_results, conf, nbins=30,
-                        title=f'{_type}', fname=f"{fname}_{__type}_PI_NPI_Results")
-            plot_PI_NPI(PI_results, NPI_results, conf, conf['P'],
-                        nbins=10, title=f'{_type}', fname=f"{fname}_{__type}_PI_NPI_P_Results")
+                        title=p_type, fname=f"{fname}_PI_NPI_{p_type}")
+            plot_PI_NPI(PI_results, NPI_results, conf, conf['PC_percentile'],
+                        nbins=10, title=p_type, fname=f"{fname}_PI_NPI_P_{p_type}")
+            PI_events_P += [e for e in pi_events if e['parent_type'] == parent_type]
+            NPI_events_P += [e for e in npi_events if e['parent_type'] == parent_type]
         else:
-            PI_events_P += PI_events_grouped[_type]
-            NPI_events_P += NPI_events_grouped[_type]
+            PI_events_P += PI_events_grouped[parent_type]
+            NPI_events_P += NPI_events_grouped[parent_type]
     PI_events_P += PI_events_grouped[max_pi_stage]
     # sort by type, t and reindex
     PI_events_P = sort_and_index_events(PI_events_P)
@@ -298,53 +319,32 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
     NPI_events_P = NPI_events_P + NPI_events_grouped['Marker']
     # sort by type, t and reindex
     NPI_events_P = sort_and_index_events(NPI_events_P)
+    conf['PC_percentile'] = [95, 100]
+    conf['PC_percentile_max_n'] = False
     '''
     if conf['PC_P_events']:
         conf['PC_path'] = True
     '''
     conf['vis'] = False
     conf['plot'] = False
-    conf['P'] = conf['P_results']
-    pi_events_P, npi_events_P, PI_results, NPI_results = run_iterations(\
-                                                r['PI_admissions'],
-                                                r['NPI_admissions'],
+    pi_events_P, npi_events_P, PI_results, NPI_results = run_iterations(PI_admissions,
+                                                NPI_admissions,
                                                 PI_events_P,
                                                 NPI_events_P,
                                                 conf,
                                                 join_rules,
-                                                fname + '_ALL',
+                                                fname + '_ALL_95_100',
                                                 'All types',
                                                 True, True)
     plot_PI_NPI(PI_results, NPI_results, conf, nbins=30,
                 title='All types', fname=f"{fname}_PI_NPI_Results")
-    plot_PI_NPI(PI_results, NPI_results, conf, conf['P'],
+    plot_PI_NPI(PI_results, NPI_results, conf, conf['PC_percentile'],
                 nbins=10, title='All types', fname=f"{fname}_PI_NPI_P_Results")
-    plot_PC_and_BS(conn, conf, PI_results['patient_PC'], \
-                    r['PI_hadms'], r['PI_hadm_stage_t'], fname)
-    plot_PI_NPI_patients(r['PI_admissions'],
-                         r['NPI_admissions'],
-                         r['PI_df'],
-                         r['NPI_df'],
-                         conf,
-                         PI_results,
-                         NPI_results,
-                         title=f"{conf['P_patients']}",
-                         fname=f'{fname}_Patients_P')
+    plot_PC_and_BS(conn, conf, PI_results['patient_PC'], PI_hadms, PI_hadm_stage_t)
     
 
 if __name__ == "__main__":
-    #fname = 'output/MULTIMODAL_PI_ONLY'
-    #MULTIMODAL_TEG_PC_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
-    conn = get_db_connection()
-    mp = [[67, 100], [34, 66], [0, 33]]
-    os.mkdir(M_fname)
-    r = admissions(conn, PI_RISK_EVENTS, M_join_rules, M_conf, fname=f'{M_fname}/TEG')
-    _r = copy.deepcopy(r)
-    for i in mp:
-        conf_tmp = copy.deepcopy(M_conf)
-        os.mkdir(f'{M_fname}/Multimodal-{i[0]}-{i[1]}')
-        fname = f'{M_fname}/Multimodal-{i[0]}-{i[1]}/Multimodal-{i[0]}-{i[1]}'
-        conf_tmp['missing_percent'] = i
-        _r['PI_events'] = remove_by_missing_percent(r['PI_events'], conf_tmp)
-        _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_tmp)
-        MULTIMODAL_TEG_PC_PI_NPI(conn, _r, M_join_rules, conf_tmp, fname)
+    fname = 'output/MULTIMODAL_PI_ONLY'
+    MULTIMODAL_TEG_PC_PI_ONLY(EVENTS, join_rules, conf, fname)
+    fname = 'output/MULTIMODAL_PI_NPI_RISK'
+    MULTIMODAL_TEG_PC_PI_NPI(PI_RISK_EVENTS, join_rules, conf, fname)

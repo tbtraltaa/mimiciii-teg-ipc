@@ -1,5 +1,10 @@
 schema = 'mimiciii'
 
+HIGH_FREQ_EVENTS = ['Inputs',
+                    'Presc Start',
+                    'Presc End', 
+                    ]
+
 # attributes of an event, not used for comparison
 EVENT_IDs = ['id',
              'type',
@@ -10,6 +15,7 @@ EVENT_IDs = ['id',
              'subject_id',
              'datetime',
              'parent_type',
+             'event_type,'
              'pi_stage',
              'pi_state',
              ]

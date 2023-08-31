@@ -241,6 +241,7 @@ def process_events_NPI(all_events, NPI_t, conf):
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
                 all_events[e['i']]['type'] = 'Marker'
+                all_events[e['i']]['event_type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
                 all_events[e['i']]['t'] = t_marker
                 PI = True
@@ -257,6 +258,7 @@ def process_events_NPI(all_events, NPI_t, conf):
                 all_events[e['i']]['pi_state'] = conf['PI_states'][max_stage]
                 all_events[e['i']]['pi_stage'] = max_stage
                 all_events[e['i']]['type'] = 'Marker'
+                all_events[e['i']]['event_type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
                 all_events[e['i']]['t'] = t_marker
             PI = False

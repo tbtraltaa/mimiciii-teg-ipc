@@ -3,6 +3,11 @@ import copy
 import pprint
 from datetime import timedelta
 
+from teg.queries_mimic_extract import \
+        get_stats_vitals_X_mean, \
+        get_missing_percents_vitals_X, \
+        get_missing_percents_interventions
+
 def get_top_events(events, PC_P, conf, I = []):
     max_n = conf['PC_percentile_max_n']
     if not max_n:
@@ -43,6 +48,16 @@ def group_events_by_parent_type(events):
             events_grouped[e['parent_type']].append(e)
     return events_grouped
 
+def group_events_by_type(events):
+    events_grouped = dict()
+    events = sorted(events, key=lambda x: (x['type'], x['t']))
+    for e in events:
+        if e['event_type'] not in events_grouped:
+            events_grouped[e['event_type']] = [e]
+        else:
+            events_grouped[e['event_type']].append(e)
+    return events_grouped
+
 def group_events_by_patient(events):
     events_grouped = dict()
     events = sorted(events, key=lambda x: x['t'])
@@ -75,6 +90,43 @@ def remove_event_types(events, types):
     for i in range(len(events_copy)):
         events_copy[i]['i'] = i
     return events_copy
+
+
+def remove_by_missing_percent(events, conf):
+    '''
+    Events are assumed to be ordered by type and time
+    '''
+    events_copy = copy.copy(events)
+    if conf['vitals_X_mean']:
+        vitals_stats = get_stats_vitals_X_mean()
+    else:
+        vitals_stats = get_missing_percents_vitals_X()
+    intervention_stats = get_missing_percents_interventions()
+    # iterate from the last
+    n = len(events)
+    excluded = set()
+    for i in range(n-1, -1, -1):
+        if 'Vitals/Labs' in events[i]['type']:
+            for val in vitals_stats.index:
+                if val in events[i]['event_type']:
+                    col = val
+            mp = vitals_stats.loc[col, 'missing percent']
+        elif 'Intervention' in events[i]['type']:
+            for val in intervention_stats.index:
+                if val in events[i]['event_type']:
+                    col = val
+            mp = intervention_stats.loc[col, 'missing percent']
+        else:
+            continue
+        if mp <= conf['missing_percent'][0] or mp >= conf['missing_percent'][1]:
+            excluded.add(col)
+            del events_copy[i]
+    # reindex events
+    for i in range(len(events_copy)):
+        events_copy[i]['i'] = i
+    print("Excluded by missing percent", excluded)
+    return events_copy
+
 
 def remove_events_after_t(events, t):
     remove_indices = []

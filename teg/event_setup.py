@@ -4,13 +4,13 @@ Event lists that can be used for different experiments
 
 PI_RISK_EVENTS = [
     'Admissions',
-    'Discharges',
-    'ICU In',
-    'ICU Out',
-    'Callout',
-    'Transfer In',
-    'Transfer Out',
-    'Services',
+    #'Discharges',
+    #'ICU In',
+    #'ICU Out',
+    #'Callout',
+    #'Transfer In',
+    #'Transfer Out',
+    #'Services',
     'Intervention',
     'Vitals/Labs',
     'PI Stage']

@@ -43,6 +43,18 @@ def get_interventions(conf):
             .sum(numeric_only=True)
     return interventions
 
+def get_missing_percents_interventions(X = None):
+    fname = f'''data/intervention_stats'''
+    if os.path.exists(f'{fname}.h5'):
+        return pd.read_hdf(f'{fname}.h5') 
+    df = pd.DataFrame((X == 0).sum(
+    ) / X.shape[0] * 100, columns=['missing percent'])
+    df.sort_values(by='missing percent', ascending=True, inplace=True)
+    if not os.path.exists(f'{fname}.h5'):
+        df.to_csv(f'{fname}.csv', encoding='UTF-8')
+        df.to_hdf(f'{fname}.h5', key='df', mode='w', encoding='UTF-8')
+    return df
+
 
 def get_events_interventions(conn, conf, hadms=None):
     if not conf['interventions']:
@@ -51,6 +63,7 @@ def get_events_interventions(conn, conf, hadms=None):
     icustays = get_icustays(conn, conf, hadms)
     icustays_ids = list(icustays.keys())
     interventions = get_interventions(conf)
+    missing_percents = get_missing_percents_interventions(interventions)
     skip_count = 0
     event_idx = 0
     zero_duration = timedelta(days=0)
@@ -60,6 +73,7 @@ def get_events_interventions(conn, conf, hadms=None):
         time_unit = timedelta(hours=1)
     interventions = interventions.loc[(
         slice(None), slice(None), icustays_ids, slice(None)), :]
+    excluded = set()
     for subject_id, hadm_id, icustay_id, h in interventions.index:
         if h == 0:
             prev = dict()
@@ -75,12 +89,17 @@ def get_events_interventions(conn, conf, hadms=None):
                                      hadm_id,
                                      icustay_id,
                                      h), col]
+            mp = missing_percents.loc[col, 'missing percent']
             val = 1 if count >= 1 else 0
             if val == 0:
+                continue
+            elif mp <= conf['missing_percent'][0] or  mp >= conf['missing_percent'][1]:
+                excluded.add(col)
                 continue
             if not conf['skip_repeat_intervention']:
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -95,6 +114,7 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -110,6 +130,7 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -127,6 +148,7 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -142,6 +164,7 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -157,6 +180,7 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                'type': 'Intervention-' + col,
+                               'event_type': 'Intervention',
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -201,7 +225,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
         vitals_included = PI_VITALS
     else:
         vitals_included = vitals.columns
-    below_mmp = set()
+    excluded = set()
     for subject_id, hadm_id, icustay_id, h in vitals.index:
         # icu event
         e = icustays[icustay_id]
@@ -217,16 +241,17 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
             prev = dict()
         for i, col in enumerate(vitals_included):
             val = vitals.loc[(subject_id, hadm_id, icustay_id, h), col]
+            mp = vitals_stats.loc[col, 'missing percent']
             if pd.isnull(val):
                 continue
-            elif vitals_stats.loc[col, 'missing percent'] \
-                    < conf['min_missing_percent']:
-                below_mmp.add(col)
+            elif mp <= conf['missing_percent'][0] or mp >= conf['missing_percent'][1]:
+                excluded.add(col)
                 continue
             Q, Q_I = get_quantile_mimic_extract(val, Qs.loc[:, col], conf)
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -244,6 +269,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -260,6 +286,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -278,6 +305,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -294,6 +322,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -310,6 +339,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 prev[i] = [Q, h, event_idx]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -326,7 +356,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
     print("Vitals skipped: ", skip_count)
-    print("Below MMP: ", below_mmp )
+    print("Excluded by missing percent: ", excluded )
     return icu_events
 
 
@@ -356,7 +386,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
         vitals_included = PI_VITALS
     else:
         vitals_included = vitals.columns.levels[0]
-    below_mmp = set()
+    excluded = set()
     for subject_id, hadm_id, icustay_id, h in vitals.index:
         e = icustays[icustay_id]
         if conf['vitals_agg'] == 'daily':
@@ -369,13 +399,13 @@ def get_events_vitals_X(conn, conf, hadms=None):
         if h == 0:
             prev = dict()
         for i, col in enumerate(vitals_included):
+            mp = missing_percents.loc[col, 'missing percent']
             count, mean, std = vitals.loc[(
                 subject_id, hadm_id, icustay_id, h), (col, slice(None))]
             if count == 0:
                 continue
-            elif missing_percents.loc[col, 'missing percent'] \
-                    < conf['min_missing_percent']:
-                below_mmp.add(col)
+            elif mp <= conf['missing_percent'][0] or  mp >= conf['missing_percent'][1]:
+                excluded.add(col)
                 continue
             count_Q, count_I = get_quantile_mimic_extract(count, Qs.loc[:, (col, 'count')], conf)
             mean_Q, mean_I = get_quantile_mimic_extract(mean, Qs.loc[:, (col, 'mean')], conf)
@@ -384,6 +414,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             if not conf['skip_repeat']:
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -406,6 +437,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -428,6 +460,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -453,6 +486,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -475,6 +509,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -497,6 +532,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 prev[i] = [count_Q, mean_Q, std_Q, h, event_idx, count]
                 icu_events.append({'id': e['id'],
                                    'type': 'Vitals/Labs-' + col + f' {mean_Q}',
+                                   'event_type': 'Vitals/Labs-' + col,
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -519,11 +555,14 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 skip_count += 1
     icu_events.sort(key=lambda x: (x['type'], x['t']))
     print('Vitals skipped: ', skip_count)
-    print("Below MMP: ", below_mmp )
+    print("Excluded by missing percent: ", excluded )
     return icu_events
 
 
-def get_stats_vitals_X_mean(vitals):
+def get_stats_vitals_X_mean(vitals = None):
+    fname = f'''data/vital_stats_X_mean'''
+    if os.path.exists(f'{fname}.h5'):
+        return pd.read_hdf(fname) 
     vitals_mean = pd.DataFrame(
         vitals.mean(
             numeric_only=True),
@@ -540,13 +579,22 @@ def get_stats_vitals_X_mean(vitals):
         ascending=True,
         inplace=True)
     #vitals_states.to_csv('vital_stats.csv', sep=',')
+    if not os.path.exists(f'{fname}.h5'):
+        vitals_stats.to_csv(f'{fname}.csv', encoding='UTF-8')
+        vitals_stats.to_hdf(f'{fname}.h5', key='df', mode='w', encoding='UTF-8')
     return vitals_stats
 
-def get_missing_percents_vitals_X(vitals):
+def get_missing_percents_vitals_X(vitals = None):
+    fname = f'''data/vital_stats_X'''
+    if os.path.exists(f'{fname}.h5'):
+        return pd.read_hdf(f'{fname}.h5') 
     df = pd.DataFrame((vitals.loc[:, (slice(None), 'count')] == 0).sum(
     ) / vitals.shape[0] * 100, columns=['missing percent'])
     df = df.droplevel('Aggregation Function', axis=0)
     df.sort_values(by='missing percent', ascending=True, inplace=True)
+    if not os.path.exists(f'{fname}.h5'):
+        df.to_csv(f'{fname}.csv', encoding='UTF-8')
+        df.to_hdf(f'{fname}.h5', key='df', mode='w', encoding='UTF-8')
     return df
 
 

@@ -57,8 +57,10 @@ def get_patient_demography(conn, conf, hadms=()):
         where += f" AND a.admission_type='{conf['admission_type']}'" 
     # survived patients
     where += ' AND a.hospital_expire_flag=0'
+    limit = ""
     if hadms:
         where += f' AND a.hadm_id IN {hadms}'
+        limit = ""
     else:
         if conf['has_icustay'] == 'True':
             table += f' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
@@ -187,18 +189,19 @@ def get_patient_demography(conn, conf, hadms=()):
         if conf['starttime'] and conf['endtime']:
             where += f" AND a.admittime < '{conf['endtime']}'"
             where += f" AND a.admittime >= '{conf['starttime']}'"
-        # order admissions by admittime
-        query = f'SELECT {cols} FROM {table} WHERE {where} ORDER BY a.admittime'
         if conf['hadm_limit']:
-            query += f" LIMIT {conf['hadm_limit']}"
-        df = pd.read_sql_query(query, conn)
+            limit = f" LIMIT {conf['hadm_limit']}"
+    # order admissions by admittime
+    query = f"SELECT {cols} FROM {table} WHERE {where} ORDER BY a.admittime {limit}"
+    df = pd.read_sql_query(query, conn)
     print("Admissions including subsequent admissions", len(df))
     if conf['first_hadm']:
         # drop subsequent admissions
         df.drop_duplicates('subject_id', inplace=True)
     print("First admissions", len(df))
     #if hadms:
-    df = add_chronic_illness(conn, df, conf)
+    if conf['include_chronic_illness']:
+        df = add_chronic_illness(conn, df, conf)
     df.drop('admittime', axis=1, inplace=True)
     df.drop('subject_id', axis=1, inplace=True)
     # compute the age interval
@@ -421,6 +424,14 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
 
     query = f"SELECT {cols} FROM {table} WHERE {where} {order_by}"
     df = pd.read_sql_query(query, conn)
+    high_freq = False
+    for name in HIGH_FREQ_EVENTS:
+        if name in event_name:
+            high_freq = False
+    if high_freq:
+        df['event_type'] = df['type']
+    else:
+        df['event_type'] = df['parent_type']
     for col in df.columns:
         uom_col = None
         if f'{event_name}-{col}' not in NUMERIC_COLS:

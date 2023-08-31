@@ -5,7 +5,7 @@ from datetime import timedelta
 from teg.event_utils import group_events_by_patient
 
 
-def process_PC_values(PC_values, conf):
+def process_PC_values(events, PC_values, conf):
     '''
     Returns dictionaries of all PC values, non-zero PC values,
     and PC values above the percentile 
@@ -21,8 +21,8 @@ def process_PC_values(PC_values, conf):
         if val > 0:
             PC_nz[i] = v
     PC_nz_vals = list(PC_nz.values())
-    P_min = np.percentile(PC_nz_vals, conf['PC_percentile'][0])
-    P_max = np.percentile(PC_nz_vals, conf['PC_percentile'][1])
+    P_min = np.percentile(PC_nz_vals, conf['P'][0])
+    P_max = np.percentile(PC_nz_vals, conf['P'][1])
     print("Nonzero PC", len(PC_nz))
     print("Min, Max PC", min_PC, max_PC)
     if conf['scale_PC']:
@@ -30,7 +30,25 @@ def process_PC_values(PC_values, conf):
     print("Percentile", P_min, P_max)
     PC_P = dict([(i, v) for i, v in PC_nz.items() if v >= P_min and v <= P_max])
     print("Nodes above percentile", len(PC_P))
-    return PC_all, PC_nz, PC_P, [P_min, P_max]
+    if conf['P_remove']:
+        P_min_remove = np.percentile(PC_nz_vals, conf['P_remove'][0])
+        P_max_remove = np.percentile(PC_nz_vals, conf['P_remove'][1])
+        print(f"Percentile {conf['P_remove']}" , P_min_remove, P_max_remove)
+        PC_remove = dict([(i, v) for i, v in PC_nz.items() if v >= P_min_remove and v <= P_max_remove])
+        print(f"Nodes below percentile {conf['P_remove']}", len(PC_remove))
+    results = dict()
+    results['PC_all'] = PC_all
+    results['PC_nz'] = PC_nz
+    results['PC_P'] = PC_P
+    results['P'] = [P_min, P_max]
+    if conf['P_remove']:
+        results['PC_remove'] = PC_remove
+        results['P_remove'] = [P_min_remove, P_max_remove]
+        results['PC_remove_ET'], results['PC_remove_freq'],  results['PC_remove_avg'] = \
+            get_event_type_PC(events, PC_remove)
+    results['PC_P_ET'], results['PC_P_ET_freq'], results['PC_P_ET_avg'] = \
+        get_event_type_PC(events, PC_P)
+    return results
 
 
 def process_event_type_PC(events, PC_values, conf):
@@ -55,23 +73,44 @@ def process_event_type_PC(events, PC_values, conf):
             ET_PC[e['type']] += v
             ET_PC_freq[e['type']] += 1
     vals = list(ET_PC.values())
-    P_min = np.percentile(vals, conf['PC_percentile'][0])
-    P_max = np.percentile(vals, conf['PC_percentile'][1])
+    P_min = np.percentile(vals, conf['P'][0])
+    P_max = np.percentile(vals, conf['P'][1])
     print("None zero event type PC", len(vals))
     print("Min, Max event type PC ", min(vals), max(vals))
     print("Percentile", P_min, P_max)
     ET_PC_P = dict([(et, v) for et, v in ET_PC.items() \
             if v >= P_min and v <= P_max and ET_PC_freq[et] >= conf['ET_PC_min_freq']])
     ET_PC_P_freq = dict([(et, ET_PC_freq[et]) for et, v in ET_PC_P.items()])
-    print("Event types PC above percentile", len(ET_PC_P))
+    print("Number of event types PC above percentile", len(ET_PC_P))
     ET_PC_avg = dict([(t, v/ET_PC_freq[t]) for t, v in ET_PC.items() if ET_PC_freq[t] >= conf['ET_PC_min_freq']])
-    vals = list(ET_PC_avg.values())
-    P_min = np.percentile(vals, conf['PC_percentile'][0])
-    P_max = np.percentile(vals, conf['PC_percentile'][1])
-    ET_PC_P_avg = dict([(t, v) for t, v in ET_PC_avg.items() if v >= P_min and v <= P_max])
-    print("Average Event PC Percentile", P_min, P_max)
-    print("Average Event PC above Percentile", len(ET_PC_P_avg))
-    return ET_PC, ET_PC_freq, ET_PC_P, ET_PC_P_freq, ET_PC_avg, ET_PC_P_avg, [P_min, P_max]
+    vals_avg = list(ET_PC_avg.values())
+    P_min_avg = np.percentile(vals_avg, conf['P'][0])
+    P_max_avg = np.percentile(vals_avg, conf['P'][1])
+    ET_PC_P_avg = dict([(t, v) for t, v in ET_PC_avg.items() if v >= P_min_avg and v <= P_max_avg])
+    print("Average Event PC Percentile", P_min_avg, P_max_avg)
+    print("Number of average Event PC above Percentile", len(ET_PC_P_avg))
+    if conf['P_remove']:
+        P_min_remove = np.percentile(vals, conf['P_remove'][0])
+        P_max_remove = np.percentile(vals, conf['P_remove'][1])
+        ET_PC_remove = dict([(et, v) for et, v in ET_PC.items() \
+                if v >= P_min_remove and v <= P_max_remove])
+        ET_PC_freq_remove= dict([(et, ET_PC_freq[et]) for et, v in ET_PC_remove.items()])
+        print(f"Number of event types PC below percentile {conf['P_remove']}", len(ET_PC_remove))
+        ET_PC_avg_remove = dict([(t, v/ET_PC_freq[t]) for t, v in ET_PC_remove.items() if ET_PC_freq[t] >= conf['ET_PC_min_freq']])
+    results = dict()
+    results['ET_PC'] = ET_PC
+    results['ET_PC_freq'] = ET_PC_freq
+    results['ET_PC_P'] = ET_PC_P
+    results['ET_PC_P_freq'] = ET_PC_P_freq
+    results['ET_PC_avg'] = ET_PC_avg
+    results['ET_PC_P_avg'] = ET_PC_P_avg
+    results['ET_P'] = [P_min, P_max]
+    results['ET_P_avg'] = [P_min_avg, P_max_avg]
+    if conf['P_remove']:
+        results['ET_PC_remove'] = ET_PC_remove
+        results['ET_PC_freq_remove'] = ET_PC_freq_remove
+        results['ET_PC_avg_remove'] = ET_PC_avg_remove
+    return results
 
 
 def get_patient_PC(events, PC):
@@ -101,12 +140,16 @@ def get_patient_PC_total(events, PC, conf):
         else:
             patient_PC[e['id']] += PC[e['i']]
     vals = list(patient_PC.values())
-    P_min = np.percentile(vals, conf['PC_percentile'][0])
-    P_max = np.percentile(vals, conf['PC_percentile'][1])
+    P_min = np.percentile(vals, conf['P_patients'][0])
+    P_max = np.percentile(vals, conf['P_patients'][1])
     patient_PC_P = dict([(k, v) for k, v in patient_PC.items() if v >= P_min and v <= P_max])
     print("Patient PC Percentile", P_min, P_max)
-    print("Patient PC above Percentile", len(patient_PC_P))
-    return patient_PC, patient_PC_P, [P_min, P_max]
+    print("Number of patient PC above percentile", len(patient_PC_P))
+    results = dict()
+    results['patient_PC_total'] = patient_PC
+    results['patient_PC_P'] = patient_PC_P
+    results['PPC_P'] = [P_min, P_max]
+    return results
 
 def get_patient_max_PC(events, PC, time_unit = timedelta(days=1, hours=0)):
     '''
@@ -133,19 +176,19 @@ def get_patient_max_PC(events, PC, time_unit = timedelta(days=1, hours=0)):
 
 
 def get_event_type_PC(events, PC):
-    ET_PC = {}
-    ET_PC_freq = {}
+    PC_ET = {}
+    PC_ET_freq = {}
     for i in PC:
         if PC[i] == 0:
             continue
-        if events[i]['type'] not in ET_PC:
-            ET_PC[events[i]['type']] = PC[i]
-            ET_PC_freq[events[i]['type']] = 1
+        if events[i]['type'] not in PC_ET:
+            PC_ET[events[i]['type']] = PC[i]
+            PC_ET_freq[events[i]['type']] = 1
         else:
-            ET_PC[events[i]['type']] += PC[i]
-            ET_PC_freq[events[i]['type']] += 1
-    ET_PC_AVG = dict([(t, v/ET_PC_freq[t]) for t, v in ET_PC.items()])
-    return ET_PC, ET_PC_freq, ET_PC_AVG
+            PC_ET[events[i]['type']] += PC[i]
+            PC_ET_freq[events[i]['type']] += 1
+    PC_ET_avg = dict([(t, v/PC_ET_freq[t]) for t, v in PC_ET.items()])
+    return PC_ET, PC_ET_freq, PC_ET_avg
 
 
 def get_event_type_df(PI_types, NPI_types, I, i, PI_results, NPI_results, conf):
