@@ -17,6 +17,7 @@ from teg.plot import *
 from teg.plot_patients import *
 from teg.run_experiments import *
 from teg.queries import get_db_connection
+from teg.schemas import *
 
 
 # Experiment configuration
@@ -50,7 +51,7 @@ TEG_conf = {
     'P': [90, 100], # PC percentile
     'P_results': [90, 100], # PC percentile
     'P_remove': [0, 20],
-    'P_patients': [80, 100],
+    'P_patients': [60, 100],
     'ET_PC_min_freq': 0,
     'PC_path': False,
     'P_max_n': False,

@@ -38,6 +38,11 @@ def event_difference(e1, e2, join_rules):
         elif e1[k1] == e2[k1]:
             I[k1] = e1[k1]
             i += 1
+    if 1 - i/ n < 0:
+        print(i, n, I)
+        pprint.pprint(e1)
+        pprint.pprint(e2)
+        exit()
     return 1 - i / n, I
 
 

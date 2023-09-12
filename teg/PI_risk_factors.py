@@ -61,6 +61,7 @@ PI_VITALS = [
                 #'central venous pressure',
         ]
 # name : [[ICD9_codes], count the ICD9 code for current_admission]
+# all true because we use only the first admissions
 CHRONIC_ILLNESS = {
     'Diabetes': [['250%'], True],
     'Neuropathy': [['356%', '357%'], True],
@@ -69,7 +70,7 @@ CHRONIC_ILLNESS = {
     'Spinal cord injury': [['95200', '95205', '95210', '95215', '9522', '9528', '9539', '9523'], True], 
     'Coronary artery disease': [['440%'], True],
     'Leukemia': [['204%', '205%', '206%', '207%', '208%'], True],
-    'Stroke': [['43491%'], False],
+    'Stroke': [['43491%'], True],
     'Congestive heart failure': [['428%'], True],
     'Anemia': [['2800', '2859', '281%'], True],
     'Urinary incontinence': [['7883%'], True],

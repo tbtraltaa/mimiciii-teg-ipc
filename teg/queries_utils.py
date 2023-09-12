@@ -18,45 +18,12 @@ def add_chronic_illness(conn, df, conf):
         INNER JOIN {schema}.admissions a
         ON icd.hadm_id = a.hadm_id
         '''
-    print(df_chronic)
+    print(df_chronic['Stroke'])
     for ill in CHRONIC_ILLNESS:
         df[ill] = 0
     for i, row in df.iterrows():
         for ill in CHRONIC_ILLNESS:
             df.loc[i, ill] = df_chronic.loc[row['hadm_id']][ill]
-    return df
-
-def add_chronic_illness_old(conn, df, conf):
-    'Add chronic illness info'
-    # it is slow to extract these features if the number of
-    # patients are large.
-    q = f'''
-        SELECT DISTINCT icd.icd9_code, icd.subject_id 
-        FROM {schema}.diagnoses_icd icd
-        INNER JOIN {schema}.admissions a
-        ON icd.hadm_id = a.hadm_id
-        '''
-    for ill in CHRONIC_ILLNESS:
-        df[ill] = 0
-    for i, row in df.iterrows():
-        for ill in CHRONIC_ILLNESS:
-            icd9_codes, curr_hadm = CHRONIC_ILLNESS[ill]
-            where = f'''
-                    WHERE icd.subject_id = {row['subject_id']}
-                    AND a.admittime > '{str(row['admittime'] - conf['patient_history'])}'
-                    AND (icd.icd9_code like '{icd9_codes[0]}'
-                    '''
-            for code in icd9_codes[1:]:
-                where += f" OR icd.icd9_code like '{code}'"
-            where += ')'
-            if curr_hadm:
-                where += f" AND a.admittime <= '{str(row['admittime'])}'"
-            else:
-                 where = f" AND a.admittime < '{str(row['admittime'])}'"
-            df_icd9 = pd.read_sql_query(q + where, conn)
-            if df_icd9.shape[0] > 0:
-                df.loc[i, ill] = 1
-                break
     return df
 
 def get_chronic_illness(conn, conf):
@@ -91,13 +58,12 @@ def get_chronic_illness(conn, conf):
             if curr_hadm:
                 where += f" AND a.admittime <= '{str(row['admittime'])}'"
             else:
-                 where = f" AND a.admittime < '{str(row['admittime'])}'"
+                 where += f" AND a.admittime < '{str(row['admittime'])}'"
             df_icd9 = pd.read_sql_query(q + where, conn)
             if df_icd9.shape[0] > 0:
                 df.loc[i, ill] = 1
     if not os.path.exists(fname):
         df.to_hdf(fname, key='df', mode='w', encoding='UTF-8')
-    print('Chronic', df)
     return df
 
 def input_filter(conn, conf, fname='output/'):

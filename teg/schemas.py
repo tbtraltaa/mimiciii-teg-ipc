@@ -15,7 +15,7 @@ EVENT_IDs = ['id',
              'subject_id',
              'datetime',
              'parent_type',
-             'event_type,'
+             'event_type',
              'pi_stage',
              'pi_state',
              ]
@@ -57,7 +57,7 @@ PATIENTS = {
         'gender'],
     # a for admissions
     'a': [
-        'admission_type',
+        #'admission_type',
         'insurance',
         'language',
         'religion',

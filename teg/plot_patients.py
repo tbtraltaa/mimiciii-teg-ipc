@@ -34,6 +34,8 @@ def plot_PI_NPI_patients(PI_patients,
     NPI_l = 'NPI'
     patient_dict = dict()
     chronic_dict = dict()
+    unknown_ethnicities = ['unknown', 'patient declined to answer', 'unable to obtain', 'other']
+    unknown_religions = ['other', 'not specified', 'unobtainable']
     for (pi_id, pi_vals), (npi_id, npi_vals) in zip(pi_patients.items(), npi_patients.items()): 
         for key, val in pi_vals.items():
             if conf['admission_type'] and 'admission_type' in key:
@@ -41,16 +43,30 @@ def plot_PI_NPI_patients(PI_patients,
             elif 'age' in key:
                 continue
             if key in CHRONIC_ILLNESS:
+                if key not in chronic_dict:
+                    chronic_dict[key] = [0, 0]
                 if key in chronic_dict and val == 1:
                     chronic_dict[key][0] += 1
-                elif key not in chronic_dict and val == 1:
-                    chronic_dict[key] = [1, 0]
+                continue
+            if val is None:
+                continue
+            if key.lower() == 'ethnicity':
+                if '/' in val:
+                    val = val.split('/')[0].strip()
+                elif '-' in val:
+                    val = val.split('-')[0].strip()
+                if val.lower() in unknown_ethnicities:
+                    val = 'Unknown'
+                elif val.lower() == 'hispanic or latino':
+                    val = 'HISPANIC'
+            if key.lower() == 'religion' and val.lower() in unknown_religions:
+                val = 'Unknown'
+            k = f"{key}-{val}"
+            k = k.strip()
+            if k in patient_dict:
+                patient_dict[k][0] += 1
             else:
-                key = f"{key}-{val}"
-                if key in patient_dict:
-                    patient_dict[key][0] += 1
-                else:
-                    patient_dict[key] = [1, 0]
+                patient_dict[k] = [1, 0]
         for key, val in npi_vals.items():
             if conf['admission_type'] and 'admission_type' in key:
                 continue
@@ -59,26 +75,41 @@ def plot_PI_NPI_patients(PI_patients,
             if key in CHRONIC_ILLNESS:
                 if key in chronic_dict and val == 1:
                     chronic_dict[key][1] += 1
-                elif key in chronic_dict and val == 1:
+                elif key not in chronic_dict and val == 1:
                     chronic_dict[key] = [0, 1]
+                continue
+            if val is None:
+                continue
+            if key.lower() == 'ethnicity':
+                if '/' in val:
+                    val = val.split('/')[0].strip()
+                elif '-' in val:
+                    val = val.split('-')[0].strip()
+                if val.lower() in unknown_ethnicities:
+                    val = 'Unknown'
+                elif val.lower() == 'hispanic or latino':
+                    val = 'HISPANIC'
+            if key.lower() == 'religion' and val.lower() in unknown_religions:
+                val = 'Unknown'
+            k = f"{key}-{val}"
+            k = k.strip()
+            if k in patient_dict:
+                patient_dict[k][1] += 1
             else:
-                key = f"{key}-{val}"
-                if key in patient_dict:
-                    patient_dict[key][1] += 1
-                else:
-                    patient_dict[key] = [0, 1]
-    patient_dict = dict(sorted(patient_dict.items(), key=lambda x: (x[0], x[1][0])))
+                patient_dict[k] = [0, 1]
+    tmp = {k: patient_dict[k] for k in patient_dict if 'religion' in k.lower() or 'ethnicity' in k.lower()}
+    tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
     chronic_dict = dict(sorted(chronic_dict.items(), key=lambda x: x[1][0]))
     plt.figure(figsize=(14, 8))
-    y_pos  =  range(2, 4 * len(patient_dict) + 2, 4)
-    PI_vals = [val[0] for val in patient_dict.values()]
-    NPI_vals = [val[1] for val in patient_dict.values()]
-    labels = [l.title() for l in patient_dict.keys()]
+    y_pos  =  range(2, 4 * len(tmp) + 2, 4)
+    PI_vals = [val[0] for val in tmp.values()]
+    NPI_vals = [val[1] for val in tmp.values()]
+    labels = [l.title() for l in tmp.keys()]
     plt.barh(y_pos, PI_vals, align='center', color=PI_c, label=PI_l)
-    y_pos  =  range(0, 4 * len(patient_dict), 4)
-    plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
-    y_pos  =  range(1, 4*len(patient_dict) + 1, 4)
     plt.yticks(y_pos, fontsize=10, labels=labels)
+    y_pos  =  range(0, 4 * len(tmp), 4)
+    plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
+    y_pos  =  range(1, 4*len(tmp) + 1, 4)
     if title:
         plt.title(f"Patient attributes, Patient PC {title}")
     else:
@@ -88,7 +119,32 @@ def plot_PI_NPI_patients(PI_patients,
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
-    plt.savefig(f"{fname}_attrs")
+    plt.savefig(f"{fname}_attrs1")
+    plt.clf()
+    plt.cla()
+
+    tmp = {k: patient_dict[k] for k in patient_dict if 'religion' not in k.lower() and 'ethnicity' not in k.lower()}
+    tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
+    plt.figure(figsize=(14, 8))
+    y_pos  =  range(2, 4 * len(tmp) + 2, 4)
+    PI_vals = [val[0] for val in tmp.values()]
+    NPI_vals = [val[1] for val in tmp.values()]
+    labels = [l.title() for l in tmp.keys()]
+    plt.barh(y_pos, PI_vals, align='center', color=PI_c, label=PI_l)
+    plt.yticks(y_pos, fontsize=10, labels=labels)
+    y_pos  =  range(0, 4 * len(tmp), 4)
+    plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
+    y_pos  =  range(1, 4*len(tmp) + 1, 4)
+    if title:
+        plt.title(f"Patient attributes, Patient PC {title}")
+    else:
+        plt.title(f"Patient attributes")
+    plt.xlabel("Frequency")
+    plt.legend()
+    # Tweak spacing to prevent clipping of tick-labels
+    plt.subplots_adjust(bottom=0.15)
+    plt.tight_layout()
+    plt.savefig(f"{fname}_attrs2")
     plt.clf()
     plt.cla()
 

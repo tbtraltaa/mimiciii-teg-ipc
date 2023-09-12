@@ -202,6 +202,7 @@ def get_patient_demography(conn, conf, hadms=()):
     #if hadms:
     if conf['include_chronic_illness']:
         df = add_chronic_illness(conn, df, conf)
+        print('Stroke', df['Stroke'].eq(1))
     df.drop('admittime', axis=1, inplace=True)
     df.drop('subject_id', axis=1, inplace=True)
     # compute the age interval

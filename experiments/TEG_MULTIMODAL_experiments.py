@@ -17,6 +17,7 @@ from teg.plot import *
 from teg.plot_patients import *
 from teg.run_experiments import *
 from teg.queries import get_db_connection
+from teg.schemas import *
 from MULTIMODAL_experiments import *
 from TEG_experiments import *
 
@@ -28,10 +29,24 @@ if __name__ == "__main__":
     #fname = 'output/TEG-PI-ONLY'
     #TEG_PC_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
     conn = get_db_connection()
-    mp = [[67, 100], [34, 66], [0, 33]]
-    remove = [False, [0, 20], [0, 20]]
+    mp = [[64, 100], [30, 70], [0, 36]]
+    remove = [False, False, False]
     os.mkdir(TEG_M_fname)
     r = admissions(conn, PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname=f'{TEG_M_fname}/TEG_M')
+    '''
+    os.mkdir(f'{TEG_M_fname}/TEG')
+    os.mkdir(f'{TEG_M_fname}/Multimodal')
+    fname_teg = f'{TEG_M_fname}/TEG/TEG'
+    fname_multimodal = f'{TEG_M_fname}/Multimodal/Multimodal'
+    conf_teg = copy.deepcopy(TEG_conf)
+    conf_teg['P_remove'] = False
+    conf_teg['missing_percent'] = [0, 100]
+    TEG_PC_PI_NPI(conn, r, TEG_join_rules, conf_teg, fname_teg)
+    conf_multimodal = copy.deepcopy(M_conf)
+    conf_multimodal['P_remove'] = False
+    conf_multimodal['missing_percent'] = [0, 100]
+    MULTIMODAL_TEG_PC_PI_NPI(conn, r, M_join_rules, conf_multimodal, fname_multimodal)
+    '''
     _r = copy.deepcopy(r)
     for i, i_r in zip(mp, remove):
         conf_teg = copy.deepcopy(TEG_conf)
@@ -48,3 +63,4 @@ if __name__ == "__main__":
         _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_teg)
         TEG_PC_PI_NPI(conn, _r, TEG_join_rules, conf_teg, fname_teg)
         MULTIMODAL_TEG_PC_PI_NPI(conn, _r, M_join_rules, conf_multimodal, fname_multimodal)
+    
