@@ -50,7 +50,6 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     PPC_R = get_patient_PC_total(events, PC_R['PC_all'], conf)
     PPC_R['patient_PC'] = get_patient_max_PC(events, PC_R['PC_all'], conf['PC_time_unit'])
     if conf['vis']:
-        '''
         plot_PC(events, PC_R['PC_nz'], conf, nbins=30, title=title, fname=f"{fname}_nz")
         plot_PC(events, PC_R['PC_P'], conf, conf['P'], nbins=10, title=title, fname=f"{fname}_P")
         plot_event_type_PC(ET_PC_R['ET_PC'],
@@ -66,7 +65,6 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
                            conf['P'],
                            title=title,
                            fname=f"{fname}_event_type_P")
-        '''
         if conf['PC_path'] and n <= 5000:
             simple_visualization(A, 
                                  events, 
@@ -86,7 +84,7 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
                       paths,
                       conf,
                       join_rules,
-                      fname+'_Paths_')
+                      fname)
         else:
             simple_visualization(A,
                                  events,

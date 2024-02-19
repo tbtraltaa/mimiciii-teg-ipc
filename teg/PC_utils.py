@@ -194,22 +194,28 @@ def get_event_type_PC(events, PC):
 def get_event_type_df(PI_types, NPI_types, I, i, PI_results, NPI_results, conf):
     if conf['iter_type'] == 'event_PC':
         PI_ET = PI_results['PC_P_ET']
+        PI_ET_ALL = PI_results['ET_PC']
         PI_ET_freq = PI_results['PC_P_ET_freq']
         NPI_ET = NPI_results['PC_P_ET']
+        NPI_ET_ALL = NPI_results['ET_PC']
         NPI_ET_freq = NPI_results['PC_P_ET_freq']
         PI_ET_avg = PI_results['PC_P_ET_avg'] 
         NPI_ET_avg = NPI_results['PC_P_ET_avg'] 
     elif conf['iter_type'] == 'event_type_PC':
         PI_ET = PI_results['ET_PC_P']
-        PI_ET_freq = PI_results['ET_PC_P_freq']
+        PI_ET_ALL = PI_results['ET_PC']
+        PI_ET_freq = PI_results['ET_PC_freq']
         NPI_ET = NPI_results['ET_PC_P']
-        NPI_ET_freq = NPI_results['ET_PC_P_freq']
+        NPI_ET_ALL = NPI_results['ET_PC']
+        NPI_ET_freq = NPI_results['ET_PC_freq']
         PI_ET_avg = PI_results['ET_PC_avg'] 
         NPI_ET_avg = NPI_results['ET_PC_avg'] 
     elif conf['iter_type'] == 'average_event_PC':
         PI_ET = PI_results['ET_PC']
+        PI_ET_ALL = PI_results['ET_PC']
         PI_ET_freq = PI_results['ET_PC_freq']
         NPI_ET = NPI_results['ET_PC']
+        NPI_ET_ALL = NPI_results['ET_PC']
         NPI_ET_freq = NPI_results['ET_PC_freq']
         PI_ET_avg = PI_results['ET_PC_avg'] 
         NPI_ET_avg = NPI_results['ET_PC_avg'] 
@@ -227,7 +233,7 @@ def get_event_type_df(PI_types, NPI_types, I, i, PI_results, NPI_results, conf):
         df = df.append({'Event Type': t,
                         'Result': 'PI',
                         'Event Type PC (PI)': PI_ET[t],
-                        'Event Type PC (NPI)': NPI_ET[t] if t in NPI_ET else np.nan,
+                        'Event Type PC (NPI)': NPI_ET_ALL[t] if t in NPI_ET_ALL else np.nan,
                         'Iteration': i,
                         'Event Count (PI)': PI_ET_freq[t],
                         'Event Count (NPI)': NPI_ET_freq[t] if t in NPI_ET_freq else np.nan,
@@ -238,7 +244,7 @@ def get_event_type_df(PI_types, NPI_types, I, i, PI_results, NPI_results, conf):
     for t in NPI_types:
         df = df.append({'Event Type': t,
                         'Result': 'NPI',
-                        'Event Type PC (PI)': PI_ET[t] if t in PI_ET else np.nan,
+                        'Event Type PC (PI)': PI_ET_ALL[t] if t in PI_ET_ALL else np.nan,
                         'Event Type PC (NPI)': NPI_ET[t],
                         'Iteration': i,
                         'Event Count (PI)': PI_ET_freq[t] if t in PI_ET_freq else np.nan,

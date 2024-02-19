@@ -92,6 +92,20 @@ def remove_event_types(events, types):
     return events_copy
 
 
+def remove_events_by_id(events, ids):
+    events_copy = copy.copy(events)
+    indices = list()
+    # iterate from the last
+    n = len(events)
+    for i in range(n-1, -1, -1):
+        if events[i]['id'] in ids:
+            del events_copy[i]
+    # reindex events
+    for i in range(len(events_copy)):
+        events_copy[i]['i'] = i
+    return events_copy
+
+
 def remove_by_missing_percent(events, conf):
     '''
     Events are assumed to be ordered by type and time

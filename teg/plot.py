@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import timedelta
 from scipy.signal import savgol_filter
+from scipy import stats
 
 from teg.event_utils import *
 from teg.PC_utils import *
@@ -46,6 +47,24 @@ def plot_event_type_PC(PC, PC_freq, PC_avg, conf, percentile='', nbins = 30, tit
     #plt.yscale("log")
     plt.ylabel("Frequency")
     plt.savefig(f"{fname}_2")
+    plt.clf()
+    plt.cla()
+
+    plt.figure(figsize=(14, 8))
+    if title:
+        plt.title(f"{title}: Event type PC distribution " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution " + str(percentile))
+    res = stats.relfreq(list(PC.values()), numbins=30)
+    x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size,
+                                 res.frequency.size)
+    plt.bar(x, res.frequency, width=res.binsize)
+    plt.xlabel("Event type PC values")
+    if not percentile:
+        plt.xscale("log")
+        plt.yscale("log")
+    plt.ylabel("Relative Frequency")
+    plt.savefig(f"{fname}_0")
     plt.clf()
     plt.cla()
 
@@ -608,6 +627,35 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     max_n = PI_n if PI_n > NPI_n else NPI_n
     PI_l = 'PI'
     NPI_l = 'NPI'
+
+    plt.clf()
+    plt.cla()
+    plt.figure(figsize=(14, 8))
+    if title:
+        plt.title(f"{title}: Event type PC distribution " + str(percentile))
+    else:
+        plt.title(f"Event type PC distribution " + str(percentile))
+    res = stats.relfreq(list(PI_PC.values()), numbins=30)
+    x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size,
+                                 res.frequency.size)
+    plt.bar(x, res.frequency, width=res.binsize, color=PI_c, label=PI_l)
+    res = stats.relfreq(list(NPI_PC.values()), numbins=30)
+    x = res.lowerlimit + np.linspace(0, res.binsize*res.frequency.size,
+                                 res.frequency.size)
+    plt.bar(x, res.frequency, width=res.binsize, color=NPI_c, label=NPI_l)
+    plt.xlabel("Event type PC values")
+    plt.ylabel("Relative Frequency")
+    if percentile == '':
+        plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+        #plt.xscale("log")
+        #plt.yscale("log")
+    else:
+        plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
+        plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
+    plt.legend()
+    plt.savefig(f"{fname}_0")
+
     plt.clf()
     plt.cla()
     plt.figure(figsize=(14, 8))

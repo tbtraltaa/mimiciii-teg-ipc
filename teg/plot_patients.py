@@ -16,11 +16,13 @@ def plot_PI_NPI_patients(PI_patients,
                          fname = 'Patients'):
     pi_patients = dict()
     npi_patients = dict()
+    print('PI_df', PI_df)
     if PI_results and NPI_results:
         for idd in PI_results['patient_PC_P']:
             pi_patients[idd] = PI_patients[idd]
         for idd in NPI_results['patient_PC_P']:
             npi_patients[idd] = NPI_patients[idd]
+        print('pi_patients', pi_patients)
         pi_df = PI_df[PI_df['id'].isin(pi_patients)] 
         npi_df = NPI_df[NPI_df['id'].isin(npi_patients)] 
     else:

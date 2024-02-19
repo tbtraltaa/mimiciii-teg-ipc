@@ -4,6 +4,7 @@ import numpy as np
 from pyvis.network import Network
 import pprint
 from datetime import datetime
+import copy
 
 from teg.eventgraphs import *
 from teg.build_graph import *
@@ -82,15 +83,18 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         paths_P = dict([(i, v_paths[i]) for i in PC_P])
         if conf['path_percentile']:
             paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
-            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname + "PC_P_Path_P_P")
-            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname + "Graph_PC_P_Path_P_P")
-        else:
-            visualize_graph(G, list(PC_P.keys()), paths_P, fname + "Graph_PC_P_Path_P")
-        #visualize_SP_tree(G, V, v_paths, fname+"SP_all")
-        #visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname + "SP_PC_P_Path_P")
+            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname + "SP_Tree_PC_P_Path_P_P")
+            G_tmp = copy.deepcopy(G)
+            visualize_graph(G_tmp, list(PC_P.keys()), paths_P_P, fname + "Graph_PC_P_Path_P_P")
+        visualize_SP_tree(G, V, v_paths, fname+"SP_Tree_all")
+        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname + "SP_Tree_PC_P_Path_P")
+        G_tmp = copy.deepcopy(G)
+        visualize_graph(G_tmp, list(PC_P.keys()), paths_P, fname + "Graph_PC_P_Path_P")
+        G_tmp = copy.deepcopy(G)
+        visualize_graph(G_tmp, V, v_paths, fname + "Graph_SP_Tree")
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), fname + "V_PC_P")
+        visualize_vertices(G, list(PC_P.keys()), fname + "Vertices_PC_P")
 
 def visualize_SP_tree(G, V, paths, fname):
     PC_edges = list()
@@ -118,7 +122,7 @@ def visualize_SP_tree(G, V, paths, fname):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=False)
+    g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)
@@ -141,7 +145,7 @@ def visualize_paths(G, paths, fname):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.from_nx(G.edge_subgraph(edges), show_edge_weights=False)
+    g.from_nx(G.edge_subgraph(edges), show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)
@@ -192,7 +196,7 @@ def visualize_graph(G, V = None, paths = None, fname = 'Graph'):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.from_nx(G, show_edge_weights=False)
+    g.from_nx(G, show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)

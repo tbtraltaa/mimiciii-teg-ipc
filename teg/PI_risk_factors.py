@@ -1,4 +1,62 @@
 PI_VITALS = [
+                'white blood cell count',
+                'magnesium',
+                'creatinine',
+                'oxygen saturation',
+                'platelets',
+                'blood urea nitrogen',
+                'sodium',
+                'hematocrit',
+
+                'glascow coma scale total',
+                'prothrombin time pt',
+                'partial pressure of carbon dioxide',
+                'ph',
+
+                'partial pressure of oxygen',
+                'troponin-t',
+                'lactate',
+                'lactic acid',
+                'albumin',
+                'bilirubin',
+                'ph urine',
+                'systemic vascular resistance',
+
+        ]
+'''
+'mean blood pressure',
+'hemoglobin',
+'mean corpuscular hemoglobin concentration',
+'mean corpuscular hemoglobin',
+'neutrophils',
+'glucose',
+'potassium',
+'potassium serum',
+'creatinine urine',
+'creatinine ascites',
+'creatinine pleural',
+'creatinine body fluid',
+'albumin urine',
+'albumin ascites',
+'albumin pleural',
+'prothrombin time inr',
+'total protein',
+'total protein urine',
+'weight',
+'cardiac index',
+'cholesterol'
+'''
+'''
+PI_VITALS = [
+                #'white blood cell count',
+                'magnesium',
+                #'creatinine',
+                #'glascow coma scale total',
+                #'prothrombin time pt'
+            ]
+'''
+'''
+PI_VITALS = [
                 'glascow coma scale total',
                 'mean blood pressure',
                 'oxygen saturation',
@@ -60,7 +118,8 @@ PI_VITALS = [
                 #'temperature',
                 #'central venous pressure',
         ]
-# name : [[ICD9_codes], count the ICD9 code for current_admission]
+'''
+# name : [[ICD9_codes], to count the ICD9 code for current_admission]
 # all true because we use only the first admissions
 CHRONIC_ILLNESS = {
     'Diabetes': [['250%'], True],

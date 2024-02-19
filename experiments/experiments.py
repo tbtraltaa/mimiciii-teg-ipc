@@ -29,8 +29,10 @@ if __name__ == "__main__":
     #fname = 'output/TEG-PI-ONLY'
     #TEG_PC_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
     conn = get_db_connection()
-    mp = [[64, 100], [30, 70], [0, 36]]
-    remove = [False, False, False]
+    #mp = [[64, 100], [30, 70], [0, 36]]
+    #remove = [False, False, False]
+    mp = [[0, 100]]
+    remove = [False]
     os.mkdir(TEG_M_fname)
     r = admissions(conn, PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname=f'{TEG_M_fname}/TEG_M')
     '''

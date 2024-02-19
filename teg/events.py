@@ -15,6 +15,7 @@ from teg.eventgraphs import *
 from teg.queries_mimic_extract import *
 from teg.queries_chart_events import *
 from teg.queries import *
+from teg.event_utils import remove_events_by_id
 
 def events(conn, event_list, conf, hadms=()):
     print("==========================================================")
@@ -60,6 +61,14 @@ def events(conn, event_list, conf, hadms=()):
             print('Vitals', len(events))
             if len(events) > 0:
                 all_events += events
+    '''
+    remove_ids = []
+    # remove patients with events no more than 2
+    for key, val in groupby(all_events, key=lambda x: x['id']):
+        if len(list(val)) <= 2:
+            remove_ids.append(key)
+    all_events = remove_events_by_id(all_events, remove_ids)
+    '''
     for i, e in enumerate(all_events):
         e['i'] = i 
         e['j'] = i
@@ -75,12 +84,13 @@ def process_events_PI(all_events, conf):
     state = 0
     PI = False
     non_PI_ids = []
-    non_PI_events = []
     excluded_ids = []
     excluded_indices = []
     id_excluded = False
     subjects = []
     hadm_stage_t = dict()
+    # exclude patients who had admission and PI Stage directly
+    patient_events = 0
     for i, e in enumerate(sorted_events):
         # take only first admission
         if 'Admissions' in e['type'] and e['subject_id'] in subjects and conf['first_hadm']:
@@ -88,6 +98,7 @@ def process_events_PI(all_events, conf):
             id_excluded = True
         # consider events till the first PI stage
         if not PI and not id_excluded:
+            patient_events += 1
             # PI stage
             if 'PI Stage' in e['type']:
                 stage = e['pi_stage']
@@ -121,6 +132,7 @@ def process_events_PI(all_events, conf):
             elif min_stage < stage and stage < max_stage and conf['PI_exclude_mid_stages']:
                     excluded_indices.append(e['i'])
                     stage = 0
+                    patient_events -= 1
             elif min_stage < stage and stage < max_stage and not conf['PI_exclude_mid_stages']:
                 all_events[e['i']]['pi_state'] = state
                 all_events[e['i']]['pi_stage'] = stage
@@ -133,22 +145,27 @@ def process_events_PI(all_events, conf):
             if not PI:
                 non_PI_ids.append(e['id'])
                 print('Non PI', e['id'])
+            elif patient_events == 2: # Admissions and Stage
+                non_PI_ids.append(e['id'])
+                del hadm_stage_t[e['hadm_id']]
             PI = False
             stage = 0
             state = 0
             id_excluded = False
+            patient_events = 0
+        if i + 1 == n and not PI:
+            non_PI_ids.append(e['id'])
+            print('Non PI', e['id'])
+        elif i + 1 == n and patient_events == 2:
+            non_PI_ids.append(e['id'])
+            del hadm_stage_t[e['hadm_id']]
 
     for e in all_events:
         if e['id'] in excluded_ids:
             excluded_indices.append(e['i'])
-        if e['id'] in non_PI_ids:
+        elif e['id'] in non_PI_ids:
             excluded_indices.append(e['i'])
-
-    if conf['PI_only']:
-        for e in all_events:
-            if e['id'] in non_PI_ids:
-                non_PI_events.append(e['i'])
-    for i in sorted(set(excluded_indices + non_PI_events), reverse=True):
+    for i in sorted(set(excluded_indices), reverse=True):
         del all_events[i]
 
     if conf['subsequent_adm']:
@@ -197,7 +214,6 @@ def process_events_PI(all_events, conf):
                 e2['adm_num'] = adm_num
         print("Subsequent admission events: ", len(sub_adm_events))
         all_events += sub_adm_events
-
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
     print("==========================================================")
     print("Events in TEG for PI:")
