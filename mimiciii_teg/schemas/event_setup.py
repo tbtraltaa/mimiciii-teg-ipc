@@ -1,0 +1,76 @@
+'''
+Event lists that can be used for different experiments
+'''
+
+PI_RISK_EVENTS = [
+    'Admissions',
+    #'Discharges',
+    #'ICU In',
+    #'ICU Out',
+    #'Callout',
+    #'Transfer In',
+    #'Transfer Out',
+    #'Services',
+    'Intervention',
+    'Vitals/Labs',
+    'PI Stage']
+
+EVENTS_INCLUDED = [
+    'Admissions',
+    'Discharges',
+    'ICU In',
+    'ICU Out',
+    'Callout',
+    'Transfer In',
+    'Transfer Out',
+    'Services',
+    'Intervention',
+    'Vitals/Labs',
+    'PI Stage',
+    'Input CV',
+    'Input MV',
+    'Presc Start',
+    'Presc End']
+
+ALL_EVENTS = [
+    'Admissions',
+    'Discharges',
+    'ICU In',
+    'ICU Out',
+    'Callout',
+    'Transfer In',
+    'Transfer Out',
+    'Services',
+    'Intervention',
+    'Vitals/Labs',
+    'PI Stage',
+    'Input CV',
+    'Input MV',
+    'Presc Start',
+    'Presc End',
+    'Braden Activity',
+    'Braden Friction/Shear',
+    'Braden Mobility',
+    'Braden Moisture',
+    'Braden Nutrition',
+    'Braden Sensory Perception',
+    'Braden Score'
+    'CPT',
+    'PI Site',
+    'PI Wound Base',
+    'PI Drainage',
+    'PI Odor',
+    'PI Cleansing',
+    'PI Treatment',
+    'PI Pressure-Reduce',
+    #'PI position',
+    'PI Skin Type',
+    'PI Drainage Amount',
+    'PI Surrounding Tissue',
+    'PI Tunneling',
+    'PI Undermining',
+    'PI Dressing Status',
+    'PI Depth',
+    'PI Width',
+    'PI Length'
+    ]

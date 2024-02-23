@@ -1,11 +1,11 @@
 # Byte-compiled / optimized / DLL files
 #
-src/
-tmp*
+cmd/*
+teg/*
 data*/
-experiments/data/
-experiments/data-old/
-experiments/output/
+*experiments/data/
+*experiments/data-old/
+*experiments/output/
 .DS_Store
 .*
 __pycache__/

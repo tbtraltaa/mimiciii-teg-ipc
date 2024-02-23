@@ -13,3 +13,9 @@ networkx==2.8.4
 notebook==6.4.12
 pandas==1.4.4
 psycopg2==2.8.6
+
+  - conda-forge/osx-64::libblas==3.9.0=16_osx64_openblas
+  - conda-forge/osx-64::mpfr==4.2.0=h4f9bd69_0
+  - conda-forge/osx-64::libcblas==3.9.0=16_osx64_openblas
+  - conda-forge/osx-64::liblapack==3.9.0=16_osx64_openblas
+  - conda-forge/osx-64::suitesparse==5.10.1=h7aff33d_1

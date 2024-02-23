@@ -11,14 +11,14 @@ from pygraphblas import *
 options_set(nthreads=12)
 
 
-from teg.admissions import admissions
-from teg.event_setup import *
-from teg.events import *
-from teg.plot import *
-from teg.plot_patients import *
-from teg.run_experiments import *
-from teg.queries import get_db_connection
-from teg.schemas import *
+from mimiciii_teg.queries.admissions import admissions
+from mimiciii_teg.schemas.event_setup import *
+from mimiciii_teg.teg.events import *
+from mimiciii_teg.vis.plot import *
+from mimiciii_teg.vis.plot_patients import *
+from run_experiments import *
+from mimiciii_teg.queries.queries import get_db_connection
+from mimiciii_teg.schemas.schemas import *
 
 # Experiment configuration
 # P = {<EVENT TYPE>: 
