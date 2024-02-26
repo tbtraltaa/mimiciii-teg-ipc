@@ -3,6 +3,9 @@ import pprint
 import networkx as nx
 
 def PC_with_target_path_nx(G, states=None, weight=None):
+'''
+Inverse percolation centrality algorithm using Networkx
+'''
     #PC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
     PC = np.zeros(n)
