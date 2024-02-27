@@ -6,15 +6,15 @@ import pprint
 from datetime import datetime
 import copy
 
-from teg.eventgraphs import *
-from teg.build_graph import *
-from teg.paths import *
+from mimiciii_teg.teg.eventgraphs import *
+from mimiciii_teg.teg.build_graph import *
+from mimiciii_teg.teg.paths import *
 
-def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fname):
-    # no PC visualization if PC is None
+def simple_visualization(A, events, patients, CENTRALITY_all, CENTRALITY_P, conf, join_rules, fname):
+    # no CENTRALITY visualization if CENTRALITY is None
     G = build_networkx_graph(A, events, patients, None, conf, join_rules)
-    visualize_graph(G, fname = fname + "-Graph-No-PC")
-    G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+    visualize_graph(G, fname = fname + "-Graph-No-CENTRALITY")
+    G = build_networkx_graph(A, events, patients, CENTRALITY_all, conf, join_rules)
     visualize_graph(G, fname = fname + "-Graph")
     g = Network(
         directed=True,
@@ -22,18 +22,18 @@ def simple_visualization(A, events, patients, PC_all, PC_P, conf, join_rules, fn
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.from_nx(G.subgraph(list(PC_P.keys())), show_edge_weights=False)
+    g.from_nx(G.subgraph(list(CENTRALITY_P.keys())), show_edge_weights=False)
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)
     g.show_buttons()
-    g.save_graph(fname + '_Simple_PC_P_' + str(datetime.now()) + '.html')
+    g.save_graph(fname + '_Simple_CENTRALITY_P_' + str(datetime.now()) + '.html')
     attrs = dict([(e['i'], e['type']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
-    #visualize_vertices(G, list(PC_P.keys()), fname + "_Simple_V_PC_P_")
+    #visualize_vertices(G, list(CENTRALITY_P.keys()), fname + "_Simple_V_CENTRALITY_P_")
 
 
-def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_rules, fname):
+def visualize(patients, events, A, V, CENTRALITY_all, CENTRALITY_P, v_paths, paths, conf, join_rules, fname):
     n = len(events)
     '''
     if conf['vis'] and n > 2000:
@@ -41,7 +41,7 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
         # use only shortest path subgraph
         A = A.toarray()
         A = dok_matrix(A[np.array(V, dtype=int)][:, np.array(V, dtype=int)])
-        PC_all = dict([(i, PC_all[v]) for i, v in enumerate(V)])
+        CENTRALITY_all = dict([(i, CENTRALITY_all[v]) for i, v in enumerate(V)])
         events = [events[v] for v in V]
         paths_new = dict()
         for v in v_paths:
@@ -52,59 +52,59 @@ def visualize(patients, events, A, V, PC_all, PC_P, v_paths, paths, conf, join_r
             for p in v_paths[v]:
                 paths_new[v].append([V.index(i) for i in p])
         paths = paths_new
-        PC_P = dict([(V.index(i), v) for i, v in PC_P.items()])
+        CENTRALITY_P = dict([(V.index(i), v) for i, v in CENTRALITY_P.items()])
         V = range(len(V))
-        G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+        G = build_networkx_graph(A, events, patients, CENTRALITY_all, conf, join_rules)
         fname += "_Q" + str(len(conf['quantiles']))
-        paths_P = dict([(i, v_paths[i]) for i in PC_P])
+        paths_P = dict([(i, v_paths[i]) for i in CENTRALITY_P])
         if conf['path_percentile']:
-            paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
-            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname+"PC_P_Path_P_P")
-            visualize_graph(G, list(PC_P.keys()), paths_P_P, fname+"all_PC_P_Path_P_P")
+            paths_P_P = get_paths_by_CENTRALITY(CENTRALITY_all, CENTRALITY_P, paths_P, conf['path_percentile'])
+            visualize_SP_tree(G, list(CENTRALITY_P.keys()), paths_P_P, fname+"CENTRALITY_P_Path_P_P")
+            visualize_graph(G, list(CENTRALITY_P.keys()), paths_P_P, fname+"all_CENTRALITY_P_Path_P_P")
         else:
-            visualize_graph(G, list(PC_P.keys()), paths_P, fname+"all_PC_P")
+            visualize_graph(G, list(CENTRALITY_P.keys()), paths_P, fname+"all_CENTRALITY_P")
         visualize_SP_tree(G, V, v_paths, fname+"SP_all")
-        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname+"PC_P")
+        visualize_SP_tree(G, list(CENTRALITY_P.keys()), paths_P, fname+"CENTRALITY_P")
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), fname+"V_percentile")
+        visualize_vertices(G, list(CENTRALITY_P.keys()), fname+"V_percentile")
     '''
     if conf['vis']:
-        # no PC visualization if PC is None
+        # no CENTRALITY visualization if CENTRALITY is None
         G = build_networkx_graph(A, events, patients, None, conf, join_rules)
-        visualize_graph(G, fname = fname + "-Graph-No-PC")
-        G = build_networkx_graph(A, events, patients, PC_all, conf, join_rules)
+        visualize_graph(G, fname = fname + "-Graph-No-CENTRALITY")
+        G = build_networkx_graph(A, events, patients, CENTRALITY_all, conf, join_rules)
         visualize_graph(G, fname = fname + "-Graph")
         for n_paths in conf['n_patient_paths']:
-            patient_paths, patient_paths_list = get_patient_PC_paths(events, PC_all, paths, n_paths)
-            visualize_paths(G, patient_paths_list, fname + f"{n_paths}_patient_PC_paths")
-            #patient_paths, patient_paths_list = get_patient_shortest_paths(A, events, PC_all, paths, n_paths)
+            patient_paths, patient_paths_list = get_patient_CENTRALITY_paths(events, CENTRALITY_all, paths, n_paths)
+            visualize_paths(G, patient_paths_list, fname + f"{n_paths}_patient_CENTRALITY_paths")
+            #patient_paths, patient_paths_list = get_patient_shortest_paths(A, events, CENTRALITY_all, paths, n_paths)
             #visualize_paths(G, patient_paths_list, fname + f"{n_paths}_patient_shortest_paths")
-        paths_P = dict([(i, v_paths[i]) for i in PC_P])
+        paths_P = dict([(i, v_paths[i]) for i in CENTRALITY_P])
         if conf['path_percentile']:
-            paths_P_P = get_paths_by_PC(PC_all, PC_P, paths_P, conf['path_percentile'])
-            visualize_SP_tree(G, list(PC_P.keys()), paths_P_P, fname + "SP_Tree_PC_P_Path_P_P")
+            paths_P_P = get_paths_by_CENTRALITY(CENTRALITY_all, CENTRALITY_P, paths_P, conf['path_percentile'])
+            visualize_SP_tree(G, list(CENTRALITY_P.keys()), paths_P_P, fname + "SP_Tree_CENTRALITY_P_Path_P_P")
             G_tmp = copy.deepcopy(G)
-            visualize_graph(G_tmp, list(PC_P.keys()), paths_P_P, fname + "Graph_PC_P_Path_P_P")
+            visualize_graph(G_tmp, list(CENTRALITY_P.keys()), paths_P_P, fname + "Graph_CENTRALITY_P_Path_P_P")
         visualize_SP_tree(G, V, v_paths, fname+"SP_Tree_all")
-        visualize_SP_tree(G, list(PC_P.keys()), paths_P, fname + "SP_Tree_PC_P_Path_P")
+        visualize_SP_tree(G, list(CENTRALITY_P.keys()), paths_P, fname + "SP_Tree_CENTRALITY_P_Path_P")
         G_tmp = copy.deepcopy(G)
-        visualize_graph(G_tmp, list(PC_P.keys()), paths_P, fname + "Graph_PC_P_Path_P")
+        visualize_graph(G_tmp, list(CENTRALITY_P.keys()), paths_P, fname + "Graph_CENTRALITY_P_Path_P")
         G_tmp = copy.deepcopy(G)
         visualize_graph(G_tmp, V, v_paths, fname + "Graph_SP_Tree")
         attrs = dict([(e['i'], e['type']) for e in events])
         nx.set_node_attributes(G, attrs, 'group')
-        visualize_vertices(G, list(PC_P.keys()), fname + "Vertices_PC_P")
+        visualize_vertices(G, list(CENTRALITY_P.keys()), fname + "Vertices_CENTRALITY_P")
 
 def visualize_SP_tree(G, V, paths, fname):
-    PC_edges = list()
+    CENTRALITY_edges = list()
     for v in V:
         for path in paths[v]:
             i = path[0]
             for j in path[1:]:
-                PC_edges.append((i,j))
+                CENTRALITY_edges.append((i,j))
                 i = j
-    PC_edges = list(set(PC_edges))
+    CENTRALITY_edges = list(set(CENTRALITY_edges))
     '''
     unique_paths = set()
     for v in V:
@@ -113,7 +113,7 @@ def visualize_SP_tree(G, V, paths, fname):
     for path in unique_paths:
         i = path[0]
         for j in path[1:]:
-            PC_edges.append((i,j))
+            CENTRALITY_edges.append((i,j))
             i = j
     '''
     g = Network(
@@ -122,7 +122,7 @@ def visualize_SP_tree(G, V, paths, fname):
         width='90%',
         neighborhood_highlight=True,
         select_menu=True)
-    g.from_nx(G.edge_subgraph(PC_edges), show_edge_weights=True)
+    g.from_nx(G.edge_subgraph(CENTRALITY_edges), show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)
@@ -208,7 +208,7 @@ def visualize_graph(G, V = None, paths = None, fname = 'Graph'):
     pos = nx.spring_layout(G, k=0.15, seed=4572321)
     patient_i = dict([(id_, i) for i, id_ in enumerate(patients.keys())])
     node_color = [patient_i[e['id']] for e in events]
-    node_size = [v*20000 for v in PC.values()]
+    node_size = [v*20000 for v in CENTRALITY.values()]
     nx.draw_networkx(
         G,
         pos=pos,

@@ -5,7 +5,7 @@ import pprint
 
 from mimiciii_teg.teg.eventgraphs import *
 
-def build_networkx_graph(A, events, patients, PC, conf, join_rules):
+def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
     n = len(events)
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     # G.remove_nodes_from([n for n, d in G.degree if d == 0])
@@ -17,30 +17,30 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     #        else (e['i'], e['id']) for e in events])
     attrs = dict([(e['i'], e['id']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
-    if PC is not None:
-        if conf['scale_PC']:
-            max_PC = max(PC.values())
-            PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                    else (i, v/max_PC * 120) for i, v in PC.items()])
+    if CENTRALITY is not None:
+        if conf['scale_CENTRALITY']:
+            max_CENTRALITY = max(CENTRALITY.values())
+            CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v/max_CENTRALITY * 120) for i, v in CENTRALITY.items()])
         else:
-            PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                    else (i, v * 10000) for i, v in PC.items()])
+            CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v * 10000) for i, v in CENTRALITY.items()])
             '''
-            PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                    else (i, v * 1000) for i, v in PC.items()])
+            CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v * 1000) for i, v in CENTRALITY.items()])
             '''
-        shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
+        shapes = dict([(i, 'text') if CENTRALITY[v] == 0.0 else (i, 'dot') for i, v in enumerate(CENTRALITY)])
         shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
         shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
-        nx.set_node_attributes(G, PC_scaled, 'size')
+        nx.set_node_attributes(G, CENTRALITY_scaled, 'size')
         attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
-            for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
+            for k, v in e.items()]) + "\nCENTRALITY: " + str(CENTRALITY[e['i']]) + "\nSize: " + str(CENTRALITY_scaled[e['i']])) for e in events])
     else:
         shapes = dict([(i, 'dot') for i in range(len(events))])
         shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
         shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
         attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v) for k, v in e.items()])) for e in events])
-    #nx.set_node_attributes(G, PC_scaled, 'value')
+    #nx.set_node_attributes(G, CENTRALITY_scaled, 'value')
     nx.set_node_attributes(G, shapes, 'shape')
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
@@ -72,7 +72,7 @@ def build_networkx_graph(A, events, patients, PC, conf, join_rules):
     return G
 
 
-def build_networkx_graph_example(A, events, patients, PC, conf, join_rules):
+def build_networkx_graph_example(A, events, patients, CENTRALITY, conf, join_rules):
     n = len(events)
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     names = {
@@ -115,15 +115,15 @@ def build_networkx_graph_example(A, events, patients, PC, conf, join_rules):
     #        else (e['i'], e['id']) for e in events])
     attrs = dict([(e['i'], e['subject_id']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
-    shapes = dict([(i, 'text') if PC[v] == 0.0 else (i, 'dot') for i, v in enumerate(PC)])
+    shapes = dict([(i, 'text') if CENTRALITY[v] == 0.0 else (i, 'dot') for i, v in enumerate(CENTRALITY)])
     shapes = dict([(i, shape) if 'PI' not in events[i]['type'] else (i, 'triangle') for i, shape in shapes.items()])
     nx.set_node_attributes(G, shapes, 'shape')
-    max_PC = max(PC.values())
-    PC_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v/max_PC * 200) for i, v in PC.items()])
-    nx.set_node_attributes(G, PC_scaled, 'size')
-    #nx.set_node_attributes(G, PC_scaled, 'value')
+    max_CENTRALITY = max(CENTRALITY.values())
+    CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] else (i, v/max_CENTRALITY * 200) for i, v in CENTRALITY.items()])
+    nx.set_node_attributes(G, CENTRALITY_scaled, 'size')
+    #nx.set_node_attributes(G, CENTRALITY_scaled, 'value')
     attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
-        for k, v in e.items()]) + "\nPC: " + str(PC[e['i']]) + "\nSize: " + str(PC_scaled[e['i']])) for e in events])
+        for k, v in e.items()]) + "\nCENTRALITY: " + str(CENTRALITY[e['i']]) + "\nSize: " + str(CENTRALITY_scaled[e['i']])) for e in events])
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
 

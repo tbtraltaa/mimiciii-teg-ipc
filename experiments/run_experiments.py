@@ -6,29 +6,12 @@ import time
 import warnings
 warnings.filterwarnings('ignore')
 
-'''
-from teg.schemas import *
-from teg.eventgraphs import *
-from teg.percolation import PC_with_target_path_nx
-from teg.apercolation import *
-from teg.event_utils import *
-from teg.PC_utils import *
-from teg.utils import *
-from teg.graph_vis import *
-from teg.build_graph import *
-from teg.paths import *
-from teg.plot import *
-from teg.plot_events import *
-from teg.psm import *
-from teg.pca import *
-'''
-
 from mimiciii_teg.schemas.schemas import *
 from mimiciii_teg.teg.eventgraphs import *
-from mimiciii_teg.ipc.percolation import PC_with_target_path_nx
-from mimiciii_teg.ipc.apercolation import *
+from mimiciii_teg.centrality.IPC import IPC_with_target_path_nx
+from mimiciii_teg.centrality.algebraic_IPC import *
 from mimiciii_teg.utils.event_utils import *
-from mimiciii_teg.utils.PC_utils import *
+from mimiciii_teg.utils.CENTRALITY_utils import *
 from mimiciii_teg.utils.utils import *
 from mimiciii_teg.vis.graph_vis import *
 from mimiciii_teg.teg.build_graph import *
@@ -47,45 +30,45 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
     states = np.zeros(n)
     for e in events:
         states[e['i']] = e['pi_state']
-    if not conf['PC_path'] or n > 5000:
+    if not conf['CENTRALITY_path'] or n > 5000:
         start = time.time()
-        PC_values = algebraic_PC(A, states=states)
-        print("Time for PC without paths ", float(time.time() - start)/60.0, 'min' )
-    elif conf['PC_path']:
+        CENTRALITY_values = algebraic_IPC(A, states=states)
+        print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
+    elif conf['CENTRALITY_path']:
         start = time.time()
-        #PC_values, pred, D = algebraic_PC_with_pred(A, states=states)
-        #print("Time for PC with pred", float(time.time() - start)/60.0)
-        #V, v_paths, paths = PC_paths(D, pred, states)
-        PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
-        print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
-    if max(PC_values) == 0:
+        #CENTRALITY_values, pred, D = algebraic_CENTRALITY_with_pred(A, states=states)
+        #print("Time for CENTRALITY with pred", float(time.time() - start)/60.0)
+        #V, v_paths, paths = CENTRALITY_paths(D, pred, states)
+        CENTRALITY_values, V, v_paths, paths = algebraic_IPC_with_paths(A, states=states)
+        print('Algebraic IPC time with paths', float(time.time() - start)/60.0, 'min')
+    if max(CENTRALITY_values) == 0:
         return None
-    PC_R = process_PC_values(events, PC_values, conf) 
-    ET_PC_R = process_event_type_PC(events, PC_values, conf) 
-    PPC_R = get_patient_PC_total(events, PC_R['PC_all'], conf)
-    PPC_R['patient_PC'] = get_patient_max_PC(events, PC_R['PC_all'], conf['PC_time_unit'])
+    CENTRALITY_R = process_CENTRALITY_values(events, CENTRALITY_values, conf) 
+    ET_CENTRALITY_R = process_event_type_CENTRALITY(events, CENTRALITY_values, conf) 
+    PCENTRALITY_R = get_patient_CENTRALITY_total(events, CENTRALITY_R['CENTRALITY_all'], conf)
+    PCENTRALITY_R['patient_CENTRALITY'] = get_patient_max_CENTRALITY(events, CENTRALITY_R['CENTRALITY_all'], conf['CENTRALITY_time_unit'])
     if conf['vis']:
-        plot_PC(events, PC_R['PC_nz'], conf, nbins=30, title=title, fname=f"{fname}_nz")
-        plot_PC(events, PC_R['PC_P'], conf, conf['P'], nbins=10, title=title, fname=f"{fname}_P")
-        plot_event_type_PC(ET_PC_R['ET_PC'],
-                           ET_PC_R['ET_PC_freq'],
-                           ET_PC_R['ET_PC_avg'],
+        plot_CENTRALITY(events, CENTRALITY_R['CENTRALITY_nz'], conf, nbins=30, title=title, fname=f"{fname}_nz")
+        plot_CENTRALITY(events, CENTRALITY_R['CENTRALITY_P'], conf, conf['P'], nbins=10, title=title, fname=f"{fname}_P")
+        plot_event_type_CENTRALITY(ET_CENTRALITY_R['ET_CENTRALITY'],
+                           ET_CENTRALITY_R['ET_CENTRALITY_freq'],
+                           ET_CENTRALITY_R['ET_CENTRALITY_avg'],
                            conf,
                            title=title,
                            fname=f"{fname}_event_type")
-        plot_event_type_PC(ET_PC_R['ET_PC_P'], 
-                           ET_PC_R['ET_PC_P_freq'],
-                           ET_PC_R['ET_PC_P_avg'],
+        plot_event_type_CENTRALITY(ET_CENTRALITY_R['ET_CENTRALITY_P'], 
+                           ET_CENTRALITY_R['ET_CENTRALITY_P_freq'],
+                           ET_CENTRALITY_R['ET_CENTRALITY_P_avg'],
                            conf, 
                            conf['P'],
                            title=title,
                            fname=f"{fname}_event_type_P")
-        if conf['PC_path'] and n <= 5000:
+        if conf['CENTRALITY_path'] and n <= 5000:
             simple_visualization(A, 
                                  events, 
                                  admissions,
-                                 PC_R['PC_all'],
-                                 PC_R['PC_P'],
+                                 CENTRALITY_R['CENTRALITY_all'],
+                                 CENTRALITY_R['CENTRALITY_P'],
                                  conf,
                                  join_rules,
                                  fname)
@@ -93,8 +76,8 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
                       events,
                       A,
                       V, 
-                      PC_R['PC_all'],
-                      PC_R['PC_P'],
+                      CENTRALITY_R['CENTRALITY_all'],
+                      CENTRALITY_R['CENTRALITY_P'],
                       v_paths,
                       paths,
                       conf,
@@ -104,20 +87,20 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
             simple_visualization(A,
                                  events,
                                  admissions, 
-                                 PC_R['PC_all'],
-                                 PC_R['PC_P'],
+                                 CENTRALITY_R['CENTRALITY_all'],
+                                 CENTRALITY_R['CENTRALITY_P'],
                                  conf,
                                  join_rules,
                                  fname)
     results = {}
-    results.update(PC_R)
-    results.update(ET_PC_R)
-    results.update(PPC_R)
+    results.update(CENTRALITY_R)
+    results.update(ET_CENTRALITY_R)
+    results.update(PCENTRALITY_R)
     return results
 
 
 def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, join_rules, fname, title='', 
-                   vis_last_iter = False, PC_path_last_iter = False):
+                   vis_last_iter = False, CENTRALITY_path_last_iter = False):
     I = []
     #for i in range(conf['iterations']):
     i = 0
@@ -166,27 +149,27 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
                                           fname + f'_NPI_{i+1}', 'NPI: ' + title)
         if NPI_results is None or PI_results is None:
             return PI_events, NPI_events, PI_results, NPI_results
-        if conf['iter_type'] == 'event_type_PC':
+        if conf['iter_type'] == 'event_type_CENTRALITY':
             PI_types, NPI_types, I = dict_intersection_and_differences(
-                                        PI_results['ET_PC_P'],
-                                        NPI_results['ET_PC_P'])
+                                        PI_results['ET_CENTRALITY_P'],
+                                        NPI_results['ET_CENTRALITY_P'])
             if conf['P_remove']:
-                PI_remove = PI_results['ET_PC_remove']
-                NPI_remove = NPI_results['ET_PC_remove']
-        elif conf['iter_type'] == 'event_PC':
+                PI_remove = PI_results['ET_CENTRALITY_remove']
+                NPI_remove = NPI_results['ET_CENTRALITY_remove']
+        elif conf['iter_type'] == 'event_CENTRALITY':
             PI_types, NPI_types, I = dict_intersection_and_differences(
-                                        PI_results['PC_P_ET'],
-                                        NPI_results['PC_P_ET'])
+                                        PI_results['CENTRALITY_P_ET'],
+                                        NPI_results['CENTRALITY_P_ET'])
             if conf['P_remove']:
-                PI_remove = PI_results['PC_remove_ET']
-                NPI_remove = NPI_results['PC_remove_ET']
-        elif conf['iter_type'] == 'average_event_PC':
+                PI_remove = PI_results['CENTRALITY_remove_ET']
+                NPI_remove = NPI_results['CENTRALITY_remove_ET']
+        elif conf['iter_type'] == 'average_event_CENTRALITY':
             PI_types, NPI_types, I = dict_intersection_and_differences(
-                                        PI_results['ET_PC_P_avg'],
-                                        NPI_results['ET_PC_P_avg'])
+                                        PI_results['ET_CENTRALITY_P_avg'],
+                                        NPI_results['ET_CENTRALITY_P_avg'])
             if conf['P_remove']:
-                PI_remove = PI_results['ET_PC_avg_remove']
-                NPI_remove = NPI_results['ET_PC_avg_remove']
+                PI_remove = PI_results['ET_CENTRALITY_avg_remove']
+                NPI_remove = NPI_results['ET_CENTRALITY_avg_remove']
 
         print("==========================================================")
         print(f"Intersections")
@@ -224,73 +207,73 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
                                     NPI_events,
                                     title = title,
                                     fname = f"{fname}_Categories_{i+1}")
-        if len(I) == 0 and vis_last_iter and PC_path_last_iter and not last_iter:
+        if len(I) == 0 and vis_last_iter and CENTRALITY_path_last_iter and not last_iter:
             conf['vis'] = True
             vis_last_iter = False
-            conf['PC_path'] = True
-            PC_path_last_iter = False
+            conf['CENTRALITY_path'] = True
+            CENTRALITY_path_last_iter = False
             i -= 1
             last_iter = True
-        elif len(I) == 0 and vis_last_iter and not PC_path_last_iter and not last_iter:
+        elif len(I) == 0 and vis_last_iter and not CENTRALITY_path_last_iter and not last_iter:
             conf['vis'] = True
-            conf['PC_path'] = False
+            conf['CENTRALITY_path'] = False
             vis_last_iter = False
             i -= 1
             last_iter = True
-        elif len(I) == 0 and not vis_last_iter and PC_path_last_iter and not last_iter:
-            conf['PC_path'] = True
-            PC_path_last_iter = False
+        elif len(I) == 0 and not vis_last_iter and CENTRALITY_path_last_iter and not last_iter:
+            conf['CENTRALITY_path'] = True
+            CENTRALITY_path_last_iter = False
             i -= 1
             last_iter = True
         elif len(I) == 0 and not last_iter:
             conf['vis'] = False
-            conf['PC_path'] = False
+            conf['CENTRALITY_path'] = False
             last_iter = True
             i -= 1
         elif last_iter:
             break
         i += 1
-    if conf['PC_P_events']:
-        PI_events = get_top_events(PI_events, PI_results['PC_P'], conf, I)
-        NPI_events = get_top_events(NPI_events, NPI_results['PC_P'], conf, I)
+    if conf['CENTRALITY_P_events']:
+        PI_events = get_top_events(PI_events, PI_results['CENTRALITY_P'], conf, I)
+        NPI_events = get_top_events(NPI_events, NPI_results['CENTRALITY_P'], conf, I)
     df.to_csv(f"{fname}_results.csv")
     return PI_events, NPI_events, PI_results, NPI_results
 
 
-def check_PC_values(A, states):
+def check_IPC_values(A, states):
     start = time.time()
-    PC_values = algebraic_PC(A, states=states)
-    print("Time for PC without paths ", float(time.time() - start)/60.0, 'min' )
+    IPC_values = algebraic_IPC(A, states=states)
+    print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
     start = time.time()
-    b = np.sort(np.nonzero(PC_values)[0])
+    b = np.sort(np.nonzero(IPC_values)[0])
     print(b)
 
-    # Check if algebraic PC matches PC computed using NetworkX
+    # Check if algebraic IPC matches IPC computed using NetworkX
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     #print(nx.is_directed_acyclic_graph(G))
     start = time.time()
-    PC, V_nx, v_paths_nx, paths_nx = PC_with_target_path_nx(G, states=states, weight='weight')
-    print(PC)
-    print('PC time based on networkx', float(time.time() - start)/60.0)
-    a = np.sort(np.nonzero(list(PC.values()))[0])
+    IPC, V_nx, v_paths_nx, paths_nx = IPC_with_target_path_nx(G, states=states, weight='weight')
+    print(IPC)
+    print('IPC time based on networkx', float(time.time() - start)/60.0)
+    a = np.sort(np.nonzero(list(IPC.values()))[0])
     print(a)
-    print('Algebraic PC nodes match that from networkx:', np.all(a==b))
-    print('PC values match:', np.all(list(PC.values())==PC_values))
+    print('Algebraic IPC nodes match that from networkx:', np.all(a==b))
+    print('IPC values match:', np.all(list(IPC.values())==IPC_values))
     print('V match:', np.all(sorted(V)==sorted(V_nx)))
     print('v_paths match:',v_paths==paths_nx)
     print('paths match:', paths==paths_nx)
     
     start = time.time()
-    P, pred, D = algebraic_PC_with_pred(A, states=states)
-    print("Time for PC with pred", float(time.time() - start)/60.0)
+    P, pred, D = algebraic_IPC_with_pred(A, states=states)
+    print("Time for IPC with pred", float(time.time() - start)/60.0)
     start = time.time()
-    V, v_paths, paths = PC_paths(D, pred, states)
+    V, v_paths, paths = IPC_paths(D, pred, states)
     print("Compute paths", float(time.time() - start)/60.0)
 
     start = time.time()
-    PC_values, V, v_paths = algebraic_PC_with_paths_v1(A, states=states)
-    print("Time for PC with pred", float(time.time() - start)/60.0)
+    IPC_values, V, v_paths = algebraic_IPC_with_paths_v1(A, states=states)
+    print("Time for IPC with pred", float(time.time() - start)/60.0)
 
     start = time.time()
-    PC_values, V, v_paths, paths = algebraic_PC_with_paths(A, states=states)
-    print('Algebraic PC time with paths', float(time.time() - start)/60.0, 'min')
+    IPC_values, V, v_paths, paths = algebraic_IPC_with_paths(A, states=states)
+    print('Algebraic IPC time with paths', float(time.time() - start)/60.0, 'min')

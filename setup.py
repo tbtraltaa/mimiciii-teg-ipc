@@ -17,7 +17,7 @@ setuptools.setup(
             'General Public License v3 or later (GPLv3+)'
         'Operating System :: OS Independent',
         'Topic :: Scientific/Engineering',
-        'Intended Audience :: Science/Researcg'
+        'Intended Audience :: Science/Research'
     ],
     keywords='temporal events',
     author='Altansuren Tumurbaatar',

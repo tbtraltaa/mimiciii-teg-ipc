@@ -3,7 +3,7 @@ import pprint
 
 from mimiciii_teg.utils.event_utils import group_events_by_patient 
 
-def get_patient_PC_paths(events, PC_all, paths, n):
+def get_patient_CENTRALITY_paths(events, CENTRALITY_all, paths, n):
     events_grouped = group_events_by_patient(events)
     patient_paths = dict()
     for p_id in events_grouped:
@@ -20,17 +20,17 @@ def get_patient_PC_paths(events, PC_all, paths, n):
             st_paths = paths[(s, t)]
             patient_paths[p_id] = []
             for p in st_paths:
-                path_PC = 0
+                path_CENTRALITY = 0
                 for v in p:
-                    path_PC += PC_all[v]
-                patient_paths[p_id].append({'PC': path_PC, 'path': p})
+                    path_CENTRALITY += CENTRALITY_all[v]
+                patient_paths[p_id].append({'CENTRALITY': path_CENTRALITY, 'path': p})
     paths = []
     for p_id in patient_paths:
-        patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['PC'], reverse=True)[:n]
+        patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['CENTRALITY'], reverse=True)[:n]
         paths += [p['path'] for p in patient_paths[p_id]]
     return patient_paths, paths
     
-def get_patient_shortest_paths(A, events, PC_all, paths, n):
+def get_patient_shortest_paths(A, events, CENTRALITY_all, paths, n):
     events_grouped = group_events_by_patient(events)
     patient_paths = dict()
     for p_id in events_grouped:
@@ -58,26 +58,26 @@ def get_patient_shortest_paths(A, events, PC_all, paths, n):
         paths += [p['path'] for p in patient_paths[p_id]]
     return patient_paths, paths
 
-def get_paths_by_PC(PC, PC_P, paths, P=[0, 100]):
+def get_paths_by_CENTRALITY(CENTRALITY, CENTRALITY_P, paths, P=[0, 100]):
     '''
-    Computes total PC values for paths and
-    returns paths with total PC values above the given percentile
+    Computes total CENTRALITY values for paths and
+    returns paths with total CENTRALITY values above the given percentile
     '''
-    paths_PC = {}
+    paths_CENTRALITY = {}
     vals = []
     for v, v_paths in paths.items():
-        paths_PC[v] = []
+        paths_CENTRALITY[v] = []
         for path in v_paths:
             summ = 0
             for p in path:
-                summ += PC[p]
-            paths_PC[v].append([summ, path])
+                summ += CENTRALITY[p]
+            paths_CENTRALITY[v].append([summ, path])
             vals.append(summ)
     P_min = np.percentile(vals, P[0])
     P_max = np.percentile(vals, P[1])
     paths_P = {}
-    for v, v_paths in paths_PC.items():
-        if v not in PC_P:
+    for v, v_paths in paths_CENTRALITY.items():
+        if v not in CENTRALITY_P:
             continue
         paths_P[v] = []
         for summ, path in v_paths:
@@ -85,21 +85,21 @@ def get_paths_by_PC(PC, PC_P, paths, P=[0, 100]):
                 paths_P[v].append(path)
     return paths_P
 
-def get_total_path_PC(PC, PC_P, paths, P=[0, 100]):
+def get_total_path_CENTRALITY(CENTRALITY, CENTRALITY_P, paths, P=[0, 100]):
     '''
-    Returns total PC values of paths for each vertex
+    Returns total CENTRALITY values of paths for each vertex
     '''
-    total_path_PC = {}
+    total_path_CENTRALITY = {}
     for v, v_paths in paths.items():
-        total_path_PC[v] = 0
+        total_path_CENTRALITY[v] = 0
         for path in v_paths:
             summ = 0
             for p in path:
-                summ += PC[p]
-            total_path_PC[v] += summ
-    return total_path_PC
+                summ += CENTRALITY[p]
+            total_path_CENTRALITY[v] += summ
+    return total_path_CENTRALITY
 
-def analyze_paths(events, PC, V, paths):
+def analyze_paths(events, CENTRALITY, V, paths):
     for i in V:
         for path in paths[i]:
             u = path[0]
@@ -109,7 +109,7 @@ def analyze_paths(events, PC, V, paths):
                 else:
                     pass
 
-def PC_paths(D, pred, states):
+def CENTRALITY_paths(D, pred, states):
     n = D.nrows
     S = 0.0
     S_vt = dict()
@@ -141,7 +141,7 @@ def PC_paths(D, pred, states):
                             v_paths[v].append(p)
     return list(V), v_paths, paths
 
-def PC_paths_v1(D, pred, states):
+def CENTRALITY_paths_v1(D, pred, states):
     n = D.nrows
     S = 0.0
     S_vt = dict()

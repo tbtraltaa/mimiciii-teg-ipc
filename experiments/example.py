@@ -9,7 +9,7 @@ warnings.filterwarnings('ignore')
 from pygraphblas import *
 options_set(nthreads=12)
 
-from mimicii_teg.queries.admissions import admissions
+from mimiciii_teg.queries.admissions import admissions
 from mimiciii_teg.schemas.event_setup import *
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.utils.event_utils import remove_by_missing_percent
@@ -48,13 +48,13 @@ TEG_conf = {
     'PI_states': {0: 0, 2: 1},
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
-    'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
-    'P': [90, 100], # PC percentile
-    'P_results': [90, 100], # PC percentile
+    'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
+    'P': [90, 100], # CENTRALITY percentile
+    'P_results': [90, 100], # CENTRALITY percentile
     'P_remove': False,
     'P_patients': [60, 100],
-    'ET_PC_min_freq': 0,
-    'PC_path': False,
+    'ET_CENTRALITY_min_freq': 0,
+    'CENTRALITY_path': False,
     'P_max_n': False,
     'path_percentile': [80, 100],
     'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
@@ -62,8 +62,8 @@ TEG_conf = {
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'has_icustay': 'True',
-    'scale_PC': False, # scale by max_PC
-    'Top_n_PC': 20,
+    'scale_CENTRALITY': False, # scale by max_CENTRALITY
+    'Top_n_CENTRALITY': 20,
     'PI_vitals': True, # Use a list of vitals related to PI
     'skip_repeat': False,
     'skip_repeat_intervention': False,
@@ -76,16 +76,16 @@ TEG_conf = {
     'hadm_limit': 30,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
-    'n_patient_paths': [1, 2, 3], # n highest PC paths of a patient
+    'n_patient_paths': [1, 2, 3], # n highest CENTRALITY paths of a patient
     'vis': False,
     'plot': False,
     'plot_types_n': 20,
-    'PC_BS_nnz': 0, # in percentage
+    'CENTRALITY_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
     'iterations': 20,
-    'iter_type': 'event_type_PC', # event_type_PC or event_PC
-    'PC_P_events': False,
+    'iter_type': 'event_type_CENTRALITY', # event_type_CENTRALITY or event_CENTRALITY
+    'CENTRALITY_P_events': False,
     'psm_features':
         [
         'hadm_id',
@@ -138,7 +138,7 @@ TEG_join_rules = {
 TEG_fname = f'output/TEG-PI-ONLY'
 
 
-def TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
+def TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
     conn = get_db_connection()
     PI_df, patients = get_patient_demography(conn, conf) 
     print('Patients', len(patients))
@@ -148,12 +148,12 @@ def TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
     PI_hadms = tuple(list(PI_hadm_stage_t.keys()))
     conf['vis'] = True
     conf['plot'] = True
-    conf['PC_path'] = True
+    conf['CENTRALITY_path'] = True
     results = run_experiments(patients, all_events, conf, join_rules, fname)
-    #plot_PC_and_BS(conn, conf, results['patient_PC'], PI_hadms, PI_hadm_stage_t)
+    #plot_CENTRALITY_and_BS(conn, conf, results['patient_CENTRALITY'], PI_hadms, PI_hadm_stage_t)
 
 
 if __name__ == "__main__":
     os.mkdir(TEG_fname)
     fname = f'{TEG_fname}/TEG-PI-ONLY'
-    TEG_PC_PI_ONLY(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
+    TEG_CENTRALITY_PI_ONLY(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)

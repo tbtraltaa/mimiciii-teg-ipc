@@ -8,14 +8,14 @@ from mimiciii_teg.queries.queries_mimic_extract import \
         get_missing_percents_vitals_X, \
         get_missing_percents_interventions
 
-def get_top_events(events, PC_P, conf, I = []):
-    max_n = conf['PC_percentile_max_n']
+def get_top_events(events, CENTRALITY_P, conf, I = []):
+    max_n = conf['CENTRALITY_percentile_max_n']
     if not max_n:
-        max_n = len(PC_P)
-    PC_P = sorted(PC_P.items(), key=lambda x: x[1], reverse = True)
+        max_n = len(CENTRALITY_P)
+    CENTRALITY_P = sorted(CENTRALITY_P.items(), key=lambda x: x[1], reverse = True)
     top_events = []
     count = 0
-    for i, val in PC_P:
+    for i, val in CENTRALITY_P:
         if events[i]['type'] not in I:
             top_events.append(events[i])
             count += 1
@@ -24,9 +24,9 @@ def get_top_events(events, PC_P, conf, I = []):
     return top_events
 
 
-def get_event_types(events, PC):
+def get_event_types(events, CENTRALITY):
     etypes = set()
-    for i, val in PC.items():
+    for i, val in CENTRALITY.items():
         etypes.add(events[i]['type'])
     return etypes
 
@@ -175,7 +175,7 @@ def get_patient_max_Braden_Scores(braden_events, time_unit = timedelta(days=1, h
     patient_BS = dict()
     for p_id in patient_events:
         h_prev = -1
-        max_PC = 0
+        max_val = 0
         patient_BS[p_id] = {'t': [], 'BS': []}
         for e in patient_events[p_id]:
             # hour
@@ -185,8 +185,8 @@ def get_patient_max_Braden_Scores(braden_events, time_unit = timedelta(days=1, h
                 patient_BS[p_id]['t'].append(h)
                 patient_BS[p_id]['BS'].append(val)
                 h_prev = h
-                max_PC = val
-            elif val > 0  and h == h_prev and val > max_PC:
+                max_val = val
+            elif val > 0  and h == h_prev and val > max_val:
                 patient_BS[p_id]['BS'][-1] = val
-                max_PC = val
+                max_val = val
     return patient_BS

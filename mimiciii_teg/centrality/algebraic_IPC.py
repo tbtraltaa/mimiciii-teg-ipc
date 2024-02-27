@@ -1,7 +1,7 @@
 from pygraphblas import *
 from pygraphblas import lib
 from pygraphblas.types import Type, binop
-from pygraphblas.gviz import draw, draw_vis, draw_vector, draw_matrix
+#from pygraphblas.gviz import draw, draw_vis, draw_vector, draw_matrix
 import numpy as np
 from pyvis import network as net
 from scipy.sparse import dok_matrix
@@ -71,7 +71,7 @@ def shortest_path_FW(matrix):
             D += D_k
     return D
 
-def algebraic_PC(Adj, states, normalize=False):
+def algebraic_IPC(Adj, states, normalize=False):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     S = 0.0
@@ -91,8 +91,8 @@ def algebraic_PC(Adj, states, normalize=False):
         else:
             A[i,j] = (v, 1)
     D = shortest_path_FW(A)
-    #PC = Vector.sparse(FP64, n)  
-    PC = np.zeros(n)
+    #IPC = Vector.sparse(FP64, n)  
+    IPC = np.zeros(n)
     for v in range(n):
         S_exclude_v = S - S_sv[v] - S_vt[v]
         for s in D.extract_col(v).indices:
@@ -104,16 +104,16 @@ def algebraic_PC(Adj, states, normalize=False):
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
                     w = delta / S_exclude_v 
-                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     '''
-                    if v in PC.indices:
-                        PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    if v in IPC.indices:
+                        IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     else:
-                        PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                        IPC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     '''
-    return PC
+    return IPC
 
-def algebraic_PC_with_pred(Adj, states, normalize=False):
+def algebraic_IPC_with_pred(Adj, states, normalize=False):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
@@ -135,8 +135,8 @@ def algebraic_PC_with_pred(Adj, states, normalize=False):
             A[i,j] = (v, 1)
             A1[i,j] = v
     D = shortest_path_FW(A)
-    #PC = Vector.sparse(FP64, n)  
-    PC = np.zeros(n)
+    #IPC = Vector.sparse(FP64, n)  
+    IPC = np.zeros(n)
     for v in range(n):
         S_exclude_v = S - S_sv[v] - S_vt[v]
         for s in D.extract_col(v).indices:
@@ -148,12 +148,12 @@ def algebraic_PC_with_pred(Adj, states, normalize=False):
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
                     w = delta / S_exclude_v 
-                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     '''
-                    if v in PC.indices:
-                        PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    if v in IPC.indices:
+                        IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     else:
-                        PC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                        IPC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     '''
     D1 = Matrix.sparse(FP64, n, n)
     for i, j, v in D:
@@ -170,9 +170,9 @@ def algebraic_PC_with_pred(Adj, states, normalize=False):
                 #pred_j = list((col_j == d[j]).indices)
                 #if pred_j:
                 pred[i][j] = list((col_j == d[j]).indices)
-    return PC, pred, D1
+    return IPC, pred, D1
 
-def algebraic_PC_with_paths(Adj, states):
+def algebraic_IPC_with_paths(Adj, states):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
@@ -209,8 +209,8 @@ def algebraic_PC_with_paths(Adj, states):
                 #pred_j = list((col_j == d[j]).indices)
                 #if pred_j:
                 pred[i][j] = list((col_j == d[j]).indices)
-    #PC = Vector.sparse(FP64, n)
-    PC = np.zeros(n)
+    #IPC = Vector.sparse(FP64, n)
+    IPC = np.zeros(n)
     paths = dict()
     v_paths = dict()
     V = set()
@@ -241,10 +241,10 @@ def algebraic_PC_with_paths(Adj, states):
                     for p in paths[(s, t)]:
                         if v in p:
                             v_paths[v].append(p)
-                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-    return PC, list(V), v_paths, paths
+                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+    return IPC, list(V), v_paths, paths
 
-def algebraic_PC_with_paths_v1(Adj, states):
+def algebraic_IPC_with_paths_v1(Adj, states):
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
@@ -281,8 +281,8 @@ def algebraic_PC_with_paths_v1(Adj, states):
                 #pred_j = list((col_j == d[j]).indices)
                 #if pred_j:
                 pred[i][j] = list((col_j == d[j]).indices)
-    #PC = Vector.sparse(FP64, n)
-    PC = np.zeros(n)
+    #IPC = Vector.sparse(FP64, n)
+    IPC = np.zeros(n)
     paths = dict()
     v_paths = dict()
     V = set()
@@ -298,14 +298,14 @@ def algebraic_PC_with_paths_v1(Adj, states):
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
                     w = delta / S_exclude_v
-                    PC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
+                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
                     sv_paths = st_paths(pred[s], s, v)
                     vt_paths = st_paths(pred[s], v, t)
                     for p1 in sv_paths:
                         for p2 in vt_paths:
                             v_paths[v].append(p1 + p2[1:])
                             V.update(p1 + p2[1:])
-    return PC, list(V), v_paths
+    return IPC, list(V), v_paths
 
 def st_paths(pred, s, t):
     stack = [[t, 0]]
@@ -358,7 +358,7 @@ if __name__ == '__main__':
     Adj[1,5] = 7.0
     Adj[5,4] = 2.0
     states = np.array([0, 0, 0.4, 0, 0, 0])
-    PC, v_paths = algebraic_PC_with_paths(Adj, states)
-    print(PC)
+    IPC, v_paths = algebraic_IPC_with_paths(Adj, states)
+    print(IPC)
     print(v_paths)
 

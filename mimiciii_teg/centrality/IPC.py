@@ -2,10 +2,13 @@ import numpy as np
 import pprint
 import networkx as nx
 
-def PC_with_target_path_nx(G, states=None, weight=None):
-    #PC = dict.fromkeys(G, 0.0)
+def IPC_with_target_path_nx(G, states=None, weight=None):
+    '''
+    Inverse percolation centrality algorithm using Networkx
+    '''
+    #IPC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
-    PC = np.zeros(n)
+    IPC = np.zeros(n)
     S = 0.0
     for i in range(n):
         deltas = states - states[i]
@@ -43,17 +46,17 @@ def PC_with_target_path_nx(G, states=None, weight=None):
                     w = delta/S_exclude_v 
                     if v not in v_paths:
                         v_paths[v] = []
-                    PC[v] += sigma_v_st / sigma_st * w
+                    IPC[v] += sigma_v_st / sigma_st * w
                     for p in paths[(s, t)]:
                         if v in p:
                             v_paths[v].append(p)
                             V.update(p)
-    return PC, V, v_paths, paths
+    return IPC, V, v_paths, paths
 
-def PC_with_target_nx(G, states=None, weight=None):
-    #PC = dict.fromkeys(G, 0.0)
+def IPC_with_target_nx(G, states=None, weight=None):
+    #IPC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
-    PC = np.zeros(n)
+    IPC = np.zeros(n)
     S = 0.0
     for i in range(n):
         deltas = states - states[i]
@@ -87,14 +90,14 @@ def PC_with_target_nx(G, states=None, weight=None):
                     vt_paths = list(nx.all_shortest_paths(G, source=v, target=t, weight='weight'))
                     sigma_v_st = float(len(sv_paths) * len(vt_paths))
                     w = delta/S_exclude_v 
-                    PC[v] += sigma_v_st / sigma_st * w
-    return PC
+                    IPC[v] += sigma_v_st / sigma_st * w
+    return IPC
 
 
-def PC_with_target_v1(G, states=None, weight=None):
-    #PC = dict.fromkeys(G, 0.0)
+def IPC_with_target_v1(G, states=None, weight=None):
+    #IPC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
-    PC = np.zeros(n)
+    IPC = np.zeros(n)
     S = 0.0
     for i in range(n):
         deltas = states - states[i]
@@ -132,17 +135,17 @@ def PC_with_target_v1(G, states=None, weight=None):
                     if sigma_st > 0:
                         if v not in paths:
                             paths[v] = []
-                        PC[v] += sigma_v_st / sigma_st * w
+                        IPC[v] += sigma_v_st / sigma_st * w
                         for p1 in sv_paths:
                             for p2 in vt_paths:
                                 v_paths[v].append(p1 + p2[1:])
                                 V.update(p1 + p2[1:])
         
-    return PC, V, v_paths, paths
+    return IPC, V, v_paths, paths
 
 
-def PC_with_target_v2(G, states=None, weight=None):
-    PC = dict.fromkeys(G, 0.0)
+def IPC_with_target_v2(G, states=None, weight=None):
+    IPC = dict.fromkeys(G, 0.0)
     n = G.number_of_nodes()
     S = 0.0
     targets = dict()
@@ -203,8 +206,8 @@ def PC_with_target_v2(G, states=None, weight=None):
                         continue
                     if v not in paths:
                         paths[v] = []
-                    PC[v] += sigma_v_st / sigma_st * w
+                    IPC[v] += sigma_v_st / sigma_st * w
                     for p1 in sv_paths:
                         for p2 in vt_paths:
                             paths[v].append(p1 + p2[1:])
-    return PC, v_set, paths
+    return IPC, v_set, paths

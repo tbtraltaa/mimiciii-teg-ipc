@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from teg.PI_risk_factors import CHRONIC_ILLNESS
+from mimiciii_teg.schemas.PI_risk_factors import CHRONIC_ILLNESS
 
 
 def plot_PI_NPI_patients(PI_patients,
@@ -18,9 +18,9 @@ def plot_PI_NPI_patients(PI_patients,
     npi_patients = dict()
     print('PI_df', PI_df)
     if PI_results and NPI_results:
-        for idd in PI_results['patient_PC_P']:
+        for idd in PI_results['patient_CENTRALITY_P']:
             pi_patients[idd] = PI_patients[idd]
-        for idd in NPI_results['patient_PC_P']:
+        for idd in NPI_results['patient_CENTRALITY_P']:
             npi_patients[idd] = NPI_patients[idd]
         print('pi_patients', pi_patients)
         pi_df = PI_df[PI_df['id'].isin(pi_patients)] 
@@ -113,9 +113,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
     y_pos  =  range(1, 4*len(tmp) + 1, 4)
     if title:
-        plt.title(f"Patient attributes, Patient PC {title}")
+        plt.title(f"Patient Attributes, Patient Centrality {title}")
     else:
-        plt.title(f"Patient attributes")
+        plt.title(f"Patient Attributes")
     plt.xlabel("Frequency")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -138,9 +138,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
     y_pos  =  range(1, 4*len(tmp) + 1, 4)
     if title:
-        plt.title(f"Patient attributes, Patient PC {title}")
+        plt.title(f"Patient Attributes, Patient Centrality {title}")
     else:
-        plt.title(f"Patient attributes")
+        plt.title(f"Patient Attributes")
     plt.xlabel("Frequency")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -161,9 +161,9 @@ def plot_PI_NPI_patients(PI_patients,
         y_pos  =  range(0, 4*len(chronic_dict), 4)
         plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
         if title:
-            plt.title(f"Chronic illness, Patient PC {title}")
+            plt.title(f"Chronic Illness, Patient Centrality {title}")
         else:
-            plt.title(f"Chronic illness")
+            plt.title(f"Chronic Illness")
         plt.xlabel("Frequency")
         plt.legend()
         # Tweak spacing to prevent clipping of tick-labels
@@ -176,7 +176,7 @@ def plot_PI_NPI_patients(PI_patients,
 
     plt.figure(figsize=(14, 8))
     if title:
-        plt.title(f"Age, Patient PC {title}")
+        plt.title(f"Age, Patient Centrality {title}")
     else:
         plt.title(f"Age")
     plt.hist(pi_df['age'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)
@@ -190,12 +190,12 @@ def plot_PI_NPI_patients(PI_patients,
 
     plt.figure(figsize=(14, 8))
     if title:
-        plt.title(f"Length of Stay, Patient PC {title}")
+        plt.title(f"Length Of Stay, Patient Centrality {title}")
     else:
-        plt.title(f"Length of Stay")
+        plt.title(f"Length Of Stay")
     plt.hist(pi_df['los'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)
     plt.hist(npi_df['los'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
-    plt.xlabel("Length of Stay in days")
+    plt.xlabel("Length Of Stay In Days")
     plt.ylabel("Frequency")
     plt.legend()
     plt.savefig(f"{fname}_los")
@@ -204,7 +204,7 @@ def plot_PI_NPI_patients(PI_patients,
 
     plt.figure(figsize=(14, 8))
     if title:
-        plt.title(f" OASIS, Patient PC {title}")
+        plt.title(f" OASIS, Patient Centrality {title}")
     else:
         plt.title(f"OASIS")
     plt.hist(pi_df['oasis'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)

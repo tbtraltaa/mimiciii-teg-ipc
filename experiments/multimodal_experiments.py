@@ -60,7 +60,7 @@ M_conf = {
     'endtime': False,
     'missing_percent': [0, 100], # for mimic extract
     'PI_exclude_mid_stages': True,
-    'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
+    'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -70,14 +70,14 @@ M_conf = {
     'PI_states': {0: 0, 2: 1},
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
-    'PC_time_unit': timedelta(days=0, hours=1), # maximum PC per time unit
+    'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
     'max_pi_stage':2,
     'P': [90, 100],
     'P_results': [90, 100],
     'P_remove': [0, 20],
     'P_patients': [60, 100],
-    'ET_PC_min_freq': 0,
-    'PC_path': False,
+    'ET_CENTRALITY_min_freq': 0,
+    'CENTRALITY_path': False,
     'P_max_n': False,
     'path_percentile': [95, 100],
     'PI_sql': 'one', #multiple, one_or_multiple, no_PI_stages, no_PI_events
@@ -86,8 +86,8 @@ M_conf = {
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
     'has_icustay': 'True',
-    'scale_PC': False, # scale by max_PC
-    'Top_n_PC': 20,
+    'scale_CENTRALITY': False, # scale by max_CENTRALITY
+    'Top_n_CENTRALITY': 20,
     'PI_vitals': True, # Use a list of vitals related to PI
     'skip_repeat': False,
     'skip_repeat_intervention': False,
@@ -101,16 +101,16 @@ M_conf = {
     'min_n': 200,
     'NPI_hadm_limit': False,
     'hadm_order': 'DESC',
-    'n_patient_paths': [1, 3, 5], # n highest PC paths of a patient
+    'n_patient_paths': [1, 3, 5], # n highest CENTRALITY paths of a patient
     'vis': False,
     'plot': False,
     'plot_types_n': 30,
-    'PC_BS_nnz': 0, # in percentage
+    'CENTRALITY_BS_nnz': 0, # in percentage
     'first_hadm': True,
     'dbsource': 'carevue', # carevue or False
     'iterations': 10,
-    'iter_type': 'event_type_PC', # event_type_PC or event_PC
-    'PC_P_events': False,
+    'iter_type': 'event_type_CENTRALITY', # event_type_CENTRALITY or event_CENTRALITY
+    'CENTRALITY_P_events': False,
     'psm_features':
         [
         'hadm_id',
@@ -165,7 +165,7 @@ M_join_rules = {
 
 M_fname = 'output/Multimodal'
 
-def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
+def MULTIMODAL_TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
     conn = get_db_connection()
     PI_df, PI_admissions = get_patient_demography(conn, conf) 
     print('Admissions', len(PI_admissions))
@@ -178,7 +178,7 @@ def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
     max_pi_stage = f"PI Stage {conf['max_pi_stage']}"
     conf['vis'] = True
     conf['plot'] = True
-    conf['PC_path'] = True
+    conf['CENTRALITY_path'] = True
     for parent_type in PI_events_grouped:
         if max_pi_stage in parent_type:
             continue
@@ -190,7 +190,7 @@ def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
             pi_events = PI_events_grouped[parent_type] + PI_events_grouped[max_pi_stage]
             # sort by type, t and reindex
             pi_events = sort_and_index_events(pi_events)
-            # choose PC percentile interval based on parent type
+            # choose CENTRALITY percentile interval based on parent type
             for name in P:
                 if name in parent_type:
                     conf['P'] = P[name]
@@ -199,24 +199,24 @@ def MULTIMODAL_TEG_PC_PI_ONLY(event_list, join_rules, conf, fname):
                                        conf,
                                        join_rules,
                                        fname + f'_{__type}', f'PI: {__type}: ')
-            if results['PC_P'] is None:
+            if results['CENTRALITY_P'] is None:
                 PI_events_P += PI_events_grouped[parent_type]
-            elif conf['PC_P_events']:
-                pi_events = get_top_events(pi_events, results['PC_P'], conf)
+            elif conf['CENTRALITY_P_events']:
+                pi_events = get_top_events(pi_events, results['CENTRALITY_P'], conf)
                 PI_events_P += [e for e in pi_events if e['parent_type'] == parent_type]
             else:
-                PI_events_P += [e for e in pi_events if e['type'] in results['ET_PC_P']]
+                PI_events_P += [e for e in pi_events if e['type'] in results['ET_CENTRALITY_P']]
         else:
             PI_events_P += PI_events_grouped[parent_type]
     PI_events_P += PI_events_grouped[max_pi_stage]
     # sort by type, t and reindex
     PI_events_P = sort_and_index_events(PI_events_P)
-    conf['PC_path'] = True
+    conf['CENTRALITY_path'] = True
     results = run_experiments(PI_admissions, PI_events_P, conf, join_rules, f'{fname}_results', 'All types')
-    plot_PC_and_BS(conn, conf, results['patient_PC'], PI_hadms, PI_hadm_stage_t)
+    plot_CENTRALITY_and_BS(conn, conf, results['patient_CENTRALITY'], PI_hadms, PI_hadm_stage_t)
 
 
-def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
+def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
     print(conf)
     if conf['modality'] == 'parent_type':
         PI_events_grouped = group_events_by_parent_type(r['PI_events'])
@@ -260,12 +260,12 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
             # sort by type, t and reindex
             npi_events = sort_and_index_events(npi_events)
             '''
-            # choose PC percentile interval based on parent type
+            # choose CENTRALITY percentile interval based on parent type
             for name in P:
                 if name in _type:
                     conf['P'] = P[name]
             '''
-            # PPC Patient PC
+            # PCENTRALITY Patient CENTRALITY
             pi_events, npi_events, PI_results, NPI_results = run_iterations(\
                                                        r['PI_admissions'],
                                                        r['NPI_admissions'],
@@ -276,7 +276,7 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
                                                        fname + f'_{__type}',
                                                        _type,
                                                        vis_last_iter = False,
-                                                       PC_path_last_iter = False)
+                                                       CENTRALITY_path_last_iter = False)
             if conf['modality'] == 'parent_type':
                 PI_events_P += [e for e in pi_events if e['parent_type'] == _type]
                 NPI_events_P += [e for e in npi_events if e['parent_type'] == _type]
@@ -300,8 +300,8 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
     # sort by type, t and reindex
     NPI_events_P = sort_and_index_events(NPI_events_P)
     '''
-    if conf['PC_P_events']:
-        conf['PC_path'] = True
+    if conf['CENTRALITY_P_events']:
+        conf['CENTRALITY_path'] = True
     '''
     conf['vis'] = False
     conf['plot'] = False
@@ -320,7 +320,7 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
                 title='All types', fname=f"{fname}_PI_NPI_Results")
     plot_PI_NPI(PI_results, NPI_results, conf, conf['P'],
                 nbins=10, title='All types', fname=f"{fname}_PI_NPI_P_Results")
-    plot_PC_and_BS(conn, conf, PI_results['patient_PC'], \
+    plot_CENTRALITY_and_BS(conn, conf, PI_results['patient_CENTRALITY'], \
                     r['PI_hadms'], r['PI_hadm_stage_t'], fname)
     plot_PI_NPI_patients(r['PI_admissions'],
                          r['NPI_admissions'],
@@ -335,7 +335,7 @@ def MULTIMODAL_TEG_PC_PI_NPI(conn, r, join_rules, conf, fname):
 
 if __name__ == "__main__":
     #fname = 'output/MULTIMODAL_PI_ONLY'
-    #MULTIMODAL_TEG_PC_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
+    #MULTIMODAL_TEG_CENTRALITY_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
     conn = get_db_connection()
     mp = [[67, 100], [34, 66], [0, 33]]
     os.mkdir(M_fname)
@@ -348,4 +348,4 @@ if __name__ == "__main__":
         conf_tmp['missing_percent'] = i
         _r['PI_events'] = remove_by_missing_percent(r['PI_events'], conf_tmp)
         _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_tmp)
-        MULTIMODAL_TEG_PC_PI_NPI(conn, _r, M_join_rules, conf_tmp, fname)
+        MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, _r, M_join_rules, conf_tmp, fname)

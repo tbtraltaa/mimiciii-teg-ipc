@@ -27,7 +27,7 @@ TEG_M_fname = 'output/TEG_Multimodal'
 
 if __name__ == "__main__":
     #fname = 'output/TEG-PI-ONLY'
-    #TEG_PC_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
+    #TEG_CENTRALITY_PI_ONLY(PI_RISK_EVENTS, join_rules, conf, fname)
     conn = get_db_connection()
     #mp = [[64, 100], [30, 70], [0, 36]]
     #remove = [False, False, False]
@@ -43,11 +43,11 @@ if __name__ == "__main__":
     conf_teg = copy.deepcopy(TEG_conf)
     conf_teg['P_remove'] = False
     conf_teg['missing_percent'] = [0, 100]
-    TEG_PC_PI_NPI(conn, r, TEG_join_rules, conf_teg, fname_teg)
+    TEG_CENTRALITY_PI_NPI(conn, r, TEG_join_rules, conf_teg, fname_teg)
     conf_multimodal = copy.deepcopy(M_conf)
     conf_multimodal['P_remove'] = False
     conf_multimodal['missing_percent'] = [0, 100]
-    MULTIMODAL_TEG_PC_PI_NPI(conn, r, M_join_rules, conf_multimodal, fname_multimodal)
+    MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, M_join_rules, conf_multimodal, fname_multimodal)
     '''
     _r = copy.deepcopy(r)
     for i, i_r in zip(mp, remove):
@@ -63,6 +63,6 @@ if __name__ == "__main__":
         conf_multimodal['P_remove'] = i_r
         _r['PI_events'] = remove_by_missing_percent(r['PI_events'], conf_teg)
         _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_teg)
-        TEG_PC_PI_NPI(conn, _r, TEG_join_rules, conf_teg, fname_teg)
-        MULTIMODAL_TEG_PC_PI_NPI(conn, _r, M_join_rules, conf_multimodal, fname_multimodal)
+        TEG_CENTRALITY_PI_NPI(conn, _r, TEG_join_rules, conf_teg, fname_teg)
+        MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, _r, M_join_rules, conf_multimodal, fname_multimodal)
     
