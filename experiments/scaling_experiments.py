@@ -11,127 +11,25 @@ warnings.filterwarnings('ignore')
 from pygraphblas import *
 import timeit
 
-
 from mimiciii_teg.schemas import *
-from mimiciii_teg.schecmas.event_setup import *
+from mimiciii_teg.schemas.event_setup import *
+from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS
+from mimiciii_teg.queries.queries import get_patient_demography
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.teg.eventgraphs import *
 from mimiciii_teg.centrality.IPC import IPC_with_target_nx
 from mimiciii_teg.centrality.algebraic_IPC import *
 from mimiciii_teg.teg.build_graph import *
-
-# Experiment configuration
-conf = {
-    'duration': False,
-    'max_hours': 336,
-    'min_los_hours': 24,
-    #'max_hours': 168,
-    'min_age': 15,
-    'max_age': 89,
-    'age_interval': 5, # in years, for patients
-    'starttime': False,
-    #'starttime': '2143-01-14',
-    #'endtime': '2143-01-21',
-    #'endtime': '2143-02-14',
-    'endtime': False,
-    'min_missing_percent': 0, # for mimic extract
-    'vitals_agg': 'daily',
-    'vitals_X_mean': False,
-    'interventions': True,
-    'node label': True,
-    'edge label': True,
-    #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
-    'PI_states': {0: 0, 2: 1},
-    'PI_exclude_mid_stages': True,
-    'CENTRALITY_time_unit': timedelta(days=1, hours=0), # maximum IPC per time unit
-    'CENTRALITY_percentile': [95, 100],
-    'CENTRALITY_percentile_max_n': False,
-    'path_percentile': [95, 100],
-    'PI_sql': 'one', #multiple, one_or_multiple, no_PI_stages, no_PI_events
-    'PI_only': False, # Delete non PI patients after querying all events
-    'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
-    'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
-    'unique_chartvalue_per_day': True,
-    'has_icustay': 'True',
-    'scale_CENTRALITY': True, # scale by max_IPC
-    'Top_n_CENTRALITY': 20,
-    'PI_vitals': True, # Use a list of vitals related to PI
-    'skip_repeat': True,
-    'skip_repeat_intervention': False,
-    'quantiles': np.arange(0, 1.01, 0.1),
-    'drug_percentile': [40, 70],
-    'input_percentile': [20, 90],
-    'include_numeric': True,
-    'subsequent_adm': False,
-    'hadm_limit': False,
-    'NPI_hadm_limit': False,
-    'hadm_order': 'DESC',
-    'CENTRALITY_path': False,
-    'n_patient_paths': [1, 3, 5], # n highest IPC paths of a patient
-    'vis': False,
-    'plot': False,
-    'CENTRALITY_BS_nnz': 0.1, # in percentage
-    'first_hadm': True,
-    'dbsource': 'metavision', # carevue or False
-    'iterations': 10,
-    'CENTRALITY_P_events': False,
-    'psm_features':
-        [
-        'hadm_id',
-        'gender', 
-        'admission_type',
-        'insurance',
-        'los',
-        'age',
-        'oasis']
-}
-
-# Event graph configuration
-# t_max = [<delta days>, <delta hours>]
-t_max = {
-    'Admissions': timedelta(days=2, hours=0),
-    'Discharges': timedelta(days=2, hours=0),
-    'ICU In': timedelta(days=2, hours=0),
-    'ICU Out': timedelta(days=2, hours=0),
-    'Callout': timedelta(days=2, hours=0),
-    'Transfer In': timedelta(days=2, hours=0),
-    'Transfer Out': timedelta(days=2, hours=0),
-    'CPT': timedelta(days=2, hours=0),
-    'Presc': timedelta(days=2, hours=0),
-    'Services': timedelta(days=2, hours=0),
-    'other': timedelta(days=2, hours=0),
-    'diff_type_same_patient': timedelta(days=2, hours=0),
-    'PI': timedelta(days=2, hours=0),
-    'Braden': timedelta(days=2, hours=0),
-    'Input': timedelta(days=2, hours=0),
-    'Intervention': timedelta(days=2, hours=0),
-    'Vitals/Labs': timedelta(days=2, hours=0),
-}
-
-join_rules = {
-    'IDs': EVENT_IDs if not conf['duration'] else EVENT_IDs + ['duration'],
-    "t_min": timedelta(days=0, hours=0, minutes=5),
-    "t_max": t_max,
-    'w_e_max': 0.3,  # maximum event difference
-    # default event difference for different types of events
-    'w_e_default': 1,
-    'join_by_subject': True,
-    'duration': conf['duration'],
-    'duration_similarity': timedelta(days=2),
-    'sequential_join': True,
-    'max_pi_state': 1,
-    'max_pi_stage': 2,
-    'include_numeric': True
-}
+from TEG_experiments import TEG_conf, TEG_join_rules 
 
 
-def TEG_IPC_AIPC(event_list, join_rules, conf, fname):
+def IPC_vs_algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     '''
     An experiment to compare non-algebraic and algebraic IPC run time.
     '''
     conn = get_db_connection()
-    AIPC_time = []
-    IPC_nx_time = []
+    algebraic_IPC_time = []
+    nx_IPC_time = []
     n_nodes = []
     m_edges = []
     global G, A, states
@@ -157,7 +55,7 @@ def TEG_IPC_AIPC(event_list, join_rules, conf, fname):
         timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         t = min(timer.repeat(repeat=10, number=1))
         print("Time for algebraic IPC", t, 'sec' )
-        AIPC_time.append(t)
+        algebraic_IPC_time.append(t)
         n_nodes.append(n) 
         m_edges.append(A.count_nonzero())
         # NetworkX graph
@@ -166,14 +64,14 @@ def TEG_IPC_AIPC(event_list, join_rules, conf, fname):
         timer = timeit.Timer("IPC_with_target_nx(G, states=states, weight='weight')", globals=globals())
         t = min(timer.repeat(repeat=10, number=1))
         print("Time for non-algebraic IPC", t, 'sec' )
-        IPC_nx_time.append(t)
+        nx_IPC_time.append(t)
     # Plot number of nodes vs IPC time 
     plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(n_nodes, AIPC_time, label='Algebraic IPC')
-    plt.plot(n_nodes, IPC_nx_time, label='Non-algebraic IPC using NetworkX')
+    plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC')
+    plt.plot(n_nodes, nx_IPC_time, label='Non-algebraic IPC using NetworkX')
     plt.xlabel('Number of Nodes')
     plt.ylabel('Time ( in seconds )')
-    plt.title("Percolation Centrality Scaling")
+    plt.title("Inverse Percolation Centrality Scaling")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-Scaling_experiment-nodes")
@@ -183,10 +81,10 @@ def TEG_IPC_AIPC(event_list, join_rules, conf, fname):
     # Plot number of edges vs IPC time 
     plt.figure(figsize=(14, 8), layout='constrained')
     plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(m_edges, AIPC_time, label='Algebraic IPC')
-    plt.plot(m_edges, IPC_nx_time, label='Non-algebraic IPC using NetworkX')
-    plt.xlabel('Number of Edges')
-    plt.ylabel('Time ( in seconds )')
+    plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC')
+    plt.plot(m_edges, nx_IPC_time, label='Non-algebraic IPC using NetworkX')
+    plt.xlabel('Number Of Edges')
+    plt.ylabel('Time ( In Seconds )')
     plt.title("Percolation Centrality Scaling")
     plt.legend()
     plt.tight_layout()
@@ -194,17 +92,18 @@ def TEG_IPC_AIPC(event_list, join_rules, conf, fname):
     plt.clf()
     plt.cla()
 
-def TEG_AIPC(event_list, join_rules, conf, fname):
+def algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     '''
     An experiment to show the scalability of algebraic IPC 
     '''
     conn = get_db_connection()
-    AIPC_time = []
+    algebraic_IPC_time = []
     n_nodes = []
     m_edges = []
     global A, states
     options_set(nthreads=12)
-    for i in range(10, 100, 10):
+
+    for i in range(50, 300, 50):
         # limit to admissions
         conf['hadm_limit'] = i
         PI_df, admissions = get_patient_demography(conn, conf) 
@@ -224,15 +123,15 @@ def TEG_AIPC(event_list, join_rules, conf, fname):
         timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         t = min(timer.repeat(repeat=10, number=1))
         print("Time for algebraic IPC", t, 'sec' )
-        AIPC_time.append(t)
+        algebraic_IPC_time.append(t)
         n_nodes.append(n) 
         # number of edges
         m_edges.append(A.count_nonzero())
     plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(n_nodes, AIPC_time, label='Algebraic IPC')
+    plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number of Nodes')
     plt.ylabel('Time ( in sec )')
-    plt.title("Percolation Centrality Scaling")
+    plt.title("Inverse Percolation Centrality Scaling")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-Scaling_experiment-nodes")
@@ -240,22 +139,22 @@ def TEG_AIPC(event_list, join_rules, conf, fname):
     plt.cla()
 
     plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(m_edges, AIPC_time, label='Algebraic IPC')
+    plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number of Edges')
     plt.ylabel('Time ( in sec )')
-    plt.title("Percolation Centrality Scaling")
+    plt.title("Inverse Percolation Centrality Scaling")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-Scaling_experiment-edges")
     plt.clf()
     plt.cla()
 
-def TEG_AIPC_n_threads(event_list, join_rules, conf, fname):
-    global A, states, i
+def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
+    global A, states
     conn = get_db_connection()
-    AIPC_time = []
+    algebraic_IPC_time = []
     # number of threads
-    threads = [i for i in range(4, 33, 4)]
+    threads = [int(i) for i in range(4, 33, 4)]
     # admissions limit
     conf['hadm_limit'] = False
     PI_df, admissions = get_patient_demography(conn, conf) 
@@ -276,15 +175,21 @@ def TEG_AIPC_n_threads(event_list, join_rules, conf, fname):
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
-        timer = timeit.Timer('algebraic_IPC(A, states=states)', setup='options_set(nthreads=i)', globals=globals())
+        print('i', i)
+        #print(options_get())
+        options_set(nthreads=i)
+        #print(options_get())
+        #print("Globals", globals())
+        #timer = timeit.Timer('algebraic_IPC(A, states=states)', setup='options_set(nthreads=i)', globals=globals())
+        timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         t = min(timer.repeat(repeat=10, number=1))
         print("Time for algebraic IPC", t, 'sec' )
-        AIPC_time.append(t)
+        algebraic_IPC_time.append(t)
     plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(threads, AIPC_time, label='Algebraic IPC')
-    plt.xlabel('Number of Threads')
+    plt.plot(threads, algebraic_IPC_time, label='Algebraic IPC')
+    plt.xlabel('Number Of Threads')
     plt.ylabel('Time ( in sec )')
-    plt.title(f"Percolation Centrality Scaling (n = {n}, m = {m})")
+    plt.title(f"Inverse Percolation Centrality Scaling (n = {n}, m = {m})")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-Scaling_experiment-nodes")
@@ -293,9 +198,9 @@ def TEG_AIPC_n_threads(event_list, join_rules, conf, fname):
 
         
 if __name__ == "__main__":
-    #fname = 'output/TEG-PI-IPC-AIPC'
-    #TEG_IPC_AIPC(EVENTS_INCLUDED, join_rules, conf, fname)
-    #fname = 'output/TEG-PI-AIPC'
-    #TEG_AIPC(EVENTS_INCLUDED, join_rules, conf, fname)
-    fname = 'output/TEG-PI-AIPC-n-threads'
-    TEG_AIPC_n_threads(EVENTS_INCLUDED, join_rules, conf, fname)
+    fname = 'output/IPC_vs_algebraic_IPC'
+    IPC_vs_algebraic_IPC_scalability(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
+    fname = 'output/algebraic_IPC_scalability'
+    algebraic_IPC_scalability(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
+    fname = 'output/algebraic_IPC-n-threads'
+    algebraic_IPC_n_threads(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)

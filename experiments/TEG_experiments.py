@@ -11,6 +11,7 @@ options_set(nthreads=12)
 
 from mimiciii_teg.queries.admissions import admissions
 from mimiciii_teg.schemas.event_setup import *
+from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS, PI_VITALS_TOP_20
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.utils.event_utils import remove_by_missing_percent
 from mimiciii_teg.vis.plot import *
@@ -64,7 +65,7 @@ TEG_conf = {
     'has_icustay': 'True',
     'scale_CENTRALITY': False, # scale by max_CENTRALITY
     'Top_n_CENTRALITY': 20,
-    'PI_vitals': True, # Use a list of vitals related to PI
+    'PI_vitals': PI_VITALS, # Use a list of vitals related to PI
     'skip_repeat': False,
     'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
