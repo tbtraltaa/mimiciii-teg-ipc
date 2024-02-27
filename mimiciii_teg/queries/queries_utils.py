@@ -197,7 +197,7 @@ def prescription_filter(conn, conf, fname='output/'):
     drugs = drugs.replace('"', "'")
     return drugs
 
-def query_quantiles(conn, quantiles, event_name, table, item_col, value_col, uom_col, dtype, where):
+def query_quantiles(conn, conf, quantiles, event_name, table, item_col, value_col, uom_col, dtype, where):
     if 'Presc' in event_name:
         event_name = 'Presc'
     fname = f'''data/Q{len(quantiles)}-{event_name}-{item_col}-{value_col}-{uom_col}.h5'''

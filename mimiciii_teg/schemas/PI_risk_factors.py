@@ -1,4 +1,4 @@
-PI_VITALS = [
+PI_VITALS_TOP_20 = [
                 'white blood cell count',
                 'magnesium',
                 'creatinine',
@@ -54,7 +54,6 @@ PI_VITALS = [
                 #'glascow coma scale total',
                 #'prothrombin time pt'
             ]
-'''
 '''
 PI_VITALS = [
                 'glascow coma scale total',
@@ -118,7 +117,6 @@ PI_VITALS = [
                 #'temperature',
                 #'central venous pressure',
         ]
-'''
 # name : [[ICD9_codes], to count the ICD9 code for current_admission]
 # all true because we use only the first admissions
 CHRONIC_ILLNESS = {

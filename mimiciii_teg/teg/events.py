@@ -15,7 +15,7 @@ from mimiciii_teg.teg.eventgraphs import *
 from mimiciii_teg.queries.queries_mimic_extract import *
 from mimiciii_teg.queries.queries_chart_events import *
 from mimiciii_teg.queries.queries import *
-from mimiciii_teg.utils.event_utils import remove_events_by_id
+from mimiciii_teg.utils.event_utils import remove_events_by_id, group_events_by_parent_type
 
 def events(conn, event_list, conf, hadms=()):
     print("==========================================================")
@@ -218,8 +218,9 @@ def process_events_PI(all_events, conf):
     print("==========================================================")
     print("Events in TEG for PI:")
     print("==========================================================")
-    for key, val in groupby(all_events, key=lambda x: x['parent_type']):
-        print(key, len(list(val)))
+    grouped_events = group_events_by_parent_type(all_events)
+    for key, val in grouped_events.items():
+        print(key, len(val))
     subject_ids = set([e['subject_id'] for e in all_events])
     print('Total patients', len(subject_ids))
     print('Total admissions', len(set([e['id'] for e in all_events])))
@@ -293,7 +294,8 @@ def process_events_NPI(all_events, NPI_t, conf):
     print("==========================================================")
     print("Events in TEG for NPI:")
     print("==========================================================")
-    for key, val in groupby(all_events, key=lambda x: x['parent_type']):
+    grouped_events = group_events_by_parent_type(all_events)
+    for key, val in grouped_events.items():
         print(key, len(list(val)))
     subject_ids = set([e['subject_id'] for e in all_events])
     print('Total patients', len(subject_ids))

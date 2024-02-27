@@ -232,7 +232,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
     if conf['PI_vitals']:
-        vitals_included = PI_VITALS
+        vitals_included = conf['PI_vitals']
     else:
         vitals_included = vitals.columns
     excluded = set()
@@ -405,7 +405,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
     if conf['PI_vitals']:
-        vitals_included = PI_VITALS
+        vitals_included = conf['PI_vitals']
     else:
         vitals_included = vitals.columns.levels[0]
     excluded = set()
