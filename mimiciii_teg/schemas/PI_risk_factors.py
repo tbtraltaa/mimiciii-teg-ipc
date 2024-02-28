@@ -46,15 +46,15 @@ PI_VITALS_TOP_20 = [
 'cardiac index',
 'cholesterol'
 '''
-'''
-PI_VITALS = [
+
+PI_VITALS_EXAMPLE = [
                 #'white blood cell count',
                 'magnesium',
                 #'creatinine',
                 #'glascow coma scale total',
                 #'prothrombin time pt'
             ]
-'''
+
 PI_VITALS = [
                 'glascow coma scale total',
                 'mean blood pressure',

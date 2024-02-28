@@ -18,6 +18,7 @@ from mimiciii_teg.vis.plot_patients import *
 from run_experiments import *
 from mimiciii_teg.queries.queries import get_db_connection
 from mimiciii_teg.schemas.schemas import *
+from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS_EXAMPLE
 
 
 # Experiment configuration
@@ -64,7 +65,7 @@ TEG_conf = {
     'has_icustay': 'True',
     'scale_CENTRALITY': False, # scale by max_CENTRALITY
     'Top_n_CENTRALITY': 20,
-    'PI_vitals': True, # Use a list of vitals related to PI
+    'PI_vitals': PI_VITALS_EXAMPLE, # Use a list of vitals related to PI
     'skip_repeat': False,
     'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('default')
 import seaborn as sns
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -19,6 +20,7 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     n = len(CENTRALITY)
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
@@ -30,10 +32,12 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
         plt.xscale("log")
         plt.yscale("log")
     plt.ylabel("Frequency")
+    plt.grid(False)
     plt.savefig(f"{fname}_1")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
@@ -46,10 +50,12 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     plt.xlabel("Event Type Centrality Values")
     #plt.yscale("log")
     plt.ylabel("Frequency")
+    plt.grid(False)
     plt.savefig(f"{fname}_2")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
@@ -64,11 +70,13 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
         plt.xscale("log")
         plt.yscale("log")
     plt.ylabel("Relative Frequency")
+    plt.grid(False)
     plt.savefig(f"{fname}_0")
     plt.clf()
     plt.cla()
 
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1]))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
@@ -89,15 +97,17 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_3")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_freq = dict(sorted(CENTRALITY_freq.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_freq), 2)
     plt.barh(y_pos, list(CENTRALITY_freq.values()), align='center')
-    plt.yticks(y_pos, labels=list(CENTRALITY_freq.keys()))
+    plt.yticks(y_pos, labels=list(CENTRALITY_freq.keys()), fontsize=14)
     if title:
         plt.title(f"{title}: Event Frequency " + str(percentile))
     else:
@@ -106,14 +116,16 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_4")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     y_pos  =  range(0, 2*len(CENTRALITY_sorted), 2)
     plt.barh(y_pos, list(CENTRALITY_sorted.values()), align='center')
-    plt.yticks(y_pos, labels=list(CENTRALITY_sorted.keys()))
+    plt.yticks(y_pos, labels=list(CENTRALITY_sorted.keys()), fontsize=14)
     if title:
         plt.title(f"{title}: Event Type Centrality " + str(percentile))
     else:
@@ -122,15 +134,17 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_5")
     plt.clf()
     plt.cla()
 
     CENTRALITY_avg = dict(sorted(CENTRALITY_avg.items(), key=lambda x: x[1]))
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     y_pos  =  range(0, 2*len(CENTRALITY_avg), 2)
     plt.barh(y_pos, list(CENTRALITY_avg.values()), align='center')
-    plt.yticks(y_pos, labels=list(CENTRALITY_avg.keys()))
+    plt.yticks(y_pos, labels=list(CENTRALITY_avg.keys()), fontsize=14)
     if title:
         plt.title(f"{title}: Average Event Centrality " + str(percentile))
     else:
@@ -139,6 +153,7 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_6")
     plt.clf()
     plt.cla()
@@ -150,6 +165,7 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     n = len(CENTRALITY)
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Centrality Value Distribution " + str(percentile))
@@ -161,10 +177,12 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
         plt.xscale("log")
         plt.yscale("log")
     plt.ylabel("Frequency")
+    plt.grid(False)
     plt.savefig(f"{fname}_1")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
@@ -177,10 +195,12 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.xlabel("Nonzero Centrality Values")
     #plt.yscale("log")
     plt.ylabel("Frequency")
+    plt.grid(False)
     plt.savefig(f"{fname}_2")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1]))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
@@ -201,11 +221,13 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_3")
     plt.clf()
     plt.cla()
 
     CENTRALITY_ET, CENTRALITY_ET_freq, CENTRALITY_ET_avg = get_event_type_CENTRALITY(events, CENTRALITY)
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_ET_freq = dict(sorted(CENTRALITY_ET_freq.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_ET_freq), 2)
@@ -220,10 +242,12 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_4")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_ET = dict(sorted(CENTRALITY_ET.items(), key=lambda x: x[1]))
     plt.barh(y_pos, list(CENTRALITY_ET.values()), align='center')
@@ -236,10 +260,12 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_5")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_ET_avg = dict(sorted(CENTRALITY_ET_avg.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_ET_avg), 2)
@@ -255,6 +281,7 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_6")
     plt.clf()
     plt.cla()
@@ -264,6 +291,7 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     #CENTRALITY_t = dict([(events[i]['type'], v) for i, v in CENTRALITY.items()])
     #df = pd.DataFrame({'type': list(CENTRALITY_type.keys()), 'val': list(CENTRALITY_type.values())})
     #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Centrality Value Distribution " + str(percentile))
@@ -277,6 +305,7 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.ylabel("Frequency")
     plt.show()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
@@ -291,6 +320,7 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.ylabel("Frequency")
     plt.show()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1], reverse=True))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
@@ -313,6 +343,7 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.tight_layout()
     plt.show()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_n = len(CENTRALITY)
     CENTRALITY_freq = dict()
@@ -341,6 +372,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
     plt.show()
+
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     CENTRALITY_p = dict()
     for k, f in CENTRALITY_freq.items():
@@ -363,6 +396,7 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.tight_layout()
     plt.show()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     plt.barh(y_pos, list(CENTRALITY_p.values()), align='center')
     plt.yticks(y_pos, labels=list(CENTRALITY_p.keys()))
@@ -398,6 +432,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=len(patient_CENTRALITY)).as_hex())
     
+    plt.style.use('default')
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         fig.add_trace(
@@ -480,6 +515,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
                     fill=None),
                     secondary_y=False)
 
+    plt.style.use('default')
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         fig.add_trace(
@@ -496,6 +532,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
     fig.update_yaxes(title_text = "Centrality Value")
     fig.write_html(f"{fname}_CENTRALITY.html")
 
+    plt.style.use('default')
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         if p_id in patient_BS:
@@ -518,6 +555,7 @@ def plot_time_series_average(patient_CENTRALITY, patient_BS, conf, fname):
     #extract color palette, the palette can be changed
     colors = list(sns.color_palette(palette='viridis', n_colors=2).as_hex())
     
+    plt.style.use('default')
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     n = int(conf['max_hours'] * timedelta(hours=1).total_seconds()/conf['CENTRALITY_time_unit'].total_seconds())
     x = [i for i in range(0, n + 1)]
@@ -630,6 +668,7 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
 
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
@@ -654,10 +693,12 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
         plt.axvline(PI_R['ET_P'][0], color=PI_c, linestyle='dashed', linewidth=1)
         plt.axvline(NPI_R['ET_P'][0], color=NPI_c, linestyle='dashed', linewidth=1)
     plt.legend()
+    plt.grid(False)
     plt.savefig(f"{fname}_0")
 
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
@@ -677,10 +718,12 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
 
     plt.ylabel("Frequency")
     plt.legend()
+    plt.grid(False)
     plt.savefig(f"{fname}_1")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
@@ -697,11 +740,13 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     #plt.yscale("log")
     plt.ylabel("Frequency")
     plt.legend()
+    plt.grid(False)
     plt.savefig(f"{fname}_2")
     plt.clf()
     plt.cla()
 
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     PI_CENTRALITY = dict(sorted(PI_CENTRALITY.items(), key=lambda x: x[1], reverse=True))
     NPI_CENTRALITY = dict(sorted(NPI_CENTRALITY.items(), key=lambda x: x[1], reverse=True))
@@ -738,10 +783,12 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.xlabel("Event Type Centrality")
     plt.legend()
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_3")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     PI_minor = True if PI_n <= NPI_n else False
     NPI_CENTRALITY_freq = dict(sorted(NPI_CENTRALITY_freq.items(), key=lambda x: x[1], reverse=True))
@@ -772,10 +819,12 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     #plt.subplots_adjust(bottom=0.15)
     plt.legend()
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_4")
     plt.clf()
     plt.cla()
 
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     y_pos  =  range(8 * (max_n + 1) -4, 0, -8)
     vals = list(NPI_CENTRALITY.values())
@@ -802,6 +851,7 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.subplots_adjust(bottom=0.15)
     plt.legend()
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_5")
     plt.clf()
     plt.cla()
@@ -839,12 +889,14 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     # Tweak spacing to prevent clipping of tick-labels
     #plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}_6")
     plt.clf()
     plt.cla()
 
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if percentile == '':
         PI_PCENTRALITY = PI_R['patient_CENTRALITY_total']
@@ -870,12 +922,14 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
 
     plt.ylabel("Frequency")
     plt.legend()
+    plt.grid(False)
     plt.savefig(f"{fname}_7")
     plt.clf()
     plt.cla()
 
     plt.clf()
     plt.cla()
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     if title:
         plt.title(f"{title}: Patient Centrality Log Base 10 " + str(percentile))
@@ -888,6 +942,7 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.axvline(np.log10(NPI_R['PCENTRALITY_P'][0]), color=NPI_c, linestyle='dashed', linewidth=1)
     plt.ylabel("Frequency")
     plt.legend()
+    plt.grid(False)
     plt.savefig(f"{fname}_8")
     plt.clf()
     plt.cla()

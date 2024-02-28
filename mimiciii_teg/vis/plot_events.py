@@ -12,6 +12,7 @@ def plot_events_by_parent_type(events, title = '', fname = 'Events'):
             parent_type[e['parent_type']] += 1
     
     parent_type = dict(sorted(parent_type.items(), key=lambda x: x[1]))
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     y_pos  =  range(0, 2*len(parent_type), 2)
     plt.barh(y_pos, list(parent_type.values()), align='center')
@@ -21,6 +22,7 @@ def plot_events_by_parent_type(events, title = '', fname = 'Events'):
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}")
     plt.clf()
     plt.cla()
@@ -42,6 +44,7 @@ def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_E
         else:
             parent_type[e['parent_type']][1] += 1
     parent_type = dict(sorted(parent_type.items(), key=lambda x: x[1][0]))
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     y_pos  =  range(0, 4 * len(parent_type), 4)
     PI_vals = [val[0] for val in parent_type.values()]
@@ -56,6 +59,7 @@ def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_E
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}")
     plt.clf()
     plt.cla()
@@ -81,6 +85,8 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
         else:
             types[e['type']][1] += 1
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
+
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]
@@ -98,6 +104,7 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}")
     plt.clf()
     plt.cla()
@@ -123,6 +130,7 @@ def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Ev
         else:
             types[e['event_type']][1] += 1
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
+    plt.style.use('default')
     plt.figure(figsize=(14, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]
@@ -140,6 +148,7 @@ def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Ev
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
+    plt.grid(False)
     plt.savefig(f"{fname}")
     plt.clf()
     plt.cla()
