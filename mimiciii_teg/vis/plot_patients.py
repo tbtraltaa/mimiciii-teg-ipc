@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('default')
+plt.rcParams['font.size'] = 14
 
 from mimiciii_teg.schemas.PI_risk_factors import CHRONIC_ILLNESS
 
@@ -103,7 +105,8 @@ def plot_PI_NPI_patients(PI_patients,
     tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
     chronic_dict = dict(sorted(chronic_dict.items(), key=lambda x: x[1][0]))
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     y_pos  =  range(2, 4 * len(tmp) + 2, 4)
     PI_vals = [val[0] for val in tmp.values()]
     NPI_vals = [val[1] for val in tmp.values()]
@@ -130,7 +133,8 @@ def plot_PI_NPI_patients(PI_patients,
     tmp = {k: patient_dict[k] for k in patient_dict if 'religion' not in k.lower() and 'ethnicity' not in k.lower()}
     tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     y_pos  =  range(2, 4 * len(tmp) + 2, 4)
     PI_vals = [val[0] for val in tmp.values()]
     NPI_vals = [val[1] for val in tmp.values()]
@@ -156,7 +160,8 @@ def plot_PI_NPI_patients(PI_patients,
 
     if conf['include_chronic_illness']:
         plt.style.use('default')
-        plt.figure(figsize=(14, 8))
+        plt.rcParams['font.size'] = 14
+        plt.figure(figsize = (10, 8))
         y_pos  =  range(2, 4*len(chronic_dict) + 2, 4)
         PI_vals = [val[0] for val in chronic_dict.values()]
         NPI_vals = [val[1] for val in chronic_dict.values()]
@@ -181,7 +186,8 @@ def plot_PI_NPI_patients(PI_patients,
 
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"Age, Patient Centrality {title}")
     else:
@@ -197,7 +203,8 @@ def plot_PI_NPI_patients(PI_patients,
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"Length Of Stay, Patient Centrality {title}")
     else:
@@ -213,7 +220,8 @@ def plot_PI_NPI_patients(PI_patients,
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f" OASIS, Patient Centrality {title}")
     else:

@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('default')
+plt.rcParams['font.size'] = 14
 import seaborn as sns
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -21,33 +22,35 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
-        plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
+        plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile), fontsize=14)
     else:
-        plt.title(f"Event Type Centrality Distribution " + str(percentile))
+        plt.title(f"Event Type Centrality Distribution " + str(percentile), fontsize=14)
     plt.hist(list(CENTRALITY.values()), bins=30, rwidth=0.7)
-    plt.xlabel("Event Type Centrality Values")
+    plt.xlabel("Event Type Centrality Values", fontsize=14)
     if not percentile:
         plt.xscale("log")
         plt.yscale("log")
-    plt.ylabel("Frequency")
+    plt.ylabel("Frequency", fontsize=14)
     plt.grid(False)
     plt.savefig(f"{fname}_1")
     plt.clf()
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
     if title:
-        plt.title(f"{title}: Event Type Centrality Distribution After Log Transformation " + str(percentile))
+        plt.title(f"{title}: Event Type Centrality Distribution After Log Transformation " + str(percentile), fontsize=14)
     else:
-        plt.title(f"Event Type Centrality Distribution After Log Transformation " + str(percentile))
+        plt.title(f"Event Type Centrality Distribution After Log Transformation " + str(percentile), fontsize=14)
 
     plt.hist(np.log10(list(CENTRALITY.values())), bins=20, rwidth=0.7)
-    plt.xlabel("Event Type Centrality Values")
+    plt.xlabel("Event Type Centrality Values", fontsize=14)
     #plt.yscale("log")
     plt.ylabel("Frequency")
     plt.grid(False)
@@ -56,7 +59,8 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
     else:
@@ -77,7 +81,8 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
 
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1]))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
     vals = []
@@ -91,7 +96,7 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     if title:
         plt.title(f"{title}: Top Event Type Centrality" + str(percentile))
     else:
-        plt.title(f"Top Event Cype Centrality " + str(percentile))
+        plt.title(f"Top Event Type Centrality " + str(percentile))
     plt.xlabel("Event Type Centrality")
     #plt.xticks(rotation='vertical')
     # Tweak spacing to prevent clipping of tick-labels
@@ -103,7 +108,8 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_freq = dict(sorted(CENTRALITY_freq.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_freq), 2)
     plt.barh(y_pos, list(CENTRALITY_freq.values()), align='center')
@@ -116,16 +122,18 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
-    plt.grid(False)
     plt.savefig(f"{fname}_4")
     plt.clf()
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
+    # shortening the verticle space for example experiment
+    #plt.figure(figsize = (10, 3))
     y_pos  =  range(0, 2*len(CENTRALITY_sorted), 2)
     plt.barh(y_pos, list(CENTRALITY_sorted.values()), align='center')
-    plt.yticks(y_pos, labels=list(CENTRALITY_sorted.keys()), fontsize=14)
+    plt.yticks(y_pos, labels=list(CENTRALITY_sorted.keys()))
     if title:
         plt.title(f"{title}: Event Type Centrality " + str(percentile))
     else:
@@ -134,14 +142,14 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
     plt.tight_layout()
-    plt.grid(False)
     plt.savefig(f"{fname}_5")
     plt.clf()
     plt.cla()
 
     CENTRALITY_avg = dict(sorted(CENTRALITY_avg.items(), key=lambda x: x[1]))
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     y_pos  =  range(0, 2*len(CENTRALITY_avg), 2)
     plt.barh(y_pos, list(CENTRALITY_avg.values()), align='center')
     plt.yticks(y_pos, labels=list(CENTRALITY_avg.keys()), fontsize=14)
@@ -166,7 +174,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Centrality Value Distribution " + str(percentile))
     else:
@@ -183,7 +192,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
     if title:
@@ -201,7 +211,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1]))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
     vals = []
@@ -228,7 +239,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
 
     CENTRALITY_ET, CENTRALITY_ET_freq, CENTRALITY_ET_avg = get_event_type_CENTRALITY(events, CENTRALITY)
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_ET_freq = dict(sorted(CENTRALITY_ET_freq.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_ET_freq), 2)
     plt.barh(y_pos, list(CENTRALITY_ET_freq.values()), align='center')
@@ -248,7 +260,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_ET = dict(sorted(CENTRALITY_ET.items(), key=lambda x: x[1]))
     plt.barh(y_pos, list(CENTRALITY_ET.values()), align='center')
     plt.yticks(y_pos, labels=list(CENTRALITY_ET.keys()))
@@ -266,7 +279,8 @@ def plot_CENTRALITY(events, CENTRALITY, conf, percentile='', nbins=30, title='',
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_ET_avg = dict(sorted(CENTRALITY_ET_avg.items(), key=lambda x: x[1]))
     y_pos  =  range(0, 2*len(CENTRALITY_ET_avg), 2)
     plt.barh(y_pos, list(CENTRALITY_ET_avg.values()), align='center')
@@ -292,7 +306,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     #df = pd.DataFrame({'type': list(CENTRALITY_type.keys()), 'val': list(CENTRALITY_type.values())})
     #df.pivot(columns="type", values="val").plot.hist(bins=nbins)
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Centrality Value Distribution " + str(percentile))
     else:
@@ -306,7 +321,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.show()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
     if title:
@@ -321,7 +337,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.show()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1], reverse=True))
     top_n = conf['Top_n_CENTRALITY'] if len(CENTRALITY) > conf['Top_n_CENTRALITY'] else len(CENTRALITY)
     vals = []
@@ -344,7 +361,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.show()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_n = len(CENTRALITY)
     CENTRALITY_freq = dict()
     CENTRALITY_sum = dict()
@@ -374,7 +392,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.show()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     CENTRALITY_p = dict()
     for k, f in CENTRALITY_freq.items():
         CENTRALITY_p[k] = CENTRALITY_sum[k]/CENTRALITY_total
@@ -397,7 +416,8 @@ def plot_CENTRALITY_by_parent_type(events, CENTRALITY, conf, percentile='', nbin
     plt.show()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     plt.barh(y_pos, list(CENTRALITY_p.values()), align='center')
     plt.yticks(y_pos, labels=list(CENTRALITY_p.keys()))
     if title:
@@ -433,6 +453,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
     colors = list(sns.color_palette(palette='viridis', n_colors=len(patient_CENTRALITY)).as_hex())
     
     plt.style.use('default')
+    plt.rcParams['font.size'] = 14
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         fig.add_trace(
@@ -516,6 +537,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
                     secondary_y=False)
 
     plt.style.use('default')
+    plt.rcParams['font.size'] = 14
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         fig.add_trace(
@@ -533,6 +555,7 @@ def plot_time_series(patient_CENTRALITY, patient_BS, conf, fname, patients_NPI_C
     fig.write_html(f"{fname}_CENTRALITY.html")
 
     plt.style.use('default')
+    plt.rcParams['font.size'] = 14
     fig = make_subplots(specs=[[{"secondary_y": False}]])
     for p_id, color in zip(patient_CENTRALITY, colors):
         if p_id in patient_BS:
@@ -556,6 +579,7 @@ def plot_time_series_average(patient_CENTRALITY, patient_BS, conf, fname):
     colors = list(sns.color_palette(palette='viridis', n_colors=2).as_hex())
     
     plt.style.use('default')
+    plt.rcParams['font.size'] = 14
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     n = int(conf['max_hours'] * timedelta(hours=1).total_seconds()/conf['CENTRALITY_time_unit'].total_seconds())
     x = [i for i in range(0, n + 1)]
@@ -669,7 +693,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
     else:
@@ -699,7 +724,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Event Type Centrality Distribution " + str(percentile))
     else:
@@ -724,7 +750,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     #df['val_log10'] = np.log10(list(CENTRALITY.values()))
     #df.pivot(columns="type", values="val_log10").plot.hist(bins=nbins)
     if title:
@@ -747,7 +774,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
 
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     PI_CENTRALITY = dict(sorted(PI_CENTRALITY.items(), key=lambda x: x[1], reverse=True))
     NPI_CENTRALITY = dict(sorted(NPI_CENTRALITY.items(), key=lambda x: x[1], reverse=True))
     PI_top_n = conf['Top_n_CENTRALITY'] if PI_n > conf['Top_n_CENTRALITY'] else PI_n
@@ -789,7 +817,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     PI_minor = True if PI_n <= NPI_n else False
     NPI_CENTRALITY_freq = dict(sorted(NPI_CENTRALITY_freq.items(), key=lambda x: x[1], reverse=True))
     y_pos  =  range(8 * (max_n + 1) - 4, 0, -8)
@@ -825,7 +854,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     y_pos  =  range(8 * (max_n + 1) -4, 0, -8)
     vals = list(NPI_CENTRALITY.values())
     labels = list(NPI_CENTRALITY.keys())
@@ -860,7 +890,7 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     NPI_n_avg = len(NPI_CENTRALITY_avg)
     max_n_avg = PI_n_avg if PI_n_avg > NPI_n_avg else NPI_n_avg
     PI_minor = True if PI_n_avg <= NPI_n_avg else False
-    plt.figure(figsize=(14, 8))
+    plt.figure(figsize = (10, 8))
     NPI_CENTRALITY_avg = dict(sorted(NPI_CENTRALITY_avg.items(), key=lambda x: x[1], reverse=True))
     y_pos  =  range(8* (max_n_avg + 1) - 4, 0, -8)
     vals = list(NPI_CENTRALITY_avg.values())
@@ -897,7 +927,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if percentile == '':
         PI_PCENTRALITY = PI_R['patient_CENTRALITY_total']
         NPI_PCENTRALITY = NPI_R['patient_CENTRALITY_total']
@@ -930,7 +961,8 @@ def plot_PI_NPI(PI_R, NPI_R, conf, percentile='', nbins = 30, title = '', fname=
     plt.clf()
     plt.cla()
     plt.style.use('default')
-    plt.figure(figsize=(14, 8))
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize = (10, 8))
     if title:
         plt.title(f"{title}: Patient Centrality Log Base 10 " + str(percentile))
     else:
