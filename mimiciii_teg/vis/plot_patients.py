@@ -105,7 +105,6 @@ def plot_PI_NPI_patients(PI_patients,
     tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
     chronic_dict = dict(sorted(chronic_dict.items(), key=lambda x: x[1][0]))
     plt.style.use('default')
-    plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
     y_pos  =  range(2, 4 * len(tmp) + 2, 4)
     PI_vals = [val[0] for val in tmp.values()]
@@ -133,7 +132,6 @@ def plot_PI_NPI_patients(PI_patients,
     tmp = {k: patient_dict[k] for k in patient_dict if 'religion' not in k.lower() and 'ethnicity' not in k.lower()}
     tmp = dict(sorted(tmp.items(), key=lambda x: x[1][0]))
     plt.style.use('default')
-    plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
     y_pos  =  range(2, 4 * len(tmp) + 2, 4)
     PI_vals = [val[0] for val in tmp.values()]
@@ -160,7 +158,6 @@ def plot_PI_NPI_patients(PI_patients,
 
     if conf['include_chronic_illness']:
         plt.style.use('default')
-        plt.rcParams['font.size'] = 14
         plt.figure(figsize = (10, 8))
         y_pos  =  range(2, 4*len(chronic_dict) + 2, 4)
         PI_vals = [val[0] for val in chronic_dict.values()]

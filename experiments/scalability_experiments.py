@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
+import scipy as sp
 import pprint
 from datetime import timedelta, date
 import time
 import networkx as nx
 import matplotlib.pyplot as plt
 plt.style.use('default')
+plt.rcParams['font.size'] = 14
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -13,7 +15,7 @@ from pygraphblas import *
 import timeit
 
 from mimiciii_teg.schemas import *
-from mimiciii_teg.schemas.event_setup import *
+from mimiciii_teg.schemas.event_setup import SCALABILITY_EXPERIMENT_EVENTS
 from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS
 from mimiciii_teg.queries.queries import get_patient_demography
 from mimiciii_teg.teg.events import *
@@ -98,7 +100,8 @@ TEG_conf = {
         'insurance',
         'los',
         'age',
-        'oasis'] 
+        'oasis'],
+    'max_node_size': 300
 }
 
 # Event graph configuration
@@ -149,10 +152,11 @@ def IPC_vs_algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     nx_IPC_time = []
     n_nodes = []
     m_edges = []
+    num_hadms = []
     global G, A, states
     options_set(nthreads=12)
 
-    for i in range(10, 40, 10):
+    for i in range(20, 101, 20):
         # number of patients
         conf['hadm_limit'] = i
         PI_df, admissions = get_patient_demography(conn, conf) 
@@ -160,72 +164,189 @@ def IPC_vs_algebraic_IPC_scalability(event_list, join_rules, conf, fname):
         PI_hadms = tuple(PI_df['hadm_id'].tolist())
         all_events = events(conn, event_list, conf, PI_hadms)
         all_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
+        num_hadms.append(len(PI_hadm_stage_t))
         # number of nodes
         n = len(all_events)
         # adjacency matrix
         A, interconnection = build_eventgraph(admissions, all_events, join_rules)
+        n_nodes.append(n) 
+        m = A.count_nonzero()
+        m_edges.append(m)
         states = np.zeros(n)
         # Percolation states
         for e in all_events:
             states[e['i']] = e['pi_state']
+        np.savetxt(f'scalability_data/A_{n}_{m}.txt', A.toarray())
+        np.savetxt(f'scalability_data/percolation_states_{n}.txt', states)
         # algebraic IPC
         timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         if TIME_UNIT == 'min':
-            t = min(timer.repeat(repeat=1, number=1)) / 60.0
+            t = min(timer.repeat(repeat=5, number=1)) / 60.0
             print("Time for algebraic IPC", t, 'min' )
         else:
-            t = min(timer.repeat(repeat=1, number=1))
+            t = min(timer.repeat(repeat=5, number=1))
             print("Time for algebraic IPC", t, 'sec' )
 
         algebraic_IPC_time.append(t)
-        n_nodes.append(n) 
-        m_edges.append(A.count_nonzero())
         # NetworkX graph
         G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-        # non-algebraic IPC using NetworkX
+        # IPC using NetworkX
         timer = timeit.Timer("IPC_with_target_nx(G, states=states, weight='weight')", globals=globals())
         if TIME_UNIT == 'min':
-            t = min(timer.repeat(repeat=1, number=1)) / 60.0
+            t = min(timer.repeat(repeat=5, number=1)) / 60.0
             print("Time for non-algebraic IPC", t, 'min' )
         else:
-            t = min(timer.repeat(repeat=1, number=1))
+            t = min(timer.repeat(repeat=5, number=1))
             print("Time for non-algebraic IPC", t, 'sec' )
         nx_IPC_time.append(t)
     # Plot number of nodes vs IPC time 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC')
-    plt.plot(n_nodes, nx_IPC_time, label='Non-algebraic IPC using NetworkX')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.plot(n_nodes, nx_IPC_time, label='IPC using NetworkX', color='red')
     plt.xlabel('Number of Nodes')
     if TIME_UNIT == 'min':
-        plt.ylabel('Time ( In Minutes )')
+        plt.ylabel('Time ( in Minutes )')
     else:
-        plt.ylabel('Time ( In Seconds )')
-    plt.title("Inverse Percolation Centrality Scalability")
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Inverse Percolation Centrality Scalability")
     plt.legend()
     plt.tight_layout()
-    plt.grid(False)
     plt.savefig(f"{fname}-nodes")
     plt.clf()
     plt.cla()
 
     # Plot number of edges vs IPC time 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8), layout='constrained')
-    plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC')
-    plt.plot(m_edges, nx_IPC_time, label='Non-algebraic IPC using NetworkX')
-    plt.xlabel('Number Of Edges')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.plot(m_edges, nx_IPC_time, label='IPC using NetworkX', color='red')
+    plt.xlabel('Number of Edges')
     if TIME_UNIT == 'min':
-        plt.ylabel('Time ( In Minutes )')
+        plt.ylabel('Time ( in Minutes )')
     else:
-        plt.ylabel('Time ( In Seconds )')
-    plt.title("Inverse Percolation Centrality Scalability")
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title('Inverse Percolation Centrality Scalability')
     plt.legend()
     plt.tight_layout()
-    plt.grid(False)
     plt.savefig(f"{fname}-edges")
     plt.clf()
     plt.cla()
+
+    plt.style.use('default')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(num_hadms, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.plot(num_hadms, nx_IPC_time, label='IPC using NetworkX', color='red')
+    plt.xlabel('Number of Patients')
+    if TIME_UNIT == 'min':
+        plt.ylabel('Time ( in Minutes )')
+    else:
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}-hadms")
+    plt.clf()
+    plt.cla()
+
+    plt.style.use('default')
+    #plt.rcParams['font.size'] = 14
+    ax = plt.figure(figsize=(6, 6)).add_subplot(projection='3d')
+    ax.plot(n_nodes, m_edges, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    ax.plot(n_nodes, m_edges, nx_IPC_time, label='IPC using NetworkX', color='red')
+    '''
+    # vertical dashed lines
+    for i in range(len(n_nodes)):
+        X = [n_nodes[i], n_nodes[i]]
+        Y = [m_edges[i], m_edges[i]]
+        Z = [0, nx_IPC_time[i]]
+        ax.plot(X, Y, Z, color='red', linestyle='dashed')
+    # ploting the points
+    for x, y, z in zip(n_nodes, m_edges, algebraic_IPC_time):
+        ax.text(x + 5, y + 5, z + 5, f'({x}, {y}, {z})', zdir=(1, 1, 1))
+    for x, y, z in zip(n_nodes, m_edges, nx_IPC_time):
+        ax.text(x + 5, y + 5, z + 5, f'({x}, {y}, {z})', zdir=(1, 1, 1))
+    '''
+    #ax.set_title('Inverse Percolation Centrality Scalability')
+    ax.set_xlabel('Number of Nodes')
+    ax.set_ylabel('Number of Edges')
+    ax.set_zlabel('Time (in Seconds)')
+    ax.legend()
+    plt.show()
+
+    # Plotting Algebraic IPC only
+    plt.style.use('default')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.xlabel('Number of Nodes')
+    if TIME_UNIT == 'min':
+        plt.ylabel('Time ( in Minutes )')
+    else:
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}-nodes-algebraic")
+    plt.clf()
+    plt.cla()
+
+    plt.style.use('default')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.xlabel('Number of Edges')
+    if TIME_UNIT == 'min':
+        plt.ylabel('Time ( in Minutes )')
+    else:
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}-edges-algebraic")
+    plt.clf()
+    plt.cla()
+
+    plt.style.use('default')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(num_hadms, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    plt.xlabel('Number of Patients')
+    if TIME_UNIT == 'min':
+        plt.ylabel('Time ( in Minutes )')
+    else:
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{fname}-hadms-algebraic")
+    plt.clf()
+    plt.cla()
+
+    plt.style.use('default')
+    #plt.rcParams['font.size'] = 14
+    ax = plt.figure(figsize=(6, 6)).add_subplot(projection='3d')
+    ax.plot(n_nodes, m_edges, algebraic_IPC_time, label='Algebraic IPC', color='blue')
+    '''
+    # vertical dashed lines
+    for i in range(len(n_nodes)):
+        X = [n_nodes[i], n_nodes[i]]
+        Y = [m_edges[i], m_edges[i]]
+        Z = [0, algebraic_IPC_time[i]]
+        ax.plot(X, Y, Z, color='red', linestyle='dashed')
+    # ploting the points
+    for x, y, z in zip(n_nodes, m_edges, algebraic_IPC_time):
+        ax.text(x, y, z + 5, f'({x}, {y}, {z})', zdir=(1, 1, 1))
+    '''
+    #ax.set_title('Algebraic Inverse Percolation Centrality Scalability')
+    ax.legend()
+    ax.set_xlabel('Number of Nodes')
+    ax.set_ylabel('Number of Edges')
+    ax.set_zlabel('Time (in Seconds)')
+    plt.show()
 
 def algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     '''
@@ -238,7 +359,7 @@ def algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     global A, states
     options_set(nthreads=12)
 
-    for i in range(10, 30, 10):
+    for i in range(20, 101, 20):
         # limit to admissions
         conf['hadm_limit'] = i
         PI_df, admissions = get_patient_demography(conn, conf) 
@@ -250,31 +371,35 @@ def algebraic_IPC_scalability(event_list, join_rules, conf, fname):
         n = len(all_events)
         # adjacency matrix
         A, interconnection = build_eventgraph(admissions, all_events, join_rules)
+        n_nodes.append(n) 
+        # number of edges
+        m = A.count_nonzero()
+        m_edges.append(m)
         states = np.zeros(n)
         # percolation states
         for e in all_events:
             states[e['i']] = e['pi_state']
+        np.savetxt(f'scalability_data/A_{n}_{m}_Algeraic_experiment.txt', A.toarray())
+        np.savetxt(f'scalability_data/percolation_states_{n}_Algebraic_experiment.txt', states)
         # algebraic IPC
         timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         if TIME_UNIT == 'min':
-            t = min(timer.repeat(repeat=1, number=1)) / 60.0
+            t = min(timer.repeat(repeat=10, number=1)) / 60.0
             print("Time for algebraic IPC", t, 'min' )
         else:
-            t = min(timer.repeat(repeat=1, number=1))
+            t = min(timer.repeat(repeat=10, number=1))
             print("Time for algebraic IPC", t, 'sec' )
         algebraic_IPC_time.append(t)
-        n_nodes.append(n) 
-        # number of edges
-        m_edges.append(A.count_nonzero())
     plt.style.use('default')
-    plt.figure(figsize=(14, 8), layout='constrained')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
     plt.plot(n_nodes, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number of Nodes')
     if TIME_UNIT == 'min':
-        plt.ylabel('Time ( In Minutes )')
+        plt.ylabel('Time ( in Minutes )')
     else:
-        plt.ylabel('Time ( In Seconds )')
-    plt.title("Algebraic Inverse Percolation Centrality Scalability")
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-nodes")
@@ -282,19 +407,42 @@ def algebraic_IPC_scalability(event_list, join_rules, conf, fname):
     plt.cla()
 
     plt.style.use('default')
-    plt.figure(figsize=(14, 8), layout='constrained')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
     plt.plot(m_edges, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number of Edges')
     if TIME_UNIT == 'min':
-        plt.ylabel('Time ( In Minutes )')
+        plt.ylabel('Time ( in Minutes )')
     else:
-        plt.ylabel('Time ( In Seconds )')
-    plt.title("Algebraic Inverse Percolation Centrality Scalability")
+        plt.ylabel('Time ( in Seconds )')
+    #plt.title("Algebraic Inverse Percolation Centrality Scalability")
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}-edges")
     plt.clf()
     plt.cla()
+
+    plt.style.use('default')
+    #plt.rcParams['font.size'] = 14
+    ax = plt.figure(figsize=(6, 6)).add_subplot(projection='3d')
+    ax.plot(n_nodes, m_edges, algebraic_IPC_time, label='Algebraic IPC')
+    '''
+    # vertical dashed lines
+    for i in range(len(n_nodes)):
+        X = [n_nodes[i], n_nodes[i]]
+        Y = [m_edges[i], m_edges[i]]
+        Z = [0, algebraic_IPC_time[i]]
+        ax.plot(X, Y, Z, color='red', linestyle='dashed')
+    # plotting the points
+    for x, y, z in zip(n_nodes, m_edges, algebraic_IPC_time):
+        ax.text(x + 5, y + 5, z + 5, f'({x}, {y}, {z})', zdir=(1, 1, 1))
+    '''
+    #ax.set_title('Algebraic Inverse Percolation Centrality Scalability')
+    ax.legend()
+    ax.set_xlabel('Number of Nodes')
+    ax.set_ylabel('Number of Edges')
+    ax.set_zlabel('Time (in Seconds)')
+    plt.show()
 
 def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     global A, states
@@ -336,14 +484,16 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
             t = min(timer.repeat(repeat=1, number=1))
             print("Time for algebraic IPC", t, 'sec' )
         algebraic_IPC_time.append(t)
+
     plt.style.use('default')
-    plt.figure(figsize=(14, 8), layout='constrained')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
     plt.plot(threads, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number Of Threads')
     if TIME_UNIT == 'min':
-        plt.ylabel('Time ( In Minutes )')
+        plt.ylabel('Time ( in Minutes )')
     else:
-        plt.ylabel('Time ( In Seconds )')
+        plt.ylabel('Time ( in Seconds )')
     plt.title(f"Algebraic Inverse Percolation Centrality Scalability (n = {n}, m = {m})")
     plt.legend()
     plt.tight_layout()
@@ -352,15 +502,19 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     plt.clf()
     plt.cla()
 
-        
 if __name__ == "__main__":
-    '''
     fname = 'output/IPC_vs_algebraic_IPC'
-    IPC_vs_algebraic_IPC_scalability(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
+    IPC_vs_algebraic_IPC_scalability(SCALABILITY_EXPERIMENT_EVENTS,
+                                     TEG_join_rules,
+                                     TEG_conf,
+                                     fname)
+
     '''
     fname = 'output/algebraic_IPC_scalability'
-    algebraic_IPC_scalability(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
-    '''
+    algebraic_IPC_scalability(SCALABILITY_EXPERIMENT_EVENTS,
+                              TEG_join_rules,
+                              TEG_conf,
+                              fname)
     TIME_UNIT = 'min'
     fname = 'output/algebraic_IPC-n-threads'
     algebraic_IPC_n_threads(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)

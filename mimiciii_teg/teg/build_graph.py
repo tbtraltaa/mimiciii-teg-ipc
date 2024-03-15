@@ -18,13 +18,14 @@ def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
     attrs = dict([(e['i'], e['id']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
     if CENTRALITY is not None:
+        max_CENTRALITY = max(CENTRALITY.values())
+        SCALE_FACTOR = conf['max_node_size']/max_CENTRALITY
         if conf['scale_CENTRALITY']:
-            max_CENTRALITY = max(CENTRALITY.values())
-            CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                    else (i, v/max_CENTRALITY * 120) for i, v in CENTRALITY.items()])
+            CENTRALITY_scaled = dict([(i, 50) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v/max_CENTRALITY * SCALE_FACTOR) for i, v in CENTRALITY.items()])
         else:
-            CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
-                    else (i, v * 10000) for i, v in CENTRALITY.items()])
+            CENTRALITY_scaled = dict([(i, 50) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                    else (i, v * SCALE_FACTOR) for i, v in CENTRALITY.items()])
             '''
             CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
                     else (i, v * 1000) for i, v in CENTRALITY.items()])

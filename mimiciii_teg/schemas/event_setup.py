@@ -15,6 +15,20 @@ PI_RISK_EVENTS = [
     'Vitals/Labs',
     'PI Stage']
 
+SCALABILITY_EXPERIMENT_EVENTS = [
+    'Admissions',
+    #'Discharges',
+    'ICU In',
+    'ICU Out',
+    'Callout',
+    'Transfer In',
+    'Transfer Out',
+    'Services',
+    'Intervention',
+    'Vitals/Labs',
+    'PI Stage',
+    'CPT']
+
 EVENTS_INCLUDED = [
     'Admissions',
     'Discharges',

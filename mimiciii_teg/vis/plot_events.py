@@ -91,7 +91,6 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
 
     plt.style.use('default')
-    plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]
@@ -136,7 +135,6 @@ def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Ev
             types[e['event_type']][1] += 1
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
     plt.style.use('default')
-    plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]

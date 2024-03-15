@@ -95,7 +95,8 @@ TEG_conf = {
         'insurance',
         'los',
         'age',
-        'oasis'] 
+        'oasis'],
+    'max_node_size': 100,
 }
 
 # Event graph configuration

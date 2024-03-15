@@ -202,7 +202,7 @@ def get_patient_demography(conn, conf, hadms=()):
     #if hadms:
     if conf['include_chronic_illness']:
         df = add_chronic_illness(conn, df, conf)
-        print('Stroke', df['Stroke'].eq(1))
+        #print('Stroke', df['Stroke'].eq(1))
     df.drop('admittime', axis=1, inplace=True)
     df.drop('subject_id', axis=1, inplace=True)
     # compute the age interval
@@ -451,7 +451,7 @@ def get_events(conn, event_key, conf, hadms=(), fname='output/'):
         if event_name == 'Input':
             Q  = query_quantiles_Input(conn, conf['quantiles'], args) 
         else:
-            Q  = query_quantiles(conn, conf['quantiles'], event_name, **args) 
+            Q  = query_quantiles(conn, conf, conf['quantiles'], event_name, **args) 
         # compute percentiles for numeric values with uom
         if uom_col:
             df['numeric_value'] = df[col]
