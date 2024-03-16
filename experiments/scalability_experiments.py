@@ -452,7 +452,7 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     # number of threads
     threads = [int(i) for i in range(4, 33, 4)]
     # admissions limit
-    conf['hadm_limit'] = 100
+    conf['hadm_limit'] = False
     PI_df, admissions = get_patient_demography(conn, conf) 
     print('Patients', len(admissions))
     PI_hadms = tuple(PI_df['hadm_id'].tolist())
@@ -468,8 +468,9 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
-    np.save(f'scalability_data/A_{n}_{m}_n_thread_100.npy', A.todense())
-    np.save(f'scalability_data/percolation_states_{n}_n_thread_100.npy', states)
+    np.save(f'scalability_data/A_{n}_{m}_n_thread_all.npy', A.todense())
+    np.save(f'scalability_data/percolation_states_{n}_n_thread_all.npy', states)
+    exit()
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
@@ -511,14 +512,16 @@ def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
     # number of threads
     threads = [int(i) for i in range(4, 33, 4)]
     # number of nodes
-    A_dense = np.load(f'scalability_data/A_1588_24376_n_thread_100.npy')
+    #A_dense = np.load(f'scalability_data/A_1588_24376_n_thread_100.npy')
+    A_dense = np.load(f'scalability_data/A_7179_399663_n_thread_all.npy')
     n = A_dense.shape[0]
     A = dok_matrix((n, n), dtype=float)
     for i in range(n):
         for j in range(n):
             if A_dense[i, j] != 0:
                 A[i, j] = A_dense[i, j]
-    states = np.load(f'scalability_data/percolation_states_1588_n_thread_100.npy')
+    #states = np.load(f'scalability_data/percolation_states_1588_n_thread_100.npy')
+    states = np.load(f'scalability_data/percolation_states_7179_n_thread_all.npy')
     m = A.count_nonzero()
     for i in threads:
         # set the number of threads for GraphBLAS
@@ -538,15 +541,15 @@ def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
             print("Time for algebraic IPC", t, 'sec' )
         algebraic_IPC_time.append(t)
     plt.style.use('default')
-    plt.rcParams['font.size'] = 14
-    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.rcParams['font.size'] = 12
+    plt.figure(figsize=(10, 6), layout='constrained')
     plt.plot(threads, algebraic_IPC_time, label='Algebraic IPC')
     plt.xlabel('Number Of Threads')
     if TIME_UNIT == 'min':
         plt.ylabel('Time ( in Minutes )')
     else:
         plt.ylabel('Time ( in Seconds )')
-    plt.title(f"Algebraic Inverse Percolation Centrality Scalability (n = {n}, m = {m})")
+    plt.title(f"Algebraic Inverse Percolation Centrality Scalability (n = {n}, m = {m})", fontsize=12)
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{fname}")
