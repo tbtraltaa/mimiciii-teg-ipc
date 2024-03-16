@@ -467,6 +467,66 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
+    np.savetxt(f'scalability_data/A_{n}_{m}_n_thread_100.txt', A.toarray())
+    np.savetxt(f'scalability_data/percolation_states_{n}_n_thread_100.txt', states)
+    for i in threads:
+        # set the number of threads for GraphBLAS
+        # algebraic IPC
+        print('i', i)
+        #print(options_get())
+        options_set(nthreads=i)
+        #print(options_get())
+        #print("Globals", globals())
+        #timer = timeit.Timer('algebraic_IPC(A, states=states)', setup='options_set(nthreads=i)', globals=globals())
+        timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
+        if TIME_UNIT == 'min':
+            t = min(timer.repeat(repeat=1, number=1)) / 60.0
+            print("Time for algebraic IPC", t, 'min' )
+        else:
+            t = min(timer.repeat(repeat=1, number=1))
+            print("Time for algebraic IPC", t, 'sec' )
+        algebraic_IPC_time.append(t)
+
+    plt.style.use('default')
+    plt.rcParams['font.size'] = 14
+    plt.figure(figsize=(6, 6), layout='constrained')
+    plt.plot(threads, algebraic_IPC_time, label='Algebraic IPC')
+    plt.xlabel('Number Of Threads')
+    if TIME_UNIT == 'min':
+        plt.ylabel('Time ( in Minutes )')
+    else:
+        plt.ylabel('Time ( in Seconds )')
+    plt.title(f"Algebraic Inverse Percolation Centrality Scalability (n = {n}, m = {m})")
+    plt.legend()
+    plt.tight_layout()
+    plt.grid(False)
+    plt.savefig(f"{fname}")
+    plt.clf()
+    plt.cla()
+
+def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
+    global A, states
+    conn = get_db_connection()
+    algebraic_IPC_time = []
+    # number of threads
+    threads = [int(i) for i in range(4, 33, 4)]
+    # admissions limit
+    conf['hadm_limit'] = 100
+    PI_df, admissions = get_patient_demography(conn, conf) 
+    print('Patients', len(admissions))
+    PI_hadms = tuple(PI_df['hadm_id'].tolist())
+    all_events = events(conn, event_list, conf, PI_hadms)
+    all_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
+    # number of nodes
+    n = len(all_events)
+    # adjacency matrix
+    A, interconnection = build_eventgraph(admissions, all_events, join_rules)
+    # number of edges
+    m = A.count_nonzero()
+    # percolation states
+    states = np.zeros(n)
+    for e in all_events:
+        states[e['i']] = e['pi_state']
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
@@ -503,19 +563,22 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     plt.cla()
 
 if __name__ == "__main__":
+    '''
     fname = 'output/IPC_vs_algebraic_IPC'
     IPC_vs_algebraic_IPC_scalability(SCALABILITY_EXPERIMENT_EVENTS,
                                      TEG_join_rules,
                                      TEG_conf,
                                      fname)
 
-    '''
     fname = 'output/algebraic_IPC_scalability'
     algebraic_IPC_scalability(SCALABILITY_EXPERIMENT_EVENTS,
                               TEG_join_rules,
                               TEG_conf,
                               fname)
+    '''
     TIME_UNIT = 'min'
     fname = 'output/algebraic_IPC-n-threads'
-    algebraic_IPC_n_threads(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)
-    '''
+    algebraic_IPC_n_threads(SCALABILITY_EXPERIMENT_EVENTS,
+                            TEG_join_rules,
+                            TEG_conf,
+                            fname)

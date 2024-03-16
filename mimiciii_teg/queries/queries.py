@@ -167,7 +167,7 @@ def get_patient_demography(conn, conf, hadms=()):
                     '''
             table += f' INNER JOIN {npi} ON a.hadm_id=npi.hadm_id'
             pi_stage_hadms = PI_stage_hadms(conn, conf)
-            print(len(pi_stage_hadms))
+            print('All PI Stage Admissions in MIMIC-III', len(pi_stage_hadms))
             where += f' AND a.hadm_id NOT IN {pi_stage_hadms}'
         elif conf['PI_sql'] == 'no_PI_events':
             if conf['dbsource']:
@@ -181,7 +181,7 @@ def get_patient_demography(conn, conf, hadms=()):
                     '''
             table += f' INNER JOIN {npi} ON a.hadm_id=npi.hadm_id'
             pi_event_hadms = PI_stage_hadms(conn, conf)
-            print(len(pi_event_hadms))
+            print('All Admissions with PI-related event', len(pi_event_hadms))
             where += f' AND a.hadm_id NOT IN {pi_event_hadms}'
         # patients, admitted in the hospital within the time window
         # Some events occur before the admisson date, but have the correct hadm_id.

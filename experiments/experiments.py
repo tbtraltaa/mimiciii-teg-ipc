@@ -24,6 +24,19 @@ from TEG_experiments import *
 
 TEG_M_fname = 'output/TEG_Multimodal'
 
+def top_events_experiment():
+    mp = [[0, 100]]
+    remove = [False]
+    conf_teg = copy.deepcopy(TEG_conf)
+    conf_teg['P_remove'] = False
+    conf_teg['missing_percent'] = [0, 100]
+    TEG_CENTRALITY_PI_NPI(conn, r, TEG_join_rules, conf_teg, fname_teg)
+    conf_teg = copy.deepcopy(TEG_conf)
+    conf_multimodal = copy.deepcopy(M_conf)
+    conf_multimodal['P_remove'] = False
+    conf_multimodal['missing_percent'] = [0, 100]
+    MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, M_join_rules, conf_multimodal, fname_multimodal)
+
 
 if __name__ == "__main__":
     conn = get_db_connection()
@@ -51,17 +64,3 @@ if __name__ == "__main__":
         _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_teg)
         TEG_CENTRALITY_PI_NPI(conn, _r, TEG_join_rules, conf_teg, fname_teg)
         #MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, _r, M_join_rules, conf_multimodal, fname_multimodal)
-
-    '''
-    mp = [[0, 100]]
-    remove = [False]
-    conf_teg = copy.deepcopy(TEG_conf)
-    conf_teg['P_remove'] = False
-    conf_teg['missing_percent'] = [0, 100]
-    TEG_CENTRALITY_PI_NPI(conn, r, TEG_join_rules, conf_teg, fname_teg)
-    conf_teg = copy.deepcopy(TEG_conf)
-    conf_multimodal = copy.deepcopy(M_conf)
-    conf_multimodal['P_remove'] = False
-    conf_multimodal['missing_percent'] = [0, 100]
-    MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, M_join_rules, conf_multimodal, fname_multimodal)
-    '''

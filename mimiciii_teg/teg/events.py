@@ -80,25 +80,33 @@ def process_events_PI(all_events, conf):
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t'], -x['pi_stage']))
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
-    stage = 0
-    state = 0
-    PI = False
+    # PI stage
+    stage = min_stage
+    # percolation state
+    if min_stage in conf['PI_states']:
+        min_state = conf['PI_states'][min_stage]
+    else:
+        print("Set the percolation states correctly.")
+    state = min_state
+    is_PI = False
+    is_id_excluded = False
     non_PI_ids = []
     excluded_ids = []
     excluded_indices = []
-    id_excluded = False
+    two_event_PI_ids = []
     subjects = []
     hadm_stage_t = dict()
     # exclude patients who had admission and PI Stage directly
     patient_events = 0
     for i, e in enumerate(sorted_events):
+        patient_events += 1 
         # take only first admission
+        # exclude subsequent admissions
         if 'Admissions' in e['type'] and e['subject_id'] in subjects and conf['first_hadm']:
             excluded_ids.append(e['id'])
-            id_excluded = True
-        # consider events till the first PI stage
-        if not PI and not id_excluded:
-            patient_events += 1
+            is_id_excluded = True
+        # consider events till the first is_PI stage
+        if not is_PI and not is_id_excluded:
             # PI stage
             if 'PI Stage' in e['type']:
                 stage = e['pi_stage']
@@ -107,13 +115,16 @@ def process_events_PI(all_events, conf):
             # exclude a patient who had higher or lower stage than our focus.
             if stage < min_stage or stage > max_stage:
                 excluded_ids.append(e['id'])
-                id_excluded = True
+                is_id_excluded = True
+                PI = False
+            # maximum PI stage
             elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
-                PI = True
+                is_PI = True
                 hadm_stage_t[e['hadm_id']] = e['t']
-            # PI related events before stage I is considered as stage I
+            # PI-related events before Stage I is considered as Stage I
+            # if conf['PI_as_stage']
             elif min_stage == stage and \
                 stage == 0 and \
                 'PI Stage' not in e['type'] and \
@@ -121,49 +132,58 @@ def process_events_PI(all_events, conf):
                 conf['PI_as_stage'] and \
                 max_stage == 1:
                     stage = 1
-                    PI = True
+                    is_PI = True
                     hadm_stage_t[e['hadm_id']] = e['t']
                     state = conf['PI_states'][stage]
                     all_events[e['i']]['pi_state'] = state
                     all_events[e['i']]['pi_stage'] = stage
+            # if it is minimum stage
             elif stage == min_stage:
                 all_events[e['i']]['pi_state'] = state
                 all_events[e['i']]['pi_stage'] = stage
+            # if it is a mid stage
             elif min_stage < stage and stage < max_stage and conf['PI_exclude_mid_stages']:
                     excluded_indices.append(e['i'])
-                    stage = 0
+                    stage = min_stage
                     patient_events -= 1
             elif min_stage < stage and stage < max_stage and not conf['PI_exclude_mid_stages']:
                 all_events[e['i']]['pi_state'] = state
                 all_events[e['i']]['pi_stage'] = stage
         # later all events belonging to excluded ids
         # then no need to exclude those events here
-        elif PI and not id_excluded:
+        elif is_PI and not is_id_excluded:
+            patient_events -= 1
             # exlude events after maximum PI stage event
             excluded_indices.append(e['i'])
+        # last event of a patient
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
-            if not PI:
+            if not is_PI and not is_id_excluded:
                 non_PI_ids.append(e['id'])
                 print('Non PI', e['id'])
-            elif patient_events == 2: # Admissions and Stage
-                non_PI_ids.append(e['id'])
+            elif is_PI and not is_id_excluded and patient_events == 2: # Admissions and Stage
+                two_event_PI_ids.append(e['id'])
                 del hadm_stage_t[e['hadm_id']]
-            PI = False
-            stage = 0
-            state = 0
-            id_excluded = False
+            stage = min_stage
+            state = min_state 
+            is_PI = False
+            is_id_excluded = False
             patient_events = 0
-        if i + 1 == n and not PI:
+        # last event
+        if i + 1 == n and not is_PI and not is_id_excluded:
             non_PI_ids.append(e['id'])
             print('Non PI', e['id'])
-        elif i + 1 == n and patient_events == 2:
-            non_PI_ids.append(e['id'])
+        elif i + 1 == n and is_PI and not is_id_excluded and patient_events == 2: # Admissions and Stage
+            two_event_PI_ids.append(e['id'])
             del hadm_stage_t[e['hadm_id']]
-
+    print("Excluded admissions", len(excluded_ids))
+    print("Non PI admissions", len(non_PI_ids))
+    print("Two event PI admissions (Admissions and PI Stage)", len(two_event_PI_ids))
     for e in all_events:
         if e['id'] in excluded_ids:
             excluded_indices.append(e['i'])
-        elif e['id'] in non_PI_ids:
+        elif conf['PI_only'] and e['id'] in non_PI_ids:
+            excluded_indices.append(e['i'])
+        elif e['id'] in two_event_PI_ids:
             excluded_indices.append(e['i'])
     for i in sorted(set(excluded_indices), reverse=True):
         del all_events[i]
@@ -236,56 +256,64 @@ def process_events_NPI(all_events, NPI_t, conf):
     sorted_events = sorted(all_events, key=lambda x: (x['id'], x['t']))
     min_stage = min(conf['PI_states'].keys())
     max_stage = max(conf['PI_states'].keys())
-    stage = 0
-    PI = False
+    # PI stage
+    stage = min_stage
+    # percolation state
+    if min_stage in conf['PI_states']:
+        min_state = conf['PI_states'][min_stage]
+    else:
+        print("Set the percolation states correctly.")
+    state = min_state
+    is_marker = False
     excluded_ids = []
     excluded_indices = []
-    id_excluded = False
+    is_id_excluded = False
     t_marker = NPI_t[sorted_events[0]['hadm_id']]
     for i, e in enumerate(sorted_events):
+        # No PI Stage event for NPI patient events
         if 'PI Stage' in e['type']:
             pprint.pprint(e)
-        # consider events till the first PI stage
-        if not PI and not id_excluded:
-            # PI stage
+        # consider events till the first is_PI stage
+        if not is_marker:
+            # is_PI stage
             if e['t'] > t_marker:
                 stage = max_stage
-            # exclude a patient who had higher or lower stage than our focus.
-            if stage < min_stage or stage > max_stage:
-                excluded_ids.append(e['id'])
-                id_excluded = True
-            elif stage == max_stage:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
                 all_events[e['i']]['type'] = 'Marker'
                 all_events[e['i']]['event_type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
                 all_events[e['i']]['t'] = t_marker
-                PI = True
+                is_marker = True
             else:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][stage]
                 all_events[e['i']]['pi_stage'] = stage
         # later all events belonging to excluded ids
         # then no need to exclude those events here
-        elif PI and not id_excluded:
-            # exlude events after maximum PI stage event
+        else:
+            # exlude events after Marker event
             excluded_indices.append(e['i'])
+        # last event of a patient
         if i + 1 < n and e['id'] != sorted_events[i + 1]['id']:
-            if not PI:
+            if not is_marker:
                 all_events[e['i']]['pi_state'] = conf['PI_states'][max_stage]
                 all_events[e['i']]['pi_stage'] = max_stage
                 all_events[e['i']]['type'] = 'Marker'
                 all_events[e['i']]['event_type'] = 'Marker'
                 all_events[e['i']]['parent_type'] = 'Marker'
                 all_events[e['i']]['t'] = t_marker
-            PI = False
-            stage = 0
-            id_excluded = False
+            is_marker = False
+            stage = min_stage
             t_marker = NPI_t[sorted_events[i + 1]['hadm_id']]
+        # last event
+        if i + 1 == n and not is_marker:
+            all_events[e['i']]['pi_state'] = conf['PI_states'][max_stage]
+            all_events[e['i']]['pi_stage'] = max_stage
+            all_events[e['i']]['type'] = 'Marker'
+            all_events[e['i']]['event_type'] = 'Marker'
+            all_events[e['i']]['parent_type'] = 'Marker'
+            all_events[e['i']]['t'] = t_marker
 
-    for e in all_events:
-        if e['id'] in excluded_ids:
-            excluded_indices.append(e['i'])
     for i in sorted(set(excluded_indices), reverse=True):
         del all_events[i]
     all_events = sorted(all_events, key=lambda x: (x['type'], x['t']))
