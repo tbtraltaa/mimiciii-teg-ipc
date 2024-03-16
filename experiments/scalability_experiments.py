@@ -506,27 +506,15 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
 
 def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
     global A, states
-    conn = get_db_connection()
     algebraic_IPC_time = []
     # number of threads
     threads = [int(i) for i in range(4, 33, 4)]
-    # admissions limit
-    conf['hadm_limit'] = 100
-    PI_df, admissions = get_patient_demography(conn, conf) 
-    print('Patients', len(admissions))
-    PI_hadms = tuple(PI_df['hadm_id'].tolist())
-    all_events = events(conn, event_list, conf, PI_hadms)
-    all_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
     # number of nodes
-    n = len(all_events)
-    # adjacency matrix
-    A, interconnection = build_eventgraph(admissions, all_events, join_rules)
-    # number of edges
+    A = np.loadtxt(f'scalability_data/A_1588_24376_n_thread_100.txt')
+    A = dok_matrix(D)
+    states = np.loadtxt(f'scalability_data/percolation_states_1588_n_thread_100.txt')
+    n = A.shape[0]
     m = A.count_nonzero()
-    # percolation states
-    states = np.zeros(n)
-    for e in all_events:
-        states[e['i']] = e['pi_state']
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
@@ -538,13 +526,12 @@ def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
         #timer = timeit.Timer('algebraic_IPC(A, states=states)', setup='options_set(nthreads=i)', globals=globals())
         timer = timeit.Timer('algebraic_IPC(A, states=states)', globals=globals())
         if TIME_UNIT == 'min':
-            t = min(timer.repeat(repeat=1, number=1)) / 60.0
+            t = min(timer.repeat(repeat=5, number=1)) / 60.0
             print("Time for algebraic IPC", t, 'min' )
         else:
-            t = min(timer.repeat(repeat=1, number=1))
+            t = min(timer.repeat(repeat=5, number=1))
             print("Time for algebraic IPC", t, 'sec' )
         algebraic_IPC_time.append(t)
-
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize=(6, 6), layout='constrained')
@@ -557,7 +544,6 @@ def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
     plt.title(f"Algebraic Inverse Percolation Centrality Scalability (n = {n}, m = {m})")
     plt.legend()
     plt.tight_layout()
-    plt.grid(False)
     plt.savefig(f"{fname}")
     plt.clf()
     plt.cla()
