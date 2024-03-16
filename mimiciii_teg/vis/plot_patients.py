@@ -25,8 +25,8 @@ def plot_PI_NPI_patients(PI_patients,
         for idd in NPI_results['patient_CENTRALITY_P']:
             npi_patients[idd] = NPI_patients[idd]
         print('pi_patients', pi_patients)
-        pi_df = PI_df[PI_df['id'].isin(pi_patients)] 
-        npi_df = NPI_df[NPI_df['id'].isin(npi_patients)] 
+        pi_df = PI_df[PI_df['id'].isin(pi_patients['id'])] 
+        npi_df = NPI_df[NPI_df['id'].isin(npi_patients['id'])] 
     else:
         pi_patients = PI_patients
         npi_patients = NPI_patients

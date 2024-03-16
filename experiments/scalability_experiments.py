@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy as sp
+from scipy.sparse import dok_matrix
 import pprint
 from datetime import timedelta, date
 import time
@@ -467,8 +468,8 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname):
     states = np.zeros(n)
     for e in all_events:
         states[e['i']] = e['pi_state']
-    np.savetxt(f'scalability_data/A_{n}_{m}_n_thread_100.txt', A.toarray())
-    np.savetxt(f'scalability_data/percolation_states_{n}_n_thread_100.txt', states)
+    np.save(f'scalability_data/A_{n}_{m}_n_thread_100.npy', A.todense())
+    np.save(f'scalability_data/percolation_states_{n}_n_thread_100.npy', states)
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
@@ -510,10 +511,14 @@ def algebraic_IPC_n_threads_data(event_list, join_rules, conf, fname):
     # number of threads
     threads = [int(i) for i in range(4, 33, 4)]
     # number of nodes
-    A = np.loadtxt(f'scalability_data/A_1588_24376_n_thread_100.txt')
-    A = dok_matrix(D)
-    states = np.loadtxt(f'scalability_data/percolation_states_1588_n_thread_100.txt')
-    n = A.shape[0]
+    A_dense = np.load(f'scalability_data/A_1588_24376_n_thread_100.npy')
+    n = A_dense.shape[0]
+    A = dok_matrix((n, n), dtype=float)
+    for i in range(n):
+        for j in range(n):
+            if A_dense[i, j] != 0:
+                A[i, j] = A_dense[i, j]
+    states = np.load(f'scalability_data/percolation_states_1588_n_thread_100.npy')
     m = A.count_nonzero()
     for i in threads:
         # set the number of threads for GraphBLAS
@@ -564,7 +569,7 @@ if __name__ == "__main__":
     '''
     TIME_UNIT = 'min'
     fname = 'output/algebraic_IPC-n-threads'
-    algebraic_IPC_n_threads(SCALABILITY_EXPERIMENT_EVENTS,
+    algebraic_IPC_n_threads_data(SCALABILITY_EXPERIMENT_EVENTS,
                             TEG_join_rules,
                             TEG_conf,
                             fname)

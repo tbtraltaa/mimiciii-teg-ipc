@@ -89,7 +89,7 @@ def algebraic_IPC(Adj, states, normalize=False):
         if i == j:
             A[i,j] = (float('inf'), 0)
         else:
-            A[i,j] = (v, 1)
+            A[i,j] = (float(v), 1)
     D = shortest_path_FW(A)
     #IPC = Vector.sparse(FP64, n)  
     IPC = np.zeros(n)
