@@ -32,14 +32,14 @@ def run_experiments(admissions, events, conf, join_rules, fname, title=''):
         states[e['i']] = e['pi_state']
     if not conf['CENTRALITY_path'] or n > 5000:
         start = time.time()
-        CENTRALITY_values = algebraic_IPC(A, states=states)
+        CENTRALITY_values = algebraic_IPC(A, x=states)
         print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
     elif conf['CENTRALITY_path']:
         start = time.time()
         #CENTRALITY_values, pred, D = algebraic_CENTRALITY_with_pred(A, states=states)
         #print("Time for CENTRALITY with pred", float(time.time() - start)/60.0)
         #V, v_paths, paths = CENTRALITY_paths(D, pred, states)
-        CENTRALITY_values, V, v_paths, paths = algebraic_IPC_with_paths(A, states=states)
+        CENTRALITY_values, V, v_paths, paths = algebraic_IPC_with_paths(A, x=states)
         print('Algebraic IPC time with paths', float(time.time() - start)/60.0, 'min')
     if max(CENTRALITY_values) == 0:
         return None
@@ -240,9 +240,9 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
     return PI_events, NPI_events, PI_results, NPI_results
 
 
-def check_IPC_values(A, states):
+def check_IPC_values(A, x):
     start = time.time()
-    IPC_values = algebraic_IPC(A, states=states)
+    IPC_values = algebraic_IPC(A, x=x)
     print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
     start = time.time()
     b = np.sort(np.nonzero(IPC_values)[0])
@@ -250,14 +250,13 @@ def check_IPC_values(A, states):
 
     # Check if algebraic IPC matches IPC computed using NetworkX
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    #print(nx.is_directed_acyclic_graph(G))
     start = time.time()
-    IPC, V_nx, v_paths_nx, paths_nx = IPC_with_target_path_nx(G, states=states, weight='weight')
+    IPC, V_nx, v_paths_nx, paths_nx = IPC_with_target_path_nx(G, x=x, weight='weight')
     print(IPC)
-    print('IPC time based on networkx', float(time.time() - start)/60.0)
+    print('IPC time based on networkX', float(time.time() - start)/60.0)
     a = np.sort(np.nonzero(list(IPC.values()))[0])
     print(a)
-    print('Algebraic IPC nodes match that from networkx:', np.all(a==b))
+    print('Algebraic IPC nodes match that from networkX:', np.all(a==b))
     print('IPC values match:', np.all(list(IPC.values())==IPC_values))
     print('V match:', np.all(sorted(V)==sorted(V_nx)))
     print('v_paths match:',v_paths==paths_nx)
@@ -275,5 +274,5 @@ def check_IPC_values(A, states):
     print("Time for IPC with pred", float(time.time() - start)/60.0)
 
     start = time.time()
-    IPC_values, V, v_paths, paths = algebraic_IPC_with_paths(A, states=states)
+    IPC_values, V, v_paths, paths = algebraic_IPC_with_paths(A, x=states)
     print('Algebraic IPC time with paths', float(time.time() - start)/60.0, 'min')

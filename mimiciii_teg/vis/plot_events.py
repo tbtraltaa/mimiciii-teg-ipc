@@ -16,7 +16,7 @@ def plot_events_by_parent_type(events, title = '', fname = 'Events'):
     parent_type = dict(sorted(parent_type.items(), key=lambda x: x[1]))
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (10, 8))
+    plt.figure(figsize = (12, 8))
     y_pos  =  range(0, 2*len(parent_type), 2)
     plt.barh(y_pos, list(parent_type.values()), align='center')
     plt.yticks(y_pos, labels=list(parent_type.keys()))
@@ -49,7 +49,7 @@ def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_E
     parent_type = dict(sorted(parent_type.items(), key=lambda x: x[1][0]))
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (10, 8))
+    plt.figure(figsize = (12, 8))
     y_pos  =  range(0, 4 * len(parent_type), 4)
     PI_vals = [val[0] for val in parent_type.values()]
     NPI_vals = [val[1] for val in parent_type.values()]
@@ -91,7 +91,7 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
 
     plt.style.use('default')
-    plt.figure(figsize = (10, 8))
+    plt.figure(figsize = (12, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]
     PI_vals = [val[0] for val in types.values()][:n]
@@ -135,7 +135,7 @@ def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Ev
             types[e['event_type']][1] += 1
     types = dict(sorted(types.items(), key=lambda x: x[1][0], reverse=True))
     plt.style.use('default')
-    plt.figure(figsize = (10, 8))
+    plt.figure(figsize = (12, 8))
     n = min(len(types), conf['plot_types_n'])
     y_pos  =  range(8, 8 * (n + 1),  8)[:n]
     PI_vals = [val[0] for val in types.values()][:n]

@@ -36,6 +36,8 @@ setuptools.setup(
         #'seaborn',
         'plotly==5.9.0',
         'psmpy==0.3.13'
+        #'pygraphblas==5.1.8.0',
+        #'suitesparse-graphblas==5.1.8.0'
     ],
     include_package_data=False,
     zip_safe=False,

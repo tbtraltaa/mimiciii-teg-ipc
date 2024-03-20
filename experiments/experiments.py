@@ -40,14 +40,11 @@ def top_events_experiment():
 
 if __name__ == "__main__":
     conn = get_db_connection()
-    mp = [[64, 100], [30, 70], [0, 36]]
-    remove = [False, False, False]
+    #mp = [[64, 100], [30, 70], [0, 36], [0, 100]]
+    mp = [[80, 100], [60, 85], [40, 65], [20, 45], [0, 25], [0, 100]]
+    remove = [False, False, False, False, False, False]
     os.mkdir(TEG_M_fname)
     r = admissions(conn, PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname=f'{TEG_M_fname}/TEG_M')
-    os.mkdir(f'{TEG_M_fname}/TEG')
-    #os.mkdir(f'{TEG_M_fname}/Multimodal')
-    fname_teg = f'{TEG_M_fname}/TEG/TEG'
-    #fname_multimodal = f'{TEG_M_fname}/Multimodal/Multimodal'
     _r = copy.deepcopy(r)
     for i, i_r in zip(mp, remove):
         conf_teg = copy.deepcopy(TEG_conf)

@@ -68,6 +68,15 @@ def group_events_by_patient(events):
             events_grouped[e['id']].append(e)
     return events_grouped
 
+def count_patient_events(events):
+    event_count = dict()
+    for e in events:
+        if e['id'] not in event_count:
+            event_count[e['id']] = 1
+        else:
+            event_count[e['id']] += 1
+    return event_count
+
 def sort_and_index_events(events):
     sorted_events = sorted(events, key=lambda x: (x['type'], x['t']))
     #index events
@@ -120,19 +129,19 @@ def remove_by_missing_percent(events, conf):
     n = len(events)
     excluded = set()
     for i in range(n-1, -1, -1):
-        if 'Vitals/Labs' in events[i]['type']:
+        if 'Vitals/Labs' in events[i]['parent_type']:
             for val in vitals_stats.index:
                 if val in events[i]['event_type']:
                     col = val
             mp = vitals_stats.loc[col, 'missing percent']
-        elif 'Intervention' in events[i]['type']:
+        elif 'Intervention' in events[i]['parent_type']:
             for val in intervention_stats.index:
                 if val in events[i]['event_type']:
                     col = val
             mp = intervention_stats.loc[col, 'missing percent']
         else:
             continue
-        if mp <= conf['missing_percent'][0] or mp >= conf['missing_percent'][1]:
+        if mp < conf['missing_percent'][0] or mp > conf['missing_percent'][1]:
             excluded.add(col)
             del events_copy[i]
     # reindex events

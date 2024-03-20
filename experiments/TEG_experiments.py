@@ -38,7 +38,7 @@ TEG_conf = {
     #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
     'endtime': False,
-    'missing_percent': [0, 100], # for mimic extract
+    'missing_percent': [0, 100], # for mimic extract, boundaries included.
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
     'interventions': True,
@@ -65,7 +65,7 @@ TEG_conf = {
     'has_icustay': 'True',
     'scale_CENTRALITY': False, # scale by max_CENTRALITY
     'Top_n_CENTRALITY': 20,
-    'PI_vitals': PI_VITALS, # Use a list of vitals related to PI
+    'PI_vitals': False, # Use a list of vitals related to PI
     'skip_repeat': False,
     'skip_repeat_intervention': False,
     'quantiles': np.arange(0, 1.01, 0.1),
@@ -182,10 +182,28 @@ def TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                          r['PI_df'],
                          r['NPI_df'],
                          conf,
+                         pi_events_P,
+                         npi_events_P,
                          PI_results,
                          NPI_results,
                          title=f"{conf['P_patients']}",
                          fname=f"{fname}_Patients_P")
+    plot_patients(r['PI_admissions'],
+                    r['PI_df'],
+                    conf,
+                    pi_events_P,
+                    PI_results,
+                    title=f"{conf['P_patients']}",
+                    fname=f"{fname}_PI_Patients_P",
+                    c='blue')
+    plot_patients(r['NPI_admissions'],
+                  r['NPI_df'],
+                  conf,
+                  npi_events_P,
+                  NPI_results,
+                  title=f"{conf['P_patients']}",
+                  fname=f"{fname}_NPI_Patients_P",
+                  c='red')
 
         
 if __name__ == "__main__":

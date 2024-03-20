@@ -329,10 +329,28 @@ def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                          r['PI_df'],
                          r['NPI_df'],
                          conf,
+                         pi_events_P,
+                         npi_events_P,
                          PI_results,
                          NPI_results,
                          title=f"{conf['P_patients']}",
                          fname=f'{fname}_Patients_P')
+    plot_patients(r['PI_admissions'],
+                    r['PI_df'],
+                    conf,
+                    pi_events,
+                    PI_results,
+                    title=f"{conf['P_patients']}",
+                    fname=f"{fname}_PI_Patients_P",
+                    c='blue')
+    plot_patients(r['NPI_admissions'],
+                  r['NPI_df'],
+                  conf,
+                  npi_events,
+                  NPI_results,
+                  title=f"{conf['P_patients']}",
+                  fname=f"{fname}_NPI_Patients_P",
+                  c='red')
     
 
 if __name__ == "__main__":

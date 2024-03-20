@@ -92,7 +92,7 @@ def get_events_interventions(conn, conf, hadms=None):
             val = 1 if count >= 1 else 0
             if val == 0:
                 continue
-            elif mp <= conf['missing_percent'][0] or  mp >= conf['missing_percent'][1]:
+            elif mp < conf['missing_percent'][0] or  mp > conf['missing_percent'][1]:
                 excluded.add(col)
                 continue
             if not conf['skip_repeat_intervention']:
@@ -254,7 +254,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
             mp = vitals_stats.loc[col, 'missing percent']
             if pd.isnull(val):
                 continue
-            elif mp <= conf['missing_percent'][0] or mp >= conf['missing_percent'][1]:
+            elif mp < conf['missing_percent'][0] or mp > conf['missing_percent'][1]:
                 excluded.add(col)
                 continue
             Q, Q_I = get_quantile_mimic_extract(val, Qs.loc[:, col], conf)
@@ -426,7 +426,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 subject_id, hadm_id, icustay_id, h), (col, slice(None))]
             if count == 0:
                 continue
-            elif mp <= conf['missing_percent'][0] or  mp >= conf['missing_percent'][1]:
+            elif mp < conf['missing_percent'][0] or  mp > conf['missing_percent'][1]:
                 excluded.add(col)
                 continue
             count_Q, count_I = get_quantile_mimic_extract(count, Qs.loc[:, (col, 'count')], conf)

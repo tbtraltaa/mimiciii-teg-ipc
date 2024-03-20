@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 from psmpy import PsmPy
 from psmpy.functions import cohenD
 from psmpy.plotting import *
-#sns.set(rc={'figure.figsize':(10,8)}, font_scale = 1.3)
+sns.set(rc={'figure.figsize':(10,8)}, font_scale = 1.3)
+#plt.style.use('default')
+#plt.rcParams['font.size'] = 12
 
 from mimiciii_teg.queries.queries import *
 
@@ -32,6 +34,7 @@ def get_psm(df, fname):
     plt.savefig(fname + '_propensity_score')
     plt.clf()
     plt.cla()
+
     psm.effect_size_plot(title='Standardized Mean differences across covariates before and after matching')
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(left=0.3)

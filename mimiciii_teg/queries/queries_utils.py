@@ -18,7 +18,6 @@ def add_chronic_illness(conn, df, conf):
         INNER JOIN {schema}.admissions a
         ON icd.hadm_id = a.hadm_id
         '''
-    print(df_chronic['Stroke'])
     for ill in CHRONIC_ILLNESS:
         df[ill] = 0
     for i, row in df.iterrows():
