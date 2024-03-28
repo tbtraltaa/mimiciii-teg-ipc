@@ -40,6 +40,8 @@ PI_STAGE_ITEMIDS = (
     227619
 )
 
+# Labels of All possible PI-related events
+# including PI Stages
 PI_ITEM_LABELS = [
     '%Pressure Ulcer%',
     '%Impaired Skin%',

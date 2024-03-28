@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import numpy as np
 import pprint
 from datetime import timedelta, date
@@ -14,7 +13,9 @@ from mimiciii_teg.schemas.event_setup import *
 from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS, PI_VITALS_TOP_20
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.utils.event_utils import remove_by_missing_percent
-from mimiciii_teg.vis.plot import *
+from mimiciii_teg.vis.plot_centrality import *
+from mimiciii_teg.vis.plot_PI_NPI import plot_PI_NPI
+from mimiciii_teg.vis.plot_centrality_BS import plot_CENTRALITY_and_BS
 from mimiciii_teg.vis.plot_patients import *
 from run_experiments import *
 from mimiciii_teg.queries.queries import get_db_connection
@@ -29,6 +30,7 @@ TEG_conf = {
     'duration': False,
     'max_hours': 336,
     'min_los_hours': 24,
+    'min_patient_events': 20,
     #'max_hours': 168,
     'min_age': 15,
     'max_age': 89,
@@ -49,10 +51,11 @@ TEG_conf = {
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
     'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
-    'P': [90, 100], # CENTRALITY percentile
-    'P_results': [90, 100], # CENTRALITY percentile
-    'P_remove': [0, 20],
-    'P_patients': [60, 100],
+    'P': [95, 100], # CENTRALITY percentile
+    'ET_P': [95, 100], # Event Type CENTRALITY percentile
+    'P_results': [95, 100], # CENTRALITY percentile
+    'P_remove': False,
+    'P_patients': [80, 100],
     'ET_CENTRALITY_min_freq': 0,
     'CENTRALITY_path': False,
     'P_max_n': False,
@@ -75,7 +78,7 @@ TEG_conf = {
     'include_numeric': True,
     'subsequent_adm': False,
     'hadm_limit': False,
-    'NPI_hadm_limit': False,
+    'NPI_hadm_limit': 1000,
     'hadm_order': 'DESC',
     'n_patient_paths': [1, 2, 3], # n highest CENTRALITY paths of a patient
     'vis': False,
@@ -167,14 +170,11 @@ def TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                                                 conf,
                                                 join_rules,
                                                 fname,
-                                                title = 'All types',
                                                 vis_last_iter = True,
                                                 CENTRALITY_path_last_iter = True)
 
-    plot_PI_NPI(PI_results, NPI_results, conf, nbins=30,
-                title='All types', fname=f"{fname}_PI_NPI")
-    plot_PI_NPI(PI_results, NPI_results, conf, conf['P'],
-                nbins=10, title='All types', fname=f"{fname}_PI_NPI_P")
+    plot_PI_NPI(PI_results, NPI_results, conf, fname=f"{fname}_PI_NPI")
+    plot_PI_NPI(PI_results, NPI_results, conf, conf['P'], fname=f"{fname}_PI_NPI_P")
     plot_CENTRALITY_and_BS(conn, conf, PI_results['patient_CENTRALITY'], \
             r['PI_hadms'], r['PI_hadm_stage_t'], f'{fname}')
     plot_PI_NPI_patients(r['PI_admissions'],
@@ -186,23 +186,23 @@ def TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                          npi_events_P,
                          PI_results,
                          NPI_results,
-                         title=f"{conf['P_patients']}",
-                         fname=f"{fname}_Patients_P")
+                         P = f"{conf['P_patients']}",
+                         fname = f"{fname}_Patients_P")
     plot_patients(r['PI_admissions'],
                     r['PI_df'],
                     conf,
                     pi_events_P,
                     PI_results,
-                    title=f"{conf['P_patients']}",
-                    fname=f"{fname}_PI_Patients_P",
-                    c='blue')
+                    P = f"{conf['P_patients']}",
+                    fname = f"{fname}_PI_Patients_P",
+                    c = 'blue')
     plot_patients(r['NPI_admissions'],
                   r['NPI_df'],
                   conf,
                   npi_events_P,
                   NPI_results,
-                  title=f"{conf['P_patients']}",
-                  fname=f"{fname}_NPI_Patients_P",
+                  P = f"{conf['P_patients']}",
+                  fname = f"{fname}_NPI_Patients_P",
                   c='red')
 
         

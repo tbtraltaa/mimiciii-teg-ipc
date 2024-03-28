@@ -3,87 +3,189 @@ import pprint
 
 from mimiciii_teg.utils.event_utils import group_events_by_patient 
 
-def get_patient_CENTRALITY_paths(events, CENTRALITY_all, paths, n):
+def filter_V_paths_by_ET(events, ET_CENTRALITY, v_paths):
+    '''
+    Filter paths by event types
+    '''
+    v_paths_ET = dict()
+    for v in v_paths:
+        if events[v]['type'] not in ET_CENTRALITY:
+            continue
+        v_paths_ET[v] = []
+        for path in v_paths[v]:
+            count = 0
+            p = []
+            for i in path:
+                if 'Admission' in events[i]['type'] or \
+                    'PI Stage' in events[i]['type'] or \
+                    'Marker' in events[i]['type']:
+                    p.append(i)
+                elif events[i]['type'] in ET_CENTRALITY:
+                    count += 1
+                    p.append(i)
+            if count > 0:
+                v_paths_ET[v].append(p)
+    return v_paths_ET
+
+
+def filter_paths_by_ET(events, ET_CENTRALITY, paths):
+    '''
+    Filter paths by event types
+    '''
+    paths_ET = []
+    for path in paths:
+        p = []
+        count = 0
+        for v in path:
+            if 'Admission' in events[v]['type'] or \
+                'PI Stage' in events[v]['type'] or \
+                'Marker' in events[v]['type']:
+                p.append(v)
+            elif events[v]['type'] in ET_CENTRALITY:
+                count += 1
+                p.append(v)
+        if count > 0:
+            paths_ET.append(p)
+    return paths_ET
+
+
+def get_patient_SCP(events, CENTRALITY_all, paths, n):
+    '''
+    Returns n most influential Shortest Central Paths (SCP) of patients
+    '''
     events_grouped = group_events_by_patient(events)
     patient_paths = dict()
+    k = 0
     for p_id in events_grouped:
         s = events_grouped[p_id][0]['i']
         t = events_grouped[p_id][-1]['i']
         if (s, t) not in paths:
-            pass
-            # TODO: to fix this bug
-            #print('st_path missing')
-            #print('s', events_grouped[p_id][0])
-            #print('t', events_grouped[p_id][-1])
-            #pprint.pprint(events_grouped[p_id])
-        else:
-            st_paths = paths[(s, t)]
+            print(f'{s, t} path missing')
+            pprint.pprint(events_grouped[p_id])
+            k += 1
+        elif (s, t) in paths:
             patient_paths[p_id] = []
-            for p in st_paths:
-                path_CENTRALITY = 0
-                for v in p:
-                    path_CENTRALITY += CENTRALITY_all[v]
-                patient_paths[p_id].append({'CENTRALITY': path_CENTRALITY, 'path': p})
-    paths = []
+            for path in paths[(s, t)]:
+                val = get_path_centrality(events, CENTRALITY_all, path)
+                if val:
+                    patient_paths[p_id].append({'CENTRALITY': val, 'path': path})
+    print(f'{k} (s, t) SCP path missing')
+    path_list = []
     for p_id in patient_paths:
         patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['CENTRALITY'], reverse=True)[:n]
-        paths += [p['path'] for p in patient_paths[p_id]]
-    return patient_paths, paths
+        path_list += [p['path'] for p in patient_paths[p_id]]
+    return patient_paths, path_list
     
-def get_patient_shortest_paths(A, events, CENTRALITY_all, paths, n):
+
+def get_patient_SP(A, events, CENTRALITY_all, paths, n):
+    '''
+    Returns n Shortest Centrality Paths (SCP) of patients
+    '''
     events_grouped = group_events_by_patient(events)
     patient_paths = dict()
+    k = 0
     for p_id in events_grouped:
         s = events_grouped[p_id][0]['i']
         t = events_grouped[p_id][-1]['i']
         if (s, t) not in paths:
-            pass
-            #print('st_path missing')
-            #print('s', events_grouped[p_id][0])
-            #print('t', events_grouped[p_id][-1])
-            #pprint.pprint(events_grouped[p_id])
-        else:
-            st_paths = paths[(s, t)]
+            print(f'{s, t} path missing')
+            pprint.pprint(events_grouped[p_id])
+            k += 1
+        elif (s, t) in paths:
             patient_paths[p_id] = []
-            for p in st_paths:
-                path_weight = 0
-                i = p[0]
-                for j in p[1:]:
-                    path_weight += A[i, j]
-                    i = j
-                patient_paths[p_id].append({'w': path_weight, 'path': p})
-    paths = []
+            for path in paths[(s, t)]:
+                val = get_path_weight(A, events, path)
+                if val:
+                    patient_paths[p_id].append({'w': val, 'path': path})
+    print(f'{k} (s, t) SP path missing')
+    path_list = []
     for p_id in patient_paths:
         patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['w'])[: n]
-        paths += [p['path'] for p in patient_paths[p_id]]
+        path_list += [p['path'] for p in patient_paths[p_id]]
     return patient_paths, paths
 
-def get_paths_by_CENTRALITY(CENTRALITY, CENTRALITY_P, paths, P=[0, 100]):
-    '''
-    Computes total CENTRALITY values for paths and
-    returns paths with total CENTRALITY values above the given percentile
-    '''
-    paths_CENTRALITY = {}
-    vals = []
-    for v, v_paths in paths.items():
-        paths_CENTRALITY[v] = []
-        for path in v_paths:
-            summ = 0
-            for p in path:
-                summ += CENTRALITY[p]
-            paths_CENTRALITY[v].append([summ, path])
-            vals.append(summ)
-    P_min = np.percentile(vals, P[0])
-    P_max = np.percentile(vals, P[1])
-    paths_P = {}
-    for v, v_paths in paths_CENTRALITY.items():
-        if v not in CENTRALITY_P:
+def get_path_centrality(events, CENTRALITY, path):
+    val = 1
+    count = 0
+    for i, v in enumerate(path):
+        if 'Admission' in events[v]['type'] or \
+            'PI Stage' in events[v]['type'] or \
+            'Marker' in events[v]['type']:
             continue
-        paths_P[v] = []
-        for summ, path in v_paths:
-            if summ >= P_min and summ <= P_max:
-                paths_P[v].append(path)
-    return paths_P
+        elif i == 0 and CENTRALITY[v] == 0:
+            continue
+        elif i == len(path) - 1 and CENTRALITY[v] == 0:
+            continue
+        elif CENTRALITY[v] == 0:
+            val = 0
+            break
+        else:
+            val += np.log10(CENTRALITY[v])
+            count += 1
+    if count > 0 and val != 0:
+        return val
+    return None
+
+def get_path_weight(A, events, path):
+    path_weight = 0
+    count = 0
+    i = path[0]
+    if 'Admission' not in events[i]['type'] and \
+        'PI Stage' not in events[i]['type'] and \
+        'Marker' not in events[i]['type']:
+        count += 1
+    for j in path[1:]:
+        if 'Admission' not in events[j]['type'] and \
+            'PI Stage' not in events[j]['type'] and \
+            'Marker' not in events[j]['type']:
+            count += 1
+        path_weight += A[i, j]
+        i = j
+    if count > 0:
+        return path_weight
+    return None
+
+def get_paths_centrality(events, conf, CENTRALITY, paths):
+    '''
+    Returns the Shortest Centrality Paths (SCPs) and their path centrality.
+    '''
+    C = []
+    SCP = []
+    for (s, t) in paths:
+        for path in paths[(s, t)]:
+            val = get_path_centrality(events, CENTRALITY, path)
+            if val:
+                C.append(val)
+                SCP.append(path)
+    P_min = np.percentile(C, conf['path_percentile'][0])
+    P_max = np.percentile(C, conf['path_percentile'][1])
+    return SCP, C, [P_min, P_max]
+
+
+def get_influential_SCP(events, conf, CENTRALITY, paths,  CENTRALITY_P = None):
+    '''
+    Returns the most influential Shortest Centrality Paths (SCPs).
+    If the most influential vertices are given, returns the most influential SCPs 
+    containing the most influential events.
+    '''
+    SCP, C, P = get_paths_centrality(events, conf, CENTRALITY, paths)
+    SCP_P = [SCP[i] for i, val in enumerate(C) if P[0] <= val <= P[1]] 
+
+    if CENTRALITY_P:
+        del_paths = []
+        for i, path in enumerate(SCP_P):
+            contains_v = False
+            for v in  CENTRALITY_P:
+                if v in path:
+                    contains_v = True
+                    break
+            if not contains_v:
+                del_paths.append(i)
+        for i in sorted(del_paths, reverse=True):
+            del SCP_P[i]
+        print(f'Deleted {len(del_paths)} paths which do not contain any of the most influential vertices.')
+    return SCP_P
+
 
 def get_total_path_CENTRALITY(CENTRALITY, CENTRALITY_P, paths, P=[0, 100]):
     '''
@@ -93,10 +195,10 @@ def get_total_path_CENTRALITY(CENTRALITY, CENTRALITY_P, paths, P=[0, 100]):
     for v, v_paths in paths.items():
         total_path_CENTRALITY[v] = 0
         for path in v_paths:
-            summ = 0
+            C = 0
             for p in path:
-                summ += CENTRALITY[p]
-            total_path_CENTRALITY[v] += summ
+                C += np.log10(CENTRALITY[p])
+            total_path_CENTRALITY[v] += C
     return total_path_CENTRALITY
 
 def analyze_paths(events, CENTRALITY, V, paths):

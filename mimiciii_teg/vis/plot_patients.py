@@ -15,9 +15,9 @@ def plot_PI_NPI_patients(PI_patients,
                          conf,
                          PI_events,
                          NPI_events,
-                         PI_results=None,
-                         NPI_results=None,
-                         title = '',
+                         PI_results = None,
+                         NPI_results = None,
+                         P = '',
                          fname = 'Patients'):
     pi_patients = dict()
     npi_patients = dict()
@@ -33,8 +33,8 @@ def plot_PI_NPI_patients(PI_patients,
         npi_patients = NPI_patients
         pi_df = PI_df
         npi_df = NPI_df
-    PI_c = 'blue'
-    NPI_c = 'red'
+    PI_c = 'red'
+    NPI_c = 'blue'
     PI_l = 'PI'
     NPI_l = 'NPI'
     patient_dict = dict()
@@ -116,10 +116,7 @@ def plot_PI_NPI_patients(PI_patients,
     y_pos  =  range(0, 4 * len(tmp), 4)
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
     y_pos  =  range(1, 4*len(tmp) + 1, 4)
-    if title:
-        plt.title(f"Patient Attributes, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Attributes")
+    plt.title(f"Patient Attributes {P}")
     plt.xlabel("Frequency")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -142,10 +139,7 @@ def plot_PI_NPI_patients(PI_patients,
     y_pos  =  range(0, 4 * len(tmp), 4)
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
     y_pos  =  range(1, 4*len(tmp) + 1, 4)
-    if title:
-        plt.title(f"Patient Attributes, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Attributes")
+    plt.title(f"Patient Attributes {P}")
     plt.xlabel("Frequency")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -166,10 +160,7 @@ def plot_PI_NPI_patients(PI_patients,
         plt.yticks(y_pos, fontsize=10, labels=labels)
         y_pos  =  range(0, 4*len(chronic_dict), 4)
         plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
-        if title:
-            plt.title(f"Chronic Illness, Patient Centrality {title}")
-        else:
-            plt.title(f"Chronic Illness")
+        plt.title(f"Chronic Illness {P}")
         plt.xlabel("Frequency")
         plt.legend()
         # Tweak spacing to prevent clipping of tick-labels
@@ -183,12 +174,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f"Age, Patient Centrality {title}")
-    else:
-        plt.title(f"Age")
-    plt.hist(npi_df['age'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.title(f"Age {P}")
     plt.hist(pi_df['age'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(npi_df['age'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
     plt.xlabel("Age")
     plt.ylabel("Frequency")
     plt.legend()
@@ -199,12 +187,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f"Length Of Stay, Patient Centrality {title}")
-    else:
-        plt.title(f"Length Of Stay")
-    plt.hist(npi_df['los'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.title(f"Length Of Stay {P}")
     plt.hist(pi_df['los'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(npi_df['los'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
     plt.xlabel("Length Of Stay In Days")
     plt.ylabel("Frequency")
     plt.legend()
@@ -215,12 +200,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f" OASIS, Patient Centrality {title}")
-    else:
-        plt.title(f"OASIS")
-    plt.hist(npi_df['oasis'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
+    plt.title(f" OASIS {P}")
     plt.hist(pi_df['oasis'], bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(npi_df['oasis'], bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
     plt.xlabel("OASIS")
     plt.ylabel("Frequency")
     plt.legend()
@@ -233,12 +215,9 @@ def plot_PI_NPI_patients(PI_patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f" Patient Event Count, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Event Count")
-    plt.hist(NPI_patient_event_count.values(), bins=30, rwidth=0.7, color=NPI_c, label=NPI_l)
-    plt.hist(PI_patient_event_count.values(), bins=30, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.title(f" Patient Event Count {P}")
+    plt.hist(PI_patient_event_count.values(), bins=50, rwidth=0.7, color=PI_c, label=PI_l)
+    plt.hist(NPI_patient_event_count.values(), bins=50, rwidth=0.7, color=NPI_c, label=NPI_l)
     plt.xlabel("Event count")
     plt.ylabel("Frequency")
     plt.legend()
@@ -250,8 +229,8 @@ def plot_patients(Patients,
                          df,
                          conf,
                          events,
-                         results=None,
-                         title = '',
+                         results = None,
+                         P = '',
                          fname = 'Patients',
                          c = 'blue'):
     patients = dict()
@@ -308,10 +287,7 @@ def plot_patients(Patients,
     plt.barh(y_pos, vals, align='center', color=c)
     plt.yticks(y_pos, fontsize=14, labels=labels)
     y_pos  =  range(0, 4 * len(tmp), 4)
-    if title:
-        plt.title(f"Patient Attributes, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Attributes")
+    plt.title(f"Patient Attributes {P}")
     plt.xlabel("Frequency")
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
@@ -331,10 +307,7 @@ def plot_patients(Patients,
     plt.barh(y_pos, vals, align='center', color=c)
     plt.yticks(y_pos, fontsize=14, labels=labels)
     y_pos  =  range(1, 4*len(tmp) + 1, 4)
-    if title:
-        plt.title(f"Patient Attributes, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Attributes")
+    plt.title(f"Patient Attributes {P}")
     plt.xlabel("Frequency")
     # Tweak spacing to prevent clipping of tick-labels
     plt.subplots_adjust(bottom=0.15)
@@ -352,10 +325,7 @@ def plot_patients(Patients,
         labels = [l.title() for l in chronic_dict.keys()]
         plt.barh(y_pos, vals, align='center', color=c)
         plt.yticks(y_pos, fontsize=14, labels=labels)
-        if title:
-            plt.title(f"Chronic Illness, Patient Centrality {title}")
-        else:
-            plt.title(f"Chronic Illness")
+        plt.title(f"Chronic Illness {P}")
         plt.xlabel("Frequency")
         # Tweak spacing to prevent clipping of tick-labels
         plt.subplots_adjust(bottom=0.15)
@@ -368,10 +338,7 @@ def plot_patients(Patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f"Age, Patient Centrality {title}")
-    else:
-        plt.title(f"Age")
+    plt.title(f"Age {P}")
     plt.hist(df['age'], bins=30, rwidth=0.7, color=c)
     plt.xlabel("Age")
     plt.ylabel("Frequency")
@@ -382,10 +349,7 @@ def plot_patients(Patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f"Length Of Stay, Patient Centrality {title}")
-    else:
-        plt.title(f"Length Of Stay")
+    plt.title(f"Length Of Stay {P}")
     plt.hist(df['los'], bins=30, rwidth=0.7, color=c)
     plt.xlabel("Length Of Stay In Days")
     plt.ylabel("Frequency")
@@ -396,10 +360,7 @@ def plot_patients(Patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f" OASIS, Patient Centrality {title}")
-    else:
-        plt.title(f"OASIS")
+    plt.title(f" OASIS {P}")
     plt.hist(df['oasis'], bins=30, rwidth=0.7, color=c)
     plt.xlabel("OASIS")
     plt.ylabel("Frequency")
@@ -411,11 +372,8 @@ def plot_patients(Patients,
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
     plt.figure(figsize = (10, 8))
-    if title:
-        plt.title(f" Patient Event Count, Patient Centrality {title}")
-    else:
-        plt.title(f"Patient Event Count")
-    plt.hist(patient_event_count.values(), bins=30, rwidth=0.7, color=c)
+    plt.title(f" Patient Event Count {P}")
+    plt.hist(patient_event_count.values(), bins=50, rwidth=0.7, color=c)
     plt.xlabel("Event count")
     plt.ylabel("Frequency")
     plt.savefig(f"{fname}_event_count")

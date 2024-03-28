@@ -9,15 +9,13 @@ warnings.filterwarnings('ignore')
 from pygraphblas import *
 options_set(nthreads=12)
 
-from mimiciii_teg.queries.admissions import admissions
-from mimiciii_teg.schemas.event_setup import *
-from mimiciii_teg.teg.events import *
+from mimiciii_teg.schemas.event_setup import PI_RISK_EVENTS
+from mimiciii_teg.schemas.schemas import EVENT_IDs
+from mimiciii_teg.teg.events import events, process_events_PI
 from mimiciii_teg.utils.event_utils import remove_by_missing_percent
-from mimiciii_teg.vis.plot import *
 from mimiciii_teg.vis.plot_patients import *
-from run_experiments import *
-from mimiciii_teg.queries.queries import get_db_connection
-from mimiciii_teg.schemas.schemas import *
+from run_experiments import run_experiments
+from mimiciii_teg.queries.queries import get_db_connection, get_patient_demography
 from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS_EXAMPLE
 
 
@@ -29,6 +27,7 @@ TEG_conf = {
     'duration': False,
     'max_hours': 336,
     'min_los_hours': 24,
+    'min_patient_events': 2,
     #'max_hours': 168,
     'min_age': 15,
     'max_age': 89,
@@ -50,15 +49,17 @@ TEG_conf = {
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
     'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
-    'P': [90, 100], # CENTRALITY percentile
-    'P_results': [90, 100], # CENTRALITY percentile
+    'P': [70, 100], # CENTRALITY percentile
+    'ET_P': [70, 100], # Event Type CENTRALITY percentile
+    'P_results': [70, 100], # CENTRALITY percentile
+    'path_percentile': [80, 100],
+    'P_patients': [70, 100],
     'P_remove': False,
-    'P_patients': [60, 100],
     'ET_CENTRALITY_min_freq': 0,
     'CENTRALITY_path': False,
     'P_max_n': False,
-    'path_percentile': [80, 100],
     'PI_sql': 'one', #one, multiple, one_or_multiple, no_PI_stages, no_PI_events
+    'PI_only': True, # Delete non PI patients after querying all events
     'PI_as_stage': False, # PI events after stage 0 are considered as stage 1 
     'unique_chartvalue_per_day_sql': False, # Take chart events with distinct values per day
     'unique_chartvalue_per_day': True,
@@ -148,10 +149,18 @@ def TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
     all_events = events(conn, event_list, conf, PI_hadms)
     all_events, PI_hadm_stage_t = process_events_PI(all_events, conf)
     PI_hadms = tuple(list(PI_hadm_stage_t.keys()))
+    PI_df, patients = get_patient_demography(conn, conf, PI_hadms) 
     conf['vis'] = True
     conf['plot'] = True
     conf['CENTRALITY_path'] = True
     results = run_experiments(patients, all_events, conf, join_rules, fname)
+    plot_patients(patients,
+                    PI_df,
+                    conf,
+                    all_events,
+                    fname=f"{fname}_PI_Patients",
+                    c='blue')
+
     #plot_CENTRALITY_and_BS(conn, conf, results['patient_CENTRALITY'], PI_hadms, PI_hadm_stage_t)
 
 

@@ -90,8 +90,7 @@ def IPC_with_target_path_nx(G, x):
                     for p in paths[(s, r)]:
                         if v in p:
                             v_paths[v].append(p)
-                            V.update(p)
-    return IPC, V, v_paths, paths
+    return IPC, v_paths, paths
 
 
 def IPC_dense(G, x):
@@ -338,7 +337,6 @@ def IPC_with_target_path_nx_v1(G, x):
     D = dict(nx.all_pairs_dijkstra(G, weight='weight'))
     v_paths = dict()
     paths = dict()
-    V = set()
     for v in range(n):
         if v not in D:
             continue
@@ -364,8 +362,7 @@ def IPC_with_target_path_nx_v1(G, x):
                     for p1 in sv_paths:
                         for p2 in vr_paths:
                             v_paths[v].append(p1 + p2[1:])
-                            V.update(p1 + p2[1:])
-    return IPC, V, v_paths, paths
+    return IPC, v_paths, paths
 
 def IPC_with_target_v2(G, states):
     IPC = dict.fromkeys(G, 0.0)
@@ -441,4 +438,4 @@ def IPC_with_target_v2(G, states):
                     for p1 in sv_paths:
                         for p2 in vt_paths:
                             paths[v].append(p1 + p2[1:])
-    return IPC, v_set, paths
+    return IPC, paths

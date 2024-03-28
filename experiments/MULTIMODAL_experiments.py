@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import numpy as np
 import pprint
 from datetime import timedelta, date
@@ -15,7 +14,9 @@ from mimiciii_teg.queries.admissions import admissions
 from mimiciii_teg.schemas.event_setup import *
 from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS, PI_VITALS_TOP_20
 from mimiciii_teg.teg.events import *
-from mimiciii_teg.vis.plot import *
+from mimiciii_teg.vis.plot_centrality import *
+from mimiciii_teg.vis.plot_PI_NPI import plot_PI_NPI
+from mimiciii_teg.vis.plot_centrality_BS import plot_CENTRALITY_and_BS
 from mimiciii_teg.vis.plot_patients import *
 from run_experiments import *
 from mimiciii_teg.queries.queries import get_db_connection
@@ -50,6 +51,7 @@ M_conf = {
     'duration': False,
     'max_hours': 336,
     'min_los_hours': 24,
+    'min_patient_events': 20,
     #'max_hours': 168,
     'min_age': 15,
     'max_age': 89,
@@ -231,6 +233,7 @@ def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
     PI_events_P = []
     NPI_events_P = []
     max_pi_stage = f"PI Stage {conf['max_pi_stage']}"
+    # run the experiment for each event modality
     for _type in PI_events_grouped:
         conf['vis'] = False
         conf['plot'] = False
@@ -267,7 +270,6 @@ def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                 if name in _type:
                     conf['P'] = P[name]
             '''
-            # PCENTRALITY Patient CENTRALITY
             pi_events, npi_events, PI_results, NPI_results = run_iterations(\
                                                        r['PI_admissions'],
                                                        r['NPI_admissions'],
@@ -275,8 +277,8 @@ def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                                                        npi_events,
                                                        conf,
                                                        join_rules,
-                                                       fname + f'_{__type}',
-                                                       _type,
+                                                       fname=fname + f'_{__type}',
+                                                       title=_type,
                                                        vis_last_iter = False,
                                                        CENTRALITY_path_last_iter = False)
             if conf['modality'] == 'parent_type':
@@ -333,24 +335,24 @@ def MULTIMODAL_TEG_CENTRALITY_PI_NPI(conn, r, join_rules, conf, fname):
                          npi_events_P,
                          PI_results,
                          NPI_results,
-                         title=f"{conf['P_patients']}",
-                         fname=f'{fname}_Patients_P')
+                         P = f"{conf['P_patients']}",
+                         fname = f'{fname}_Patients_P')
     plot_patients(r['PI_admissions'],
                     r['PI_df'],
                     conf,
                     pi_events,
                     PI_results,
-                    title=f"{conf['P_patients']}",
-                    fname=f"{fname}_PI_Patients_P",
-                    c='blue')
+                    P = f"{conf['P_patients']}",
+                    fname = f"{fname}_PI_Patients_P",
+                    c = 'blue')
     plot_patients(r['NPI_admissions'],
                   r['NPI_df'],
                   conf,
                   npi_events,
                   NPI_results,
-                  title=f"{conf['P_patients']}",
-                  fname=f"{fname}_NPI_Patients_P",
-                  c='red')
+                  P = f"{conf['P_patients']}",
+                  fname = f"{fname}_NPI_Patients_P",
+                  c = 'red')
     
 
 if __name__ == "__main__":

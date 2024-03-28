@@ -15,7 +15,9 @@ from mimiciii_teg.teg.eventgraphs import *
 from mimiciii_teg.queries.queries_mimic_extract import *
 from mimiciii_teg.queries.queries_chart_events import *
 from mimiciii_teg.queries.queries import *
-from mimiciii_teg.utils.event_utils import remove_events_by_id, group_events_by_parent_type
+from mimiciii_teg.utils.event_utils import remove_events_by_id, \
+                                           group_events_by_parent_type,\
+                                           group_events_by_patient
 
 def events(conn, event_list, conf, hadms=()):
     print("==========================================================")
@@ -61,14 +63,13 @@ def events(conn, event_list, conf, hadms=()):
             print('Vitals', len(events))
             if len(events) > 0:
                 all_events += events
-    '''
     remove_ids = []
-    # remove patients with events no more than 2
-    for key, val in groupby(all_events, key=lambda x: x['id']):
-        if len(list(val)) <= 2:
-            remove_ids.append(key)
+    # remove patients with less than minimum number of events 
+    for idd, id_events in group_events_by_patient(all_events).items():
+        if len(id_events) < conf['min_patient_events']:
+            remove_ids.append(idd)
     all_events = remove_events_by_id(all_events, remove_ids)
-    '''
+    print(f"{len(remove_ids)} admissions with less than {conf['min_patient_events']}) events are removed")
     for i, e in enumerate(all_events):
         e['i'] = i 
         e['j'] = i
@@ -93,7 +94,7 @@ def process_events_PI(all_events, conf):
     non_PI_ids = []
     excluded_ids = []
     excluded_indices = []
-    two_event_PI_ids = []
+    less_than_min_event_ids = []
     subjects = []
     hadm_stage_t = dict()
     # exclude patients who had admission and PI Stage directly
@@ -160,8 +161,8 @@ def process_events_PI(all_events, conf):
             if not is_PI and not is_id_excluded:
                 non_PI_ids.append(e['id'])
                 print('Non PI', e['id'])
-            elif is_PI and not is_id_excluded and patient_events == 2: # Admissions and Stage
-                two_event_PI_ids.append(e['id'])
+            elif is_PI and not is_id_excluded and patient_events <= conf['min_patient_events']:
+                less_than_min_event_ids.append(e['id'])
                 del hadm_stage_t[e['hadm_id']]
             stage = min_stage
             state = min_state 
@@ -172,18 +173,19 @@ def process_events_PI(all_events, conf):
         if i + 1 == n and not is_PI and not is_id_excluded:
             non_PI_ids.append(e['id'])
             print('Non PI', e['id'])
-        elif i + 1 == n and is_PI and not is_id_excluded and patient_events == 2: # Admissions and Stage
-            two_event_PI_ids.append(e['id'])
+        elif i + 1 == n and is_PI and not is_id_excluded and patient_events <= conf['min_patient_events']: # Admissions and Stage
+            less_than_min_event_ids.append(e['id'])
             del hadm_stage_t[e['hadm_id']]
     print("Excluded admissions", len(excluded_ids))
     print("Non PI admissions", len(non_PI_ids))
-    print("Two event PI admissions (Admissions and PI Stage)", len(two_event_PI_ids))
+    print(f"Excluded PI admissions with less than or equal to {conf['min_patient_events']} events",
+          len(less_than_min_event_ids))
     for e in all_events:
         if e['id'] in excluded_ids:
             excluded_indices.append(e['i'])
         elif conf['PI_only'] and e['id'] in non_PI_ids:
             excluded_indices.append(e['i'])
-        elif e['id'] in two_event_PI_ids:
+        elif e['id'] in less_than_min_event_ids:
             excluded_indices.append(e['i'])
     for i in sorted(set(excluded_indices), reverse=True):
         del all_events[i]

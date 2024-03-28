@@ -5,7 +5,7 @@ plt.style.use('default')
 plt.rcParams['font.size'] = 14
 
 
-def plot_events_by_parent_type(events, title = '', fname = 'Events'):
+def plot_events_by_parent_type(events, fname = 'Events'):
     parent_type = dict()
     for e in events:
         if e['parent_type'] not in parent_type:
@@ -30,7 +30,7 @@ def plot_events_by_parent_type(events, title = '', fname = 'Events'):
     plt.clf()
     plt.cla()
 
-def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_Events'):
+def plot_event_parent_types(PI_events, NPI_events, fname = 'PI_NPI_Events'):
     PI_c = 'red'
     NPI_c = 'blue'
     PI_l = 'PI'
@@ -57,7 +57,7 @@ def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_E
     y_pos  =  range(2, 4 * len(parent_type) + 2, 4)
     plt.barh(y_pos, PI_vals, align='center', color=PI_c, label=PI_l)
     plt.yticks(y_pos, labels=list(parent_type.keys()))
-    plt.title(f"Event categories {title}")
+    plt.title(f"Event categories")
     plt.xlabel("Event count")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -68,7 +68,7 @@ def plot_event_parent_types(PI_events, NPI_events, title = '', fname = 'PI_NPI_E
     plt.clf()
     plt.cla()
 
-def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events'):
+def plot_types(PI_events, NPI_events, conf, fname = 'PI_NPI_Events'):
     PI_c = 'red'
     NPI_c = 'blue'
     PI_l = 'PI'
@@ -102,7 +102,7 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
     plt.yticks(y_pos, fontsize=10, labels=list(types.keys())[:n])
     y_pos  =  range(4, 8 * (n + 1) + 4, 8)[:n]
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
-    plt.title(f" Event types {title}")
+    plt.title(f" Event types")
     plt.xlabel("Event count")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels
@@ -113,7 +113,7 @@ def plot_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events')
     plt.clf()
     plt.cla()
 
-def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Events'):
+def plot_event_types(PI_events, NPI_events, conf, fname = 'PI_NPI_Events'):
     PI_c = 'red'
     NPI_c = 'blue'
     PI_l = 'PI'
@@ -146,7 +146,7 @@ def plot_event_types(PI_events, NPI_events, conf, title = '', fname = 'PI_NPI_Ev
     plt.yticks(y_pos, fontsize=10, labels=list(types.keys())[:n])
     y_pos  =  range(4, 8 * (n + 1) + 4, 8)[:n]
     plt.barh(y_pos, NPI_vals, align='center', color=NPI_c, label=NPI_l)
-    plt.title(f" Event types {title}")
+    plt.title(f" Event types")
     plt.xlabel("Event count")
     plt.legend()
     # Tweak spacing to prevent clipping of tick-labels

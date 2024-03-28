@@ -73,8 +73,8 @@ def process_event_type_CENTRALITY(events, CENTRALITY_values, conf):
             ET_CENTRALITY[e['type']] += v
             ET_CENTRALITY_freq[e['type']] += 1
     vals = list(ET_CENTRALITY.values())
-    P_min = np.percentile(vals, conf['P'][0])
-    P_max = np.percentile(vals, conf['P'][1])
+    P_min = np.percentile(vals, conf['ET_P'][0])
+    P_max = np.percentile(vals, conf['ET_P'][1])
     print("None zero event type CENTRALITY", len(vals))
     print("Min, Max event type CENTRALITY ", min(vals), max(vals))
     print("Percentile", P_min, P_max)
@@ -84,8 +84,8 @@ def process_event_type_CENTRALITY(events, CENTRALITY_values, conf):
     print("Number of event types CENTRALITY above percentile", len(ET_CENTRALITY_P))
     ET_CENTRALITY_avg = dict([(t, v/ET_CENTRALITY_freq[t]) for t, v in ET_CENTRALITY.items() if ET_CENTRALITY_freq[t] >= conf['ET_CENTRALITY_min_freq']])
     vals_avg = list(ET_CENTRALITY_avg.values())
-    P_min_avg = np.percentile(vals_avg, conf['P'][0])
-    P_max_avg = np.percentile(vals_avg, conf['P'][1])
+    P_min_avg = np.percentile(vals_avg, conf['ET_P'][0])
+    P_max_avg = np.percentile(vals_avg, conf['ET_P'][1])
     ET_CENTRALITY_P_avg = dict([(t, v) for t, v in ET_CENTRALITY_avg.items() if v >= P_min_avg and v <= P_max_avg])
     print("Average Event CENTRALITY Percentile", P_min_avg, P_max_avg)
     print("Number of average Event CENTRALITY above Percentile", len(ET_CENTRALITY_P_avg))

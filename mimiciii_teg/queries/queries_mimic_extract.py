@@ -99,8 +99,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
                                #'event_type': 'Intervention',
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -116,8 +116,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
                                #'event_type': 'Intervention',
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -134,8 +134,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
                                #'event_type': 'Intervention',
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -154,8 +154,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
                                #'event_type': 'Intervention',
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -172,8 +172,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
                                #'event_type': 'Intervention',
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -189,8 +189,8 @@ def get_events_interventions(conn, conf, hadms=None):
                 prev[i] = [val, h, event_idx, count]
                 events.append({'id': e['id'],
                                #'type': 'Intervention-' + col,
-                               'type': col,
-                               'event_type': col,
+                               'type': col.title(),
+                               'event_type': col.title(),
                                'parent_type': 'Intervention',
                                't': e['t'] + time,
                                'datetime': e['datetime'] + time,
@@ -209,7 +209,7 @@ def get_events_interventions(conn, conf, hadms=None):
     return events
 
 
-def get_events_vitals_X_mean(conn, conf, hadms=None):
+def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
     icustays = get_icustays(conn, conf, hadms)
     icustays_ids = list(icustays.keys())
     vitals = get_vitals(conf)
@@ -231,6 +231,32 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
         time_unit = timedelta(days=1)
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
+    if conf['PI_vitals']:
+        if len(conf['PI_vitals']) == 1:
+            col = conf['PI_vitals'][0]
+            fname = f"data/mimic-extract-{col}"
+            plt.clf()
+            plt.cla()
+            plt.style.use('default')
+            plt.rcParams['font.size'] = 14
+            plt.figure(figsize=(12, 8))
+            print(vitals_nan)
+            print(vitals_nan.loc[:, col])
+            plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
+            plt.xlabel("Value")
+            plt.ylabel("Frequency")
+            plt.savefig(f"{fname}")
+            plt.clf()
+            plt.cla()
+            plt.style.use('default')
+            plt.rcParams['font.size'] = 14
+            plt.figure(figsize=(12, 8))
+            plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
+            plt.xlabel("Value")
+            plt.xscale("log")
+            plt.yscale("log")
+            plt.ylabel("Frequency")
+            plt.savefig(f"{fname}_log")
     if conf['PI_vitals']:
         vitals_included = conf['PI_vitals']
     else:
@@ -262,8 +288,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -282,8 +308,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -301,8 +327,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -322,8 +348,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -341,8 +367,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -360,8 +386,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -405,6 +431,48 @@ def get_events_vitals_X(conn, conf, hadms=None):
     elif conf['vitals_agg'] == 'hourly':
         time_unit = timedelta(hours=1)
     if conf['PI_vitals']:
+        if len(conf['PI_vitals']) == 1:
+            col = conf['PI_vitals'][0]
+            fname = f"data/mimic-extract-{col}-dist"
+            plt.clf()
+            plt.cla()
+            plt.style.use('default')
+            plt.rcParams['font.size'] = 14
+            plt.figure(figsize=(12, 8))
+            print(vitals_nan)
+            print(vitals_nan.loc[:, (col, 'mean')])
+            plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
+            i = 1
+            for q_val in Qs.loc[:, (col, 'mean')]:
+                if i == 1 or i == len(conf['quantiles']):
+                    i += 1
+                    continue
+                # draw the percentile line
+                plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
+                i += 1
+            plt.xlabel("Value")
+            plt.ylabel("Frequency")
+            plt.savefig(f"{fname}")
+            plt.clf()
+            plt.cla()
+            plt.style.use('default')
+            plt.rcParams['font.size'] = 14
+            plt.figure(figsize=(12, 8))
+            plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
+            plt.xlabel("Value")
+            plt.xscale("log")
+            plt.yscale("log")
+            i = 1
+            for q_val in Qs.loc[:, (col, 'mean')]:
+                if i == 1 or i == len(conf['quantiles']):
+                    i += 1
+                    continue
+                # draw the percentile line
+                plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
+                i += 1
+            plt.ylabel("Frequency")
+            plt.savefig(f"{fname}_log")
+    if conf['PI_vitals']:
         vitals_included = conf['PI_vitals']
     else:
         vitals_included = vitals.columns.levels[0]
@@ -437,8 +505,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -462,8 +530,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -487,8 +555,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -515,8 +583,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -540,8 +608,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,
@@ -565,8 +633,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 icu_events.append({'id': e['id'],
                                    #'type': 'Vitals/Labs-' + col + f' {mean_Q}',
                                    #'event_type': 'Vitals/Labs-' + col,
-                                   'type': col + f' {mean_Q}',
-                                   'event_type': col,
+                                   'type': col.title() + f' {mean_Q}',
+                                   'event_type': col.title(),
                                    'parent_type': 'Vitals/Labs',
                                    't': e['t'] + time,
                                    'datetime': e['datetime'] + time,

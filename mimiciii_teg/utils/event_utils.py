@@ -59,6 +59,9 @@ def group_events_by_type(events):
     return events_grouped
 
 def group_events_by_patient(events):
+    '''
+    Group events by ids (subject_id-hadm_id)
+    '''
     events_grouped = dict()
     events = sorted(events, key=lambda x: x['t'])
     for e in events:
@@ -66,6 +69,19 @@ def group_events_by_patient(events):
             events_grouped[e['id']] = [e]
         else:
             events_grouped[e['id']].append(e)
+    return events_grouped
+
+def group_events_by_hadm_id(events):
+    '''
+    Group events by hadm_ids
+    '''
+    events_grouped = dict()
+    events = sorted(events, key=lambda x: x['t'])
+    for e in events:
+        if e['hadm_id'] not in events_grouped:
+            events_grouped[e['hadm_id']] = [e]
+        else:
+            events_grouped[e['hadm_id']].append(e)
     return events_grouped
 
 def count_patient_events(events):
@@ -102,6 +118,9 @@ def remove_event_types(events, types):
 
 
 def remove_events_by_id(events, ids):
+    '''
+    Remove events by id where events are sorted by type and time.
+    '''
     events_copy = copy.copy(events)
     indices = list()
     # iterate from the last
@@ -131,12 +150,12 @@ def remove_by_missing_percent(events, conf):
     for i in range(n-1, -1, -1):
         if 'Vitals/Labs' in events[i]['parent_type']:
             for val in vitals_stats.index:
-                if val in events[i]['event_type']:
+                if val in events[i]['event_type'].lower():
                     col = val
             mp = vitals_stats.loc[col, 'missing percent']
         elif 'Intervention' in events[i]['parent_type']:
             for val in intervention_stats.index:
-                if val in events[i]['event_type']:
+                if val in events[i]['event_type'].lower():
                     col = val
             mp = intervention_stats.loc[col, 'missing percent']
         else:

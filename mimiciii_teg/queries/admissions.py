@@ -7,9 +7,11 @@ warnings.filterwarnings('ignore')
 
 from mimiciii_teg.schemas.event_setup import *
 from mimiciii_teg.teg.events import *
-from mimiciii_teg.vis.plot import *
+from mimiciii_teg.vis.plot_centrality import *
+from mimiciii_teg.vis.plot_PI_NPI import plot_PI_NPI
 from mimiciii_teg.vis.plot_patients import *
 from mimiciii_teg.utils.psm import *
+from mimiciii_teg.utils.event_utils import group_events_by_hadm_id
 
 def admissions(conn, event_list, join_rules, conf, fname):
     if conf['include_chronic_illness']:
@@ -25,11 +27,21 @@ def admissions(conn, event_list, join_rules, conf, fname):
     PI_hadms = tuple(list(PI_hadm_stage_t.keys()))
     # Remove invalid admissions
     PI_dff = PI_dff[PI_dff['hadm_id'].isin(list(PI_hadm_stage_t.keys()))]
+    # used for PSM
     PI_df = PI_dff[conf['psm_features']]
     # Non PI patients
-    conf['PI_sql'] = 'no_PI_events'
+    conf['PI_sql'] = 'no_PI_stages'
     conf['hadm_limit'] = conf['NPI_hadm_limit']
     NPI_dff, NPI_admissions = get_patient_demography(conn, conf) 
+
+    # to filter NPI admissions by minimum patient events
+    NPI_hadms = tuple(NPI_dff['hadm_id'].tolist())
+    event_list_npi = [name for name in event_list if 'PI Stage' not in name]
+    NPI_events = events(conn, event_list_npi, conf, NPI_hadms)
+    hadm_events = group_events_by_hadm_id(NPI_events)
+    NPI_hadms = tuple(list(hadm_events.keys()))
+    NPI_dff, NPI_admissions = get_patient_demography(conn, conf, NPI_hadms) 
+
     # Label admissions as PI or Non PI
     NPI_dff['PI'] = 0
     NPI_df = NPI_dff[conf['psm_features']]
@@ -64,7 +76,7 @@ def admissions(conn, event_list, join_rules, conf, fname):
             PI_NPI_match[row['hadm_id']] = row['matched_ID']
     NPI_hadms = tuple(NPI_hadms)
     # no PI stage events for NPI patients
-    event_list_npi = [name for name in event_list if name != 'PI Stage']
+    event_list_npi = [name for name in event_list if 'PI Stage' not in name]
     NPI_events = events(conn, event_list_npi, conf, NPI_hadms)
     NPI_events = process_events_NPI(NPI_events, NPI_t, conf)
     NPI_dff, NPI_admissions = get_patient_demography(conn, conf, NPI_hadms) 
@@ -82,14 +94,12 @@ def admissions(conn, event_list, join_rules, conf, fname):
                   PI_dff,
                   conf,
                   PI_events,
-                  title=f"{conf['P_patients']}",
                   fname=f"{fname}_PI_Patients",
                   c='blue')
     plot_patients(NPI_admissions,
                   NPI_dff,
                   conf,
                   NPI_events,
-                  title=f"{conf['P_patients']}",
                   fname=f"{fname}_NPI_Patients",
                   c='red')
     results = dict()
@@ -102,4 +112,10 @@ def admissions(conn, event_list, join_rules, conf, fname):
     results['PI_hadms'] = PI_hadms
     results['NPI_hadms'] = NPI_hadms
     results['PI_hadm_stage_t'] = PI_hadm_stage_t
+    pi_groups = group_events_by_hadm_id(PI_events)
+    npi_groups = group_events_by_hadm_id(NPI_events)
+    pi_hadm_events = sorted([len(hadm_events) for hadm_id, hadm_events in pi_groups.items()])
+    npi_hadm_events = sorted([len(hadm_events) for hadm_id, hadm_events in npi_groups.items()])
+    print('PI hadm event counts', pi_hadm_events)
+    print('NPI hadm event counts', npi_hadm_events)
     return results 

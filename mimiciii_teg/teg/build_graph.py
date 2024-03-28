@@ -6,6 +6,9 @@ import pprint
 from mimiciii_teg.teg.eventgraphs import *
 
 def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
+    '''
+    Build NetworkX graph using the Adjacency matrix, events, patients and centrality
+    '''
     n = len(events)
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     # G.remove_nodes_from([n for n, d in G.degree if d == 0])
@@ -17,34 +20,44 @@ def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
     #        else (e['i'], e['id']) for e in events])
     attrs = dict([(e['i'], e['id']) for e in events])
     nx.set_node_attributes(G, attrs, 'group')
+
     if CENTRALITY is not None:
         max_CENTRALITY = max(CENTRALITY.values())
         SCALE_FACTOR = conf['max_node_size']/max_CENTRALITY
         if conf['scale_CENTRALITY']:
-            CENTRALITY_scaled = dict([(i, 50) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+            CENTRALITY_scaled = dict([(i, 20) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                                                or 'Admissions' in events[i]['type'] \
                     else (i, v/max_CENTRALITY * SCALE_FACTOR) for i, v in CENTRALITY.items()])
         else:
-            CENTRALITY_scaled = dict([(i, 50) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+            CENTRALITY_scaled = dict([(i, 20) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
+                                                or 'Admissions' in events[i]['type'] \
                     else (i, v * SCALE_FACTOR) for i, v in CENTRALITY.items()])
             '''
             CENTRALITY_scaled = dict([(i, 40) if 'PI' in events[i]['type'] or events[i]['type'] == 'Marker' \
                     else (i, v * 1000) for i, v in CENTRALITY.items()])
             '''
-        shapes = dict([(i, 'text') if CENTRALITY[v] == 0.0 else (i, 'dot') for i, v in enumerate(CENTRALITY)])
-        shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
-        shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
+        # Set node size
         nx.set_node_attributes(G, CENTRALITY_scaled, 'size')
+        #nx.set_node_attributes(G, CENTRALITY_scaled, 'value')
+        # Node shape
+        shapes = dict([(i, 'text') if CENTRALITY[v] == 0.0 else (i, 'dot') for i, v in enumerate(CENTRALITY)])
+        # Node attributes
         attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v)
             for k, v in e.items()]) + "\nCENTRALITY: " + str(CENTRALITY[e['i']]) + "\nSize: " + str(CENTRALITY_scaled[e['i']])) for e in events])
     else:
+        # Node shape
         shapes = dict([(i, 'dot') for i in range(len(events))])
-        shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
-        shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
         attrs = dict([(e['i'], "\n".join([str(k) + ": " + str(v) for k, v in e.items()])) for e in events])
-    #nx.set_node_attributes(G, CENTRALITY_scaled, 'value')
+    shapes = dict([(i, 'diamond') if 'PI' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
+    shapes = dict([(i, 'triangle') if events[i]['pi_stage'] == join_rules['max_pi_stage'] else (i, shape) for i, shape in shapes.items()])
+    shapes = dict([(i, 'square') if 'Admissions' in events[i]['type'] else (i, shape) for i, shape in shapes.items()])
+
+    # Set node shape and title
     nx.set_node_attributes(G, shapes, 'shape')
     nx.set_node_attributes(G, attrs, 'title')
     #attrs = nx.betweenness_centrality(G, weight='weight', normalized=True)
+
+    # Set edge label
     if conf['edge label']:
         attrs = dict()
         for key, val in A.items():
@@ -69,6 +82,7 @@ def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
         attrs = dict([(key, {'value': val, 'title': val})
                      for key, val in A.items()])
         nx.set_edge_attributes(G, attrs)
+    # Check if the graph is DAG
     # print(nx.is_directed_acyclic_graph(G))
     return G
 

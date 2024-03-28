@@ -55,6 +55,14 @@ def get_patient_demography(conn, conf, hadms=()):
         '''
     if conf['admission_type']:
         where += f" AND a.admission_type='{conf['admission_type']}'" 
+    if conf['has_icustay'] == 'True':
+        table += f' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
+        where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
+            AND icu.intime >= a.admittime
+            '''
+    elif conf['has_icustay'] == 'False':
+        table += f' LEFT JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
+        where += f' AND icu.hadm_id IS NULL'
     # survived patients
     where += ' AND a.hospital_expire_flag=0'
     limit = ""
@@ -62,14 +70,6 @@ def get_patient_demography(conn, conf, hadms=()):
         where += f' AND a.hadm_id IN {hadms}'
         limit = ""
     else:
-        if conf['has_icustay'] == 'True':
-            table += f' INNER JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
-            where += f''' AND icu.intime - a.admittime <= '{conf['max_hours']} hours'
-                AND icu.intime >= a.admittime
-                '''
-        elif conf['has_icustay'] == 'False':
-            table += f' LEFT JOIN {schema}.icustays icu ON a.hadm_id=icu.hadm_id'
-            where += f' AND icu.hadm_id IS NULL'
         if conf['PI_sql'] == 'PI_or_NPI':
             # Exclude patients with PI staging within 24 hours after admission
             pi24_hadms = PI_hadms_24h(conn, conf)
@@ -155,7 +155,7 @@ def get_patient_demography(conn, conf, hadms=()):
             pi += f" ORDER BY t3.admittime {conf['hadm_order']}"
             pi += ") as pi"
             table += f' INNER JOIN {pi} ON a.hadm_id=pi.hadm_id'
-        elif conf['PI_sql'] == 'no_PI_stage':
+        elif conf['PI_sql'] == 'no_PI_stages':
             if conf['dbsource']:
                 npi =  f'''
                     (SELECT DISTINCT c.hadm_id
@@ -169,6 +169,7 @@ def get_patient_demography(conn, conf, hadms=()):
             pi_stage_hadms = PI_stage_hadms(conn, conf)
             print('All PI Stage Admissions in MIMIC-III', len(pi_stage_hadms))
             where += f' AND a.hadm_id NOT IN {pi_stage_hadms}'
+        # check if majority of patients have some PI related events
         elif conf['PI_sql'] == 'no_PI_events':
             if conf['dbsource']:
                 npi =  f'''
@@ -180,7 +181,7 @@ def get_patient_demography(conn, conf, hadms=()):
                     as npi
                     '''
             table += f' INNER JOIN {npi} ON a.hadm_id=npi.hadm_id'
-            pi_event_hadms = PI_stage_hadms(conn, conf)
+            pi_event_hadms = PI_event_hadms(conn, conf)
             print('All Admissions with PI-related event', len(pi_event_hadms))
             where += f' AND a.hadm_id NOT IN {pi_event_hadms}'
         # patients, admitted in the hospital within the time window
@@ -245,26 +246,24 @@ def PI_stage_hadms(conn, conf):
             ON t1.hadm_id=t2.hadm_id
         '''
 
-    '''
     if conf['dbsource']:
         pi += f' INNER JOIN {schema}.d_items d ON t1.itemid=d.itemid'
         pi_where += f" AND d.dbsource='{conf['dbsource']}'"
-    '''
     pi += f' WHERE {pi_where}'
     pi_stage_hadms = pd.read_sql_query(pi, conn)
     return tuple(pi_stage_hadms['hadm_id'].tolist())
 
 def PI_event_hadms(conn, conf):
-    # Patients with PI events after admission
+    # Patients with PI events including PI Stage after admission
     pi_where = f't1.value is NOT NULL'
     for value in PI_ITEM_LABELS:
-        pi_where += f"  AND d.label similar to '{value}'"
+        pi_where += f"  OR d.label similar to '{value}'"
     pi = f'''SELECT DISTINCT t1.hadm_id from {schema}.chartevents t1
             INNER JOIN {schema}.d_items d
             ON t1.itemid=d.itemid
         '''
-    #if conf['dbsource']:
-    #    pi_where += f" AND d.dbsource='{conf['dbsource']}'"
+    if conf['dbsource']:
+        pi_where += f" AND d.dbsource='{conf['dbsource']}'"
     pi += f' WHERE {pi_where}'
     pi_event_hadms = pd.read_sql_query(pi, conn)
     return tuple(pi_event_hadms['hadm_id'].tolist())

@@ -151,7 +151,6 @@ def algebraic_IPC_with_paths(Adj, x):
     IPC = np.zeros(n)
     paths = dict()
     v_paths = dict()
-    V = set()
     for v in range(n):
         v_paths[v] = []
         for s in D.extract_col(v).indices:
@@ -170,13 +169,11 @@ def algebraic_IPC_with_paths(Adj, x):
                     '''
                     if (s, r) not in paths:
                         paths[(s, r)] = st_paths(pred[s], s, r)
-                        for p in paths[(s, r)]:
-                            V.update(p)
                     for p in paths[(s, r)]:
                         if v in p:
                             v_paths[v].append(p)
                     IPC[v] += D[s, v][1] * D[v, r][1] / D[s, r][1] * w_v_sr
-    return IPC, list(V), v_paths, paths
+    return IPC, v_paths, paths
 
 
 def st_paths(pred, s, t):
