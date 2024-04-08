@@ -1,5 +1,7 @@
 schema = 'mimiciii'
 
+DECIMALS = 9
+
 HIGH_FREQ_EVENTS = ['Inputs',
                     'Presc Start',
                     'Presc End', 

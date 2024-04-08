@@ -8,7 +8,8 @@ warnings.filterwarnings('ignore')
 
 from mimiciii_teg.schemas.schemas import *
 from mimiciii_teg.teg.eventgraphs import *
-from mimiciii_teg.centrality.IPC import IPC_with_target_path_nx
+from mimiciii_teg.centrality.IPC import IPC_dense, IPC_sparse
+from mimiciii_teg.centrality.IPC_nx import IPC_nx, IPC_with_paths_nx
 from mimiciii_teg.centrality.algebraic_IPC import algebraic_IPC, algebraic_IPC_with_paths
 from mimiciii_teg.utils.event_utils import *
 from mimiciii_teg.utils.CENTRALITY_utils import *
@@ -34,11 +35,26 @@ def run_experiments(admissions, events, conf, join_rules, fname):
     states = np.zeros(n)
     for e in events:
         states[e['i']] = e['pi_state']
+    if 'check_IPC_values' in conf:
+        if conf['check_IPC_values']:
+            check_IPC_values(A, states)
     if not conf['CENTRALITY_path'] or n > 5000:
+        '''
+            start = time.time()
+            G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+            CENTRALITY_values = IPC_nx(G, x=states)
+            print("Time for IPC without paths (NetworkX)", float(time.time() - start)/60.0, 'min' )
+        '''
         start = time.time()
         CENTRALITY_values = algebraic_IPC(A, x=states)
         print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
     elif conf['CENTRALITY_path']:
+        '''
+            G = nx.from_numpy_array(A, create_using=nx.DiGraph)
+            start = time.time()
+            CENTRALITY_values, v_paths, paths = IPC_with_paths_nx(G, x=states)
+            print('IPC time with paths (NetworkX))', float(time.time() - start)/60.0, 'min')
+        '''
         start = time.time()
         #CENTRALITY_values, pred, D = algebraic_CENTRALITY_with_pred(A, states=states)
         #print("Time for CENTRALITY with pred", float(time.time() - start)/60.0)
@@ -250,38 +266,32 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
 
 
 def check_IPC_values(A, x):
-    start = time.time()
-    IPC_values = algebraic_IPC(A, x=x)
-    print("Time for IPC without paths ", float(time.time() - start)/60.0, 'min' )
-    start = time.time()
-    b = np.sort(np.nonzero(IPC_values)[0])
-    print(b)
-
+    C_paths, v_paths, paths = algebraic_IPC_with_paths(A, x)
+    C = algebraic_IPC(A, x)
     # Check if algebraic IPC matches IPC computed using NetworkX
-    G = nx.from_numpy_array(A, create_using=nx.DiGraph)
-    start = time.time()
-    IPC, V_nx, v_paths_nx, paths_nx = IPC_with_target_path_nx(G, x=x, weight='weight')
-    print(IPC)
-    print('IPC time based on networkX', float(time.time() - start)/60.0)
-    a = np.sort(np.nonzero(list(IPC.values()))[0])
-    print(a)
-    print('Algebraic IPC nodes match that from networkX:', np.all(a==b))
-    print('IPC values match:', np.all(list(IPC.values())==IPC_values))
-    print('V match:', np.all(sorted(V)==sorted(V_nx)))
-    print('v_paths match:',v_paths==paths_nx)
-    print('paths match:', paths==paths_nx)
+    G = nx.from_numpy_array(A.todense(), create_using=nx.DiGraph)
+    C_nx_paths, v_paths_nx, paths_nx = IPC_with_paths_nx(G, x=x)
+    C_nx = IPC_nx(G, x)
+    C_dense = IPC_dense(A, x)
+    C_sparse= IPC_sparse(A, x)
+    print('C', C)
+    print('C_nx', C_nx)
+    print('C_dense', C_dense)
+    print('C_sparse', C_sparse)
+    print('C matches C_paths', np.allclose(C, C_paths))
+    print('C matches C_nx', np.allclose(C, C_nx))
+    print('C matches C_sparse:', np.allclose(C, C_sparse))
+    print('C matches C_dense:', np.allclose(C, C_dense))
+    print('C_nx matches C_nx_paths:', np.allclose(C_nx_paths, C_nx))
+    print('C_nx matches C_sparse:', np.allclose(C_sparse, C_nx))
+    print('C_nx matches C_dense:', np.allclose(C_dense, C_nx))
+    print('C_dense matches C_sparse:', np.allclose(C_sparse, C_dense))
+    #print('v_paths match:',v_paths==v_paths_nx)
+    #print('paths match:', paths==paths_nx)
     
-    start = time.time()
+    '''
     P, pred, D = algebraic_IPC_with_pred(A, states=states)
-    print("Time for IPC with pred", float(time.time() - start)/60.0)
-    start = time.time()
     V, v_paths, paths = IPC_paths(D, pred, states)
-    print("Compute paths", float(time.time() - start)/60.0)
 
-    start = time.time()
     IPC_values, V, v_paths = algebraic_IPC_with_paths_v1(A, states=states)
-    print("Time for IPC with pred", float(time.time() - start)/60.0)
-
-    start = time.time()
-    IPC_values, V, v_paths, paths = algebraic_IPC_with_paths(A, x=states)
-    print('Algebraic IPC time with paths', float(time.time() - start)/60.0, 'min')
+    '''

@@ -1,10 +1,10 @@
 from pygraphblas import *
 from pygraphblas import lib
 from pygraphblas.types import Type, binop
-#from pygraphblas.gviz import draw, draw_vis, draw_vector, draw_matrix
 import numpy as np
 from pyvis import network as net
 from scipy.sparse import dok_matrix
+from mimiciii_teg.schemas.schemas import DECIMALS
 
 
 options_set(nthreads=12)
@@ -14,22 +14,22 @@ class GS(Type):
 
     _base_name = "UDT"
     _numpy_t = None
-    members = ['double w', 'uint64_t n']
-    one = (float('inf'), 0)
+    members = ['double w', 'int64_t n']
+    one = (np.float64('inf'), np.int64(0))
     # equal operation is not working with "iseq" operation, D.iseq(D1)
     @binop(boolean=True)
     def EQ(z, x, y):
-        if x.w == y.w and x.n == y.n:
+        if np.round(x.w, DECIMALS) == np.round(y.w, DECIMALS) and x.n == y.n:
             z = True
         else:
             z = False
 
     @binop()
     def PLUS(z, x, y):
-        if x.w < y.w:
+        if np.round(x.w, DECIMALS) < np.round(y.w, DECIMALS):
             z.w = x.w
             z.n = x.n
-        elif x.w == y.w:
+        elif np.round(x.w, DECIMALS) == np.round(y.w, DECIMALS):
             z.w = x.w
             z.n = x.n + y.n
         else:
@@ -72,65 +72,63 @@ def shortest_path_FW(matrix):
     return D
 
 def algebraic_IPC(Adj, x):
+    x = x.astype(np.float64)
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
-    w_s_r = 0
-    w_v_r = np.zeros(n)
+    w_s_r = np.float64(0)
+    w_v = np.zeros(n, dtype=np.float64)
     # compute relative contribution coefficients (weights)
     for s in range(n):
         for r in range(n):
             if x[r] - x[s] > 0:
                 w_s_r += x[r] - x[s]
-                w_v_r[s] += x[r] - x[s]
+                w_v[s] += x[r] - x[s]
+                w_v[r] += x[r] - x[s]
     for k, v in Adj.items():
         i = k[0]
         j = k[1]
         if i == j:
-            A[i,j] = (float('inf'), 0)
+            A[i,j] = (np.float64('inf'), np.int64(0))
         else:
-            A[i,j] = (float(v), 1)
+            A[i,j] = (float(v), np.int64(1))
     D = shortest_path_FW(A)
-    #IPC = Vector.sparse(FP64, n)  
-    IPC = np.zeros(n)
+    #C = Vector.sparse(FP64, n)  
+    C = np.zeros(n, dtype=np.float64)
     for v in range(n):
         for s in D.extract_col(v).indices:
             for r in D.extract_row(v).indices:
                 if x[r] - x[s] <= 0:
                     continue
-                if D[s, r][1] == 0:
+                elif s == v or r == v or s == r:
                     continue
-                if s != v and r != v and s != r and D[s, r][0] == D[s, v][0] + D[v, r][0]:
-                    w_v_sr = (x[r] - x[s]) / (w_s_r - w_v_r[v]) 
-                    IPC[v] += D[s, v][1] * D[v, r][1] / D[s, r][1] * w_v_sr
-                    '''
-                    if v in IPC.indices:
-                        IPC[v] += D[s, v][1] * D[v, r][1] / D[s, r][1] * w
-                    else:
-                        IPC[v] = D[s, v][1] * D[v, r][1] / D[s, r][1] * w
-                    '''
-    return IPC
+                elif np.round(D[s, r][0], DECIMALS) == np.round(D[s, v][0] + D[v, r][0], DECIMALS):
+                    w_v_sr = (x[r] - x[s]) / (w_s_r - w_v[v]) 
+                    C[v] += np.float64(D[s, v][1] * D[v, r][1]) / np.float64(D[s, r][1]) * w_v_sr
+    return C
 
 
 def algebraic_IPC_with_paths(Adj, x):
+    x = x.astype(np.float64)
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
-    w_s_r = 0
-    w_v_r = np.zeros(n)
+    w_s_r = np.float64(0)
+    w_v = np.zeros(n, dtype=np.float64)
     # compute relative contribution coefficients (weights)
     for s in range(n):
         for r in range(n):
             if x[r] - x[s] > 0:
                 w_s_r += x[r] - x[s]
-                w_v_r[s] += x[r] - x[s]
+                w_v[s] += x[r] - x[s]
+                w_v[r] += x[r] - x[s]
     for k, v in Adj.items():
         i = k[0]
         j = k[1]
         if i == j:
-            A[i, j] = (float('inf'), 0)
+            A[i, j] = (np.float64('inf'), np.int64(0))
         else:
-            A[i, j] = (v, 1)
-            A1[i,j] = v
+            A[i, j] = (v, np.int64(1))
+            A1[i,j] = np.float64(v)
     D = shortest_path_FW(A)
     D1 = Matrix.sparse(FP64, n, n)
     for i, j, v in D:
@@ -146,34 +144,36 @@ def algebraic_IPC_with_paths(Adj, x):
                 col_j.emult(d, mult_op=FP64.plus, out=col_j)
                 #pred_j = list((col_j == d[j]).indices)
                 #if pred_j:
-                pred[i][j] = list((col_j == d[j]).indices)
-    #IPC = Vector.sparse(FP64, n)
-    IPC = np.zeros(n)
+                pred[i][j] = []
+                for v in col_j.indices:
+                    if np.round(col_j[v], DECIMALS) == np.round(d[j], DECIMALS):
+                        pred[i][j].append(v)
+    C = np.zeros(n, dtype=np.float64)
     paths = dict()
     v_paths = dict()
     for v in range(n):
-        v_paths[v] = []
         for s in D.extract_col(v).indices:
             for r in D.extract_row(v).indices:
-                if x[r] - x[s] <= 0 or D[s, r][1] == 0:
+                if x[r] - x[s] <= 0:
                     continue
-                if s != v and r != v and s != r and D[s, r][0] == D[s, v][0] + D[v, r][0]:
-                    w_v_sr = (x[r] - x[s]) / (w_s_r - w_v_r[v]) 
-                    '''
-                    if (s, t) not in paths:
-                        paths[(s,t)] = st_paths(pred[s], s, t)
-                    for p in paths[(s, t)]:
-                        if v in p:
-                            v_paths[v].append(p)
-                            V.update(p)
-                    '''
+                elif s == v or r == v or s == r:
+                    continue
+                elif np.round(D[s, r][0], DECIMALS) == np.round(D[s, v][0] + D[v, r][0], DECIMALS):
+                    w_v_sr = (x[r] - x[s]) / (w_s_r - w_v[v]) 
+                    C[v] += np.float64(D[s, v][1] * D[v, r][1]) / np.float64(D[s, r][1]) * w_v_sr
                     if (s, r) not in paths:
                         paths[(s, r)] = st_paths(pred[s], s, r)
-                    for p in paths[(s, r)]:
-                        if v in p:
-                            v_paths[v].append(p)
-                    IPC[v] += D[s, v][1] * D[v, r][1] / D[s, r][1] * w_v_sr
-    return IPC, v_paths, paths
+                    if v not in v_paths:
+                        v_paths[v] = []
+                    #for p in paths[(s, r)]:
+                    #    if v in p:
+                    #        v_paths[v].append(p)
+                    sv_paths = st_paths(pred[s], s, v)
+                    vr_paths = st_paths(pred[s], v, r)
+                    for p1 in sv_paths:
+                        for p2 in vr_paths:
+                            v_paths[v].append(p1 + p2[1:])
+    return C, v_paths, paths
 
 
 def st_paths(pred, s, t):
@@ -198,91 +198,40 @@ def st_paths(pred, s, t):
     return paths
 
 
-def algebraic_IPC_v1(Adj, states):
-    n = Adj.shape[0]
-    A = Matrix.sparse(GS, n, n)
-    S = 0.0
-    S_vt = dict()
-    S_sv = dict()
-    for v in range(n):
-        deltas = states - states[v]
-        S_vt[v] = np.sum(deltas[deltas > 0])
-        deltas = states * (-1) + states[v]
-        S_sv[v] = np.sum(deltas[deltas > 0])
-        S += S_vt[v]
-    for k, v in Adj.items():
-        i = k[0]
-        j = k[1]
-        if i == j:
-            A[i,j] = (float('inf'), 0)
-        else:
-            A[i,j] = (float(v), 1)
-    D = shortest_path_FW(A)
-    #IPC = Vector.sparse(FP64, n)  
-    IPC = np.zeros(n)
-    for v in range(n):
-        S_exclude_v = S - S_sv[v] - S_vt[v]
-        for s in D.extract_col(v).indices:
-            for t in D.extract_row(v).indices:
-                delta = float(states[t] - states[s])
-                if delta <= 0:
-                    continue
-                if D[s, t][1] == 0:
-                    continue
-                if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    w = delta / S_exclude_v 
-                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
-                    if v in IPC.indices:
-                        IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    else:
-                        IPC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
-    return IPC
-
-
-def algebraic_IPC_with_pred(Adj, states):
+def algebraic_IPC_with_pred(Adj, x):
+    x = x.astype(np.float64)
     n = Adj.shape[0]
     A = Matrix.sparse(GS, n, n)
     A1 = Matrix.sparse(FP64, n, n)
-    S = 0.0
-    S_vt = dict()
-    S_sv = dict()
-    for v in range(n):
-        deltas = states - states[v]
-        S_vt[v] = np.sum(deltas[deltas > 0])
-        deltas = states * (-1) + states[v]
-        S_sv[v] = np.sum(deltas[deltas > 0])
-        S += S_vt[v]
+    w_s_r = np.float64(0)
+    w_v = np.zeros(n, dtype=np.float64)
+    # compute relative contribution coefficients (weights)
+    for s in range(n):
+        for r in range(n):
+            if x[r] - x[s] > 0:
+                w_s_r += x[r] - x[s]
+                w_v[s] += x[r] - x[s]
+                w_v[r] += x[r] - x[s]
     for k, v in Adj.items():
         i = k[0]
         j = k[1]
         if i == j:
-            A[i,j] = (float('inf'), 0)
+            A[i, j] = (np.float64('inf'), np.int64(0))
         else:
-            A[i,j] = (v, 1)
-            A1[i,j] = v
+            A[i, j] = (np.float64(v), np.int64(1))
+            A1[i, j] = np.float64(v)
     D = shortest_path_FW(A)
-    #IPC = Vector.sparse(FP64, n)  
-    IPC = np.zeros(n)
+    C = np.zeros(n)
     for v in range(n):
-        S_exclude_v = S - S_sv[v] - S_vt[v]
         for s in D.extract_col(v).indices:
             for t in D.extract_row(v).indices:
-                delta = float(states[t] - states[s])
-                if delta <= 0:
+                if x[t] - x[s] <= 0:
                     continue
                 if D[s, t][1] == 0:
                     continue
                 if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    w = delta / S_exclude_v 
-                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
-                    if v in IPC.indices:
-                        IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    else:
-                        IPC[v] = D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    '''
+                    w_v_sr = (x[r] - x[s]) / (w_s_r - w_v[v]) 
+                    C[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w_v_sr
     D1 = Matrix.sparse(FP64, n, n)
     for i, j, v in D:
         D1[i,j] = v[0]
@@ -298,143 +247,7 @@ def algebraic_IPC_with_pred(Adj, states):
                 #pred_j = list((col_j == d[j]).indices)
                 #if pred_j:
                 pred[i][j] = list((col_j == d[j]).indices)
-    return IPC, pred, D1
-
-def algebraic_IPC_with_paths_v1(Adj, states):
-    n = Adj.shape[0]
-    A = Matrix.sparse(GS, n, n)
-    A1 = Matrix.sparse(FP64, n, n)
-    S = 0.0
-    S_vt = dict()
-    S_sv = dict()
-    for v in range(n):
-        deltas = states - states[v]
-        S_vt[v] = np.sum(deltas[deltas > 0])
-        deltas = states * (-1) + states[v]
-        S_sv[v] = np.sum(deltas[deltas > 0])
-        S += S_vt[v]
-    for k, v in Adj.items():
-        i = k[0]
-        j = k[1]
-        if i == j:
-            A[i,j] = (float('inf'), 0)
-        else:
-            A[i,j] = (v, 1)
-            A1[i,j] = v
-    D = shortest_path_FW(A)
-    D1 = Matrix.sparse(FP64, n, n)
-    for i, j, v in D:
-        D1[i,j] = v[0]
-    pred = dict()
-    with FP64.plus:
-        for i in range(n):
-            pred[i] = dict()
-            d = D1.extract_row(i)
-            d[i] = 0
-            for j in d.indices:
-                col_j = A1.extract_col(j)
-                col_j.emult(d, mult_op=FP64.plus, out=col_j)
-                #pred_j = list((col_j == d[j]).indices)
-                #if pred_j:
-                pred[i][j] = list((col_j == d[j]).indices)
-    #IPC = Vector.sparse(FP64, n)
-    IPC = np.zeros(n)
-    paths = dict()
-    v_paths = dict()
-    V = set()
-    for v in range(n):
-        S_exclude_v = S - S_sv[v] - S_vt[v]
-        v_paths[v] = []
-        for s in D.extract_col(v).indices:
-            for t in D.extract_row(v).indices:
-                delta = float(states[t] - states[s])
-                if delta <= 0:
-                    continue
-                if D[s, t][1] == 0:
-                    continue
-                if s != v and t != v and s != t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    w = delta / S_exclude_v
-                    '''
-                    if (s, t) not in paths:
-                        paths[(s,t)] = st_paths(pred[s], s, t)
-                    for p in paths[(s, t)]:
-                        if v in p:
-                            v_paths[v].append(p)
-                            V.update(p)
-                    '''
-                    if (s, t) not in paths:
-                        paths[(s, t)] = st_paths(pred[s], s, t)
-                        for p in paths[(s, t)]:
-                            V.update(p)
-                    for p in paths[(s, t)]:
-                        if v in p:
-                            v_paths[v].append(p)
-                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-    return IPC, list(V), v_paths, paths
-
-def algebraic_IPC_with_paths_v2(Adj, states):
-    n = Adj.shape[0]
-    A = Matrix.sparse(GS, n, n)
-    A1 = Matrix.sparse(FP64, n, n)
-    S = 0.0
-    S_vt = dict()
-    S_sv = dict()
-    for v in range(n):
-        deltas = states - states[v]
-        S_vt[v] = np.sum(deltas[deltas > 0])
-        deltas = states * (-1) + states[v]
-        S_sv[v] = np.sum(deltas[deltas > 0])
-        S += S_vt[v]
-    for k, v in Adj.items():
-        i = k[0]
-        j = k[1]
-        if i == j:
-            A[i,j] = (float('inf'), 0)
-        else:
-            A[i,j] = (v, 1)
-            A1[i,j] = v
-    D = shortest_path_FW(A)
-    D1 = Matrix.sparse(FP64, n, n)
-    for i, j, v in D:
-        D1[i,j] = v[0]
-    pred = dict()
-    with FP64.plus:
-        for i in range(n):
-            pred[i] = dict()
-            d = D1.extract_row(i)
-            d[i] = 0
-            for j in d.indices:
-                col_j = A1.extract_col(j)
-                col_j.emult(d, mult_op=FP64.plus, out=col_j)
-                #pred_j = list((col_j == d[j]).indices)
-                #if pred_j:
-                pred[i][j] = list((col_j == d[j]).indices)
-    #IPC = Vector.sparse(FP64, n)
-    IPC = np.zeros(n)
-    paths = dict()
-    v_paths = dict()
-    V = set()
-    for v in range(n):
-        S_exclude_v = S - S_sv[v] - S_vt[v]
-        v_paths[v] = []
-        for s in D.extract_col(v).indices:
-            for t in D.extract_row(v).indices:
-                delta = float(states[t] - states[s])
-                if delta <= 0:
-                    continue
-                if D[s, t][1] == 0:
-                    continue
-                if s != v and t!=v and s!=t and D[s, t][0] == D[s, v][0] + D[v, t][0]:
-                    w = delta / S_exclude_v
-                    IPC[v] += D[s, v][1] * D[v, t][1] / D[s, t][1] * w
-                    sv_paths = st_paths(pred[s], s, v)
-                    vt_paths = st_paths(pred[s], v, t)
-                    for p1 in sv_paths:
-                        for p2 in vt_paths:
-                            v_paths[v].append(p1 + p2[1:])
-                            V.update(p1 + p2[1:])
-    return IPC, list(V), v_paths
-
+    return C, pred, D1
 
 def example():
     A = Matrix.sparse(GS, 6, 6)
@@ -466,7 +279,7 @@ if __name__ == '__main__':
     Adj[1,5] = 7.0
     Adj[5,4] = 2.0
     states = np.array([0, 0, 0.4, 0, 0, 0])
-    IPC, v_paths = algebraic_IPC_with_paths(Adj, states)
-    print(IPC)
+    C, v_paths = algebraic_IPC_with_paths(Adj, states)
+    print(C)
     print(v_paths)
 

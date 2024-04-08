@@ -123,7 +123,7 @@ M_conf = {
         'los',
         'age',
         'oasis'],
-    'max_node_size': 300
+    'max_node_size': 100
 }
 
 #for key in CHRONIC_ILLNESS:

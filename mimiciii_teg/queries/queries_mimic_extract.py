@@ -245,6 +245,8 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
             plt.xlabel("Value")
             plt.ylabel("Frequency")
+            plt.ylim(0, 16000)
+            plt.xlim(0, 5)
             plt.savefig(f"{fname}")
             plt.clf()
             plt.cla()
@@ -252,6 +254,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(12, 8))
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
+            plt.ylim(0, 1000000)
             plt.xlabel("Value")
             plt.xscale("log")
             plt.yscale("log")
@@ -452,6 +455,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 i += 1
             plt.xlabel("Value")
             plt.ylabel("Frequency")
+            plt.ylim(0, 16000)
+            plt.xlim(0, 5)
             plt.savefig(f"{fname}")
             plt.clf()
             plt.cla()
@@ -459,6 +464,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(12, 8))
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
+            plt.ylim(0, 1000000)
             plt.xlabel("Value")
             plt.xscale("log")
             plt.yscale("log")

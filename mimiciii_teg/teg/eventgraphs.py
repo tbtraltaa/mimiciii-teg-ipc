@@ -83,7 +83,7 @@ def build_eventgraph(subjects, events, join_rules):
     # number of events
     n = len(events)
     # adjacency matrix
-    A = dok_matrix((n, n), dtype=float)
+    A = dok_matrix((n, n), dtype=np.float64)
     c1 = 0
     for i, e1 in enumerate(events):
         j = i + 1

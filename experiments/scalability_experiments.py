@@ -21,7 +21,7 @@ from mimiciii_teg.schemas.PI_risk_factors import PI_VITALS
 from mimiciii_teg.queries.queries import get_patient_demography
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.teg.eventgraphs import *
-from mimiciii_teg.centrality.IPC import IPC_with_target_nx, IPC_sparse, IPC_dense
+from mimiciii_teg.centrality.IPC import IPC_nx, IPC_sparse, IPC_dense
 from mimiciii_teg.centrality.algebraic_IPC import *
 from mimiciii_teg.teg.build_graph import *
 from TEG_experiments import TEG_conf, TEG_join_rules 
@@ -189,7 +189,7 @@ def IPC_vs_algebraic_IPC_performance(event_list, join_rules, conf, fname):
         # NetworkX graph
         G = nx.from_numpy_array(A, create_using=nx.DiGraph)
         # IPC using NetworkX
-        timer = timeit.Timer("IPC_with_target_nx(G, x=states, weight='weight')", globals=globals())
+        timer = timeit.Timer("IPC_nx(G, x=states, weight='weight')", globals=globals())
         t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
         print("Time for IPC using NetworkX", t, TIME_UNIT )
         non_algebraic_IPC_time.append(t)
@@ -563,7 +563,7 @@ def IPC_vs_algebraic_IPC_performance_all(event_list, join_rules, conf, fname):
         non_algebraic_IPC_time_sparse.append(t)
         '''
         # IPC using NetworkX
-        timer = timeit.Timer("IPC_with_target_nx(G, x=states, weight='weight')", globals=globals())
+        timer = timeit.Timer("IPC_nx(G, x=states, weight='weight')", globals=globals())
         t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
         print("Time for non-algebraic IPC", t, TIME_UNIT )
         non_algebraic_IPC_time.append(t)

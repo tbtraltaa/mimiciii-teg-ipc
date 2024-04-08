@@ -37,11 +37,11 @@ TEG_conf = {
     #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
     'endtime': False,
-    'missing_percent': [20, 40], # for mimic extract
+    'missing_percent': [0, 100], # for mimic extract
     #'missing_percent': [0, 100], # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
-    'interventions': True,
+    'interventions': False,
     'node label': True,
     'edge label': True,
     #'PI_states': {0: 0, 0.5: 0.1, 1: 0.2, 2: 0.4, 3: 0.6, 4: 0.8, 5: 1},
@@ -49,11 +49,11 @@ TEG_conf = {
     'PI_exclude_mid_stages': True,
     'PI_daily_max_stage': True,
     'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
-    'P': [70, 100], # CENTRALITY percentile
+    'P': [90, 100], # CENTRALITY percentile
     'ET_P': [70, 100], # Event Type CENTRALITY percentile
-    'P_results': [70, 100], # CENTRALITY percentile
-    'path_percentile': [80, 100],
-    'P_patients': [70, 100],
+    'P_results': [90, 100], # CENTRALITY percentile
+    'path_percentile': [72, 100],
+    'P_patients': [80, 100],
     'P_remove': False,
     'ET_CENTRALITY_min_freq': 0,
     'CENTRALITY_path': False,
@@ -97,7 +97,8 @@ TEG_conf = {
         'los',
         'age',
         'oasis'],
-    'max_node_size': 100
+    'max_node_size': 100,
+    'check_IPC_values': True
 }
 
 # Event graph configuration
@@ -135,7 +136,7 @@ TEG_join_rules = {
     'sequential_join': True,
     'max_pi_state': 1,
     'max_pi_stage': 2,
-    'include_numeric': True
+    'include_numeric': False
 }
 
 TEG_fname = f'output/TEG-PI-ONLY'

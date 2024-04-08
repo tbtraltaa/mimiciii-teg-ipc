@@ -91,7 +91,9 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
 
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    #plt.figure(figsize = (12, 8))
+    # shortening the verticle space for example experiment
+    plt.figure(figsize = (12, 3))
     CENTRALITY_sorted = dict(sorted(CENTRALITY.items(), key=lambda x: x[1]))
     top_n = len(CENTRALITY)
     vals = []
@@ -135,9 +137,9 @@ def plot_event_type_CENTRALITY(CENTRALITY, CENTRALITY_freq, CENTRALITY_avg, conf
 
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    #plt.figure(figsize = (12, 8))
     # shortening the verticle space for example experiment
-    #plt.figure(figsize = (10, 3))
+    plt.figure(figsize = (10, 3))
     y_pos  =  range(0, 2*len(CENTRALITY_sorted), 2)
     plt.barh(y_pos, list(CENTRALITY_sorted.values()), align='center')
     plt.yticks(y_pos, labels=list(CENTRALITY_sorted.keys()))
