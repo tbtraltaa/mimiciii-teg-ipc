@@ -31,8 +31,8 @@ TIME_UNIT_DICT = {'Seconds': 1, 'Minutes': 60}
 TIME_UNIT = 'Seconds'
 IPC_algs = {
         'IPC_nx': False,
-        'IPC_dense': False,
-        'IPC_sparse': True,
+        'IPC_dense': True,
+        'IPC_sparse': False,
         'algebraic_IPC': True
         }
 # Experiment configuration
@@ -52,6 +52,7 @@ TEG_conf = {
     #'endtime': '2143-01-21',
     #'endtime': '2143-02-14',
     'endtime': False,
+    'min_patient_events': 10,
     'missing_percent': [0, 100], # for mimic extract
     'vitals_agg': 'daily',
     'vitals_X_mean': False,
@@ -65,7 +66,7 @@ TEG_conf = {
     'CENTRALITY_time_unit': timedelta(days=0, hours=1), # maximum CENTRALITY per time unit
     'P': [90, 100], # CENTRALITY percentile
     'P_results': [90, 100], # CENTRALITY percentile
-    'P_remove': [0, 20],
+    'P_remove': False,
     'P_patients': [60, 100],
     'ET_CENTRALITY_min_freq': 0,
     'CENTRALITY_path': False,
@@ -111,7 +112,6 @@ TEG_conf = {
         'age',
         'oasis'],
     'max_node_size': 100
-    'max_n_for_ICP_paths': 7000,
 }
 
 # Event graph configuration
@@ -139,6 +139,7 @@ t_max = {
 TEG_join_rules = {
     'IDs': EVENT_IDs if not TEG_conf['duration'] else EVENT_IDs + ['duration'],
     "t_min": timedelta(days=0, hours=0, minutes=5),
+    #"t_min": timedelta(0),
     "t_max": t_max,
     'w_e_max': 0.3,  # maximum event difference
     # default event difference for different types of events
@@ -189,8 +190,8 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         for e in all_events:
             states[e['i']] = e['pi_state']
         if save_data:
-            np.savetxt(f'scalability_data/A_{n}_{m}_new.txt', A.toarray())
-            np.savetxt(f'scalability_data/percolation_states_{n}_new.txt', states)
+            np.savetxt(f'{fname}/A_{n}_{m}_new.txt', A.toarray())
+            np.savetxt(f'{fname}/percolation_states_{n}_new.txt', states)
         if IPC_algs['algebraic_IPC']:
             # algebraic IPC
             timer = timeit.Timer('algebraic_IPC(A, x=states)', globals=globals())
@@ -227,7 +228,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         plt.plot(n_nodes, IPC_sparse_times, label='Non-algebriac IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(n_nodes, IPC_dense_times, label='Non-algebraic IPC (dense)', color='magenta')
+        plt.plot(n_nodes, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
     if IPC_algs['IPC_nx']:
         plt.plot(n_nodes, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Nodes')
@@ -235,7 +236,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     #plt.title("Inverse Percolation Centrality Scalability")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{fname}-nodes")
+    plt.savefig(f"{fname}/IPC-nodes")
     plt.clf()
     plt.cla()
 
@@ -248,7 +249,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         plt.plot(m_edges, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(m_edges, IPC_dense_times, label='Non-algebraic IPC (dense)', color='magenta')
+        plt.plot(m_edges, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
     if IPC_algs['IPC_nx']:
         plt.plot(m_edges, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Edges')
@@ -256,7 +257,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     #plt.title('Inverse Percolation Centrality Scalability')
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{fname}-edges")
+    plt.savefig(f"{fname}/IPC-edges")
     plt.clf()
     plt.cla()
 
@@ -268,7 +269,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         plt.plot(num_hadms, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(num_hadms, IPC_dense_times, label='Non-algebraic IPC (dense)', color='magenta')
+        plt.plot(num_hadms, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
     if IPC_algs['IPC_nx']:
         plt.plot(num_hadms, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Patients')
@@ -276,7 +277,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     #plt.title("Algebraic Inverse Percolation Centrality Scalability")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{fname}-hadms")
+    plt.savefig(f"{fname}/IPC-hadms")
     plt.clf()
     plt.cla()
 
@@ -288,7 +289,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         ax.plot(n_nodes, m_edges, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        ax.plot(n_nodes, m_edges, IPC_dense_times, label='Non-algebraic IPC (dense)', color='magenta')
+        ax.plot(n_nodes, m_edges, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
     if IPC_algs['IPC_nx']:
         ax.plot(n_nodes, m_edges, IPC_nx_times, label='IPC using NetworkX', color='orange')
     '''
@@ -323,7 +324,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         #plt.title("Algebraic Inverse Percolation Centrality Scalability")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"{fname}-nodes-algebraic")
+        plt.savefig(f"{fname}/IPC-nodes-algebraic")
         plt.clf()
         plt.cla()
 
@@ -336,7 +337,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         #plt.title("Algebraic Inverse Percolation Centrality Scalability")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"{fname}-edges-algebraic")
+        plt.savefig(f"{fname}/IPC-edges-algebraic")
         plt.clf()
         plt.cla()
 
@@ -349,7 +350,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         #plt.title("Algebraic Inverse Percolation Centrality Scalability")
         plt.legend()
         plt.tight_layout()
-        plt.savefig(f"{fname}-hadms-algebraic")
+        plt.savefig(f"{fname}/IPC-hadms-algebraic")
         plt.clf()
         plt.cla()
 
@@ -375,7 +376,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         ax.set_zlabel(f'Time (in {TIME_UNIT})')
         plt.show()
 
-def algebraic_IPC_n_threads(event_list, join_rules, conf, save_data, fname):
+def algebraic_IPC_n_threads(event_list, join_rules, conf, fname, save_data):
     global A, states
     conn = get_db_connection()
     algebraic_IPC_times = []
@@ -399,8 +400,8 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, save_data, fname):
     for e in all_events:
         states[e['i']] = e['pi_state']
     if save_data:
-        np.save(f'scalability_data/A_{n}_{m}_n_thread_300.npy', A.todense())
-        np.save(f'scalability_data/percolation_states_{n}_n_thread_300.npy', states)
+        np.save(f"{fname}/A_{n}_{m}_n_thread_{conf['hadm_limit']}.npy", A.todense())
+        np.save(f"{fname}/percolation_states_{n}_n_thread_{conf['hamd_limit']}.npy", states)
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
@@ -425,18 +426,18 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, save_data, fname):
     plt.legend()
     plt.tight_layout()
     plt.grid(False)
-    plt.savefig(f"{fname}")
+    plt.savefig(f"{fname}/algebraic_IPC_n_threads")
     plt.clf()
     plt.cla()
 
 
-def algebraic_IPC_n_threads_data(fname):
+def algebraic_IPC_n_threads_data(A_fname, x_fname, fname):
     global A, states
     algebraic_IPC_times = []
     # number of threads
     threads = [int(i) for i in range(4, 33, 4)]
     # number of nodes
-    A_dense = np.load(f'scalability_data/A_1588_24376_n_thread_100.npy')
+    A_dense = np.load(A_fname)
     #A_dense = np.load(f'scalability_data/A_7179_399663_n_thread_all.npy')
     n = A_dense.shape[0]
     A = dok_matrix((n, n), dtype=float)
@@ -444,7 +445,7 @@ def algebraic_IPC_n_threads_data(fname):
         for j in range(n):
             if A_dense[i, j] != 0:
                 A[i, j] = A_dense[i, j]
-    states = np.load(f'scalability_data/percolation_states_1588_n_thread_100.npy')
+    states = np.load(x_fname)
     #states = np.load(f'scalability_data/percolation_states_7179_n_thread_all.npy')
     m = A.count_nonzero()
     for i in threads:
@@ -465,31 +466,26 @@ def algebraic_IPC_n_threads_data(fname):
     plt.title(f"Algebraic IPC Scalability (n = {n}, m = {m})", fontsize=12)
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{fname}")
+    plt.savefig(f"{fname}/algebraic_IPC_n_threads_data")
     plt.clf()
     plt.cla()
 
 
 if __name__ == "__main__":
     TIME_UNIT = 'Seconds'
-    fname = 'output/IPC_performance'
+    fname = 'IPC_performance_data'
     IPC_performance(SCALABILITY_EXPERIMENT_EVENTS,
                                      TEG_join_rules,
                                      TEG_conf,
                                      IPC_algs,
-                                     False,
-                                     fname)
-    '''
-    fname = 'output/algebraic_IPC_scalability'
-    algebraic_IPC_scalability(SCALABILITY_EXPERIMENT_EVENTS,
-                              TEG_join_rules,
-                              TEG_conf,
-                              fname)
+                                     fname,
+                                     False)
     '''
     TIME_UNIT = 'Minutes'
-    fname = 'output/algebraic_IPC_n_threads'
-    algebraic_IPC_n_threads(SCALABILITY_EXPERIMENT_EVENTS,
-                            TEG_join_rules,
-                            TEG_conf,
-                            False,
-                            fname)
+    A_fname = 'IPC_performance_data/A_1588_24376_n_thread_100.npy'
+    x_fname = 'IPC_performance_data/percolation_states_1588_n_thread_100.npy'
+    algebraic_IPC_n_threads(A_fname,
+                            x_fname,
+                            fname,
+                            False)
+    '''

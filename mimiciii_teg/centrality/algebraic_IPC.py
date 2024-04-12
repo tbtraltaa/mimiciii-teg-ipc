@@ -7,9 +7,6 @@ from scipy.sparse import dok_matrix
 from mimiciii_teg.schemas.schemas import DECIMALS
 
 
-options_set(nthreads=12)
-
-
 class GS(Type):
 
     _base_name = "UDT"
