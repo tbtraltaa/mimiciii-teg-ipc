@@ -13,8 +13,6 @@ from mimiciii_teg.queries.admissions import admissions
 from mimiciii_teg.schemas.event_setup import *
 from mimiciii_teg.teg.events import *
 from mimiciii_teg.utils.event_utils import remove_by_missing_percent
-from mimiciii_teg.vis.plot import *
-from mimiciii_teg.vis.plot_patients import *
 from mimiciii_teg.queries.queries import get_db_connection
 from mimiciii_teg.schemas.schemas import *
 from run_experiments import *
@@ -44,6 +42,8 @@ if __name__ == "__main__":
     mp = [[80, 100], [60, 85], [40, 65], [20, 45], [0, 25], [0, 100]]
     remove = [False, False, False, False, False, False]
     P = [[95, 100], [95, 100], [95, 100], [95, 100], [97, 100], [97, 100]]
+    ET_P = [[95, 100], [95, 100], [95, 100], [95, 100], [97, 100], [97, 100]]
+    PATH_P = [[95, 100], [95, 100], [99, 100], [99, 100], [99, 100], [99, 100]]
     os.mkdir(TEG_M_fname)
     r = admissions(conn, PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname=f'{TEG_M_fname}/TEG_M')
     _r = copy.deepcopy(r)
@@ -59,7 +59,8 @@ if __name__ == "__main__":
         #conf_multimodal['missing_percent'] = i
         conf_teg['P_remove'] = i_r
         conf_teg['P'] = P[j]
-        conf_teg['ET_P'] = P[j]
+        conf_teg['ET_P'] = ET_P[j]
+        conf_teg['path_percentile'] = PATH_P[j]
         #conf_multimodal['P_remove'] = i_r
         _r['PI_events'] = remove_by_missing_percent(r['PI_events'], conf_teg)
         _r['NPI_events'] = remove_by_missing_percent(r['NPI_events'], conf_teg)

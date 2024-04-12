@@ -111,7 +111,7 @@ def get_quantile_mimic_extract(val, Q, conf):
     #    val1 = ''
     if q == 100:
         val2 = ''
-    return f'{prev_q}-{q}P, {val1}-{val2}', [prev_q, q]
+    return f'{prev_q}-{q}P [{val1}, {val2})', [prev_q, q]
 
 
 def get_quantile_uom(row, item_col, val_col, uom_col, Q, conf):

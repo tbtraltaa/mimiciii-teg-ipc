@@ -5,6 +5,26 @@ import pprint
 
 from mimiciii_teg.teg.eventgraphs import *
 
+is_example = True
+group_colors = {
+                    "31792-144955": {
+                                        "border": "red",
+                                        "background": "#F14A63"
+                        },
+                    "32184-126653": {
+                                        "border": "#2D78DB",
+                                        "background": "#74B0FF"
+                        },
+                    "13259-113514": {
+                                        "border": "magenta",
+                                        "background": "violet"
+                        },
+                    "18700-132481": {
+                                        "border": "orange",
+                                        "background": "yellow"
+                        }
+                }
+
 def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
     '''
     Build NetworkX graph using the Adjacency matrix, events, patients and centrality
@@ -13,13 +33,15 @@ def build_networkx_graph(A, events, patients, CENTRALITY, conf, join_rules):
     G = nx.from_numpy_array(A, create_using=nx.DiGraph)
     # G.remove_nodes_from([n for n, d in G.degree if d == 0])
     if conf['node label']:
-        labels = dict([(e['i'], e['type']) for e in events])
+        labels = dict([(e['i'], e['type'] + ' on Day ' + str(e['t'].days + 1)) for e in events])
         nx.set_node_attributes(G, labels, 'label')
 
-    # attrs = dict([(e['i'], e['type']) if 'PI' in e['type'] \
-    #        else (e['i'], e['id']) for e in events])
-    attrs = dict([(e['i'], e['id']) for e in events])
-    nx.set_node_attributes(G, attrs, 'group')
+    if is_example:
+        for i in range(n):
+            G.nodes[i]['color'] = group_colors[events[i]['id']]
+    else:
+        attrs = dict([(e['i'], e['id']) for e in events])
+        nx.set_node_attributes(G, attrs, 'group')
 
     if CENTRALITY is not None:
         max_CENTRALITY = max(CENTRALITY.values())

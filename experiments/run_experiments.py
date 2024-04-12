@@ -38,7 +38,7 @@ def run_experiments(admissions, events, conf, join_rules, fname):
     if 'check_IPC_values' in conf:
         if conf['check_IPC_values']:
             check_IPC_values(A, states)
-    if not conf['CENTRALITY_path'] or n > 5000:
+    if not conf['CENTRALITY_path'] or n > conf['max_n_for_ICP_paths']:
         '''
             start = time.time()
             G = nx.from_numpy_array(A, create_using=nx.DiGraph)

@@ -84,7 +84,10 @@ def build_eventgraph(subjects, events, join_rules):
     n = len(events)
     # adjacency matrix
     A = dok_matrix((n, n), dtype=np.float64)
+    # inter-patient connections
     c1 = 0
+    # concurrent inter-patient connections
+    c3 = 0
     for i, e1 in enumerate(events):
         j = i + 1
         for e2 in events[i + 1:]:
@@ -111,9 +114,15 @@ def build_eventgraph(subjects, events, join_rules):
                 w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max)
                 if w_e <= join_rules['w_e_max']:
                     A[i, j] = w_t + w_e + w_s
-                    c1 += 1
+                    if e1['t'] == e2['t']:
+                        c3 += 1
+                    else:
+                        c1 += 1
             j += 1
+    # same patient connections
     c2 = 0
+    # same patient concurrent connections
+    c4 = 0
     if join_rules['join_by_subject'] and join_rules['sequential_join']:
         subject_events = dict()
         for e in events:
@@ -129,6 +138,18 @@ def build_eventgraph(subjects, events, join_rules):
             times = sorted(s_events_dict.keys())
             for i, t in enumerate(times[:-1]):
                 for e1 in s_events_dict[t]:
+                    if join_rules['t_min'] == timedelta(0):
+                        for cc_e2 in s_events_dict[t]:
+                            if e1['i'] == cc_e2['i']:
+                                continue
+                            t_max = get_t_max(e1, cc_e2, join_rules)
+                            s1 = subjects[e1['id']]
+                            s2 = subjects[cc_e2['id']]
+                            w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, cc_e2, join_rules, t_max)
+                            A[e1['i'], cc_e2['i']] = w_t + w_e + w_s
+                            c4 += 1
+                            pprint.pprint(e1)
+                            pprint.pprint(cc_e2)
                     for e2 in s_events_dict[times[i + 1]]:
                         t_max = get_t_max(e1, e2, join_rules)
                         s1 = subjects[e1['id']]
@@ -162,14 +183,19 @@ def build_eventgraph(subjects, events, join_rules):
                     s2 = subjects[e2['id']]
                     w_t, w_e, w_s, I_e, I_s = weight(s1, s2, e1, e2, join_rules, t_max)
                     A[e1['i'], e2['i']] = w_t + w_e + w_s
-                    c2 += 1
+                    if e1['t'] == e2['t']:
+                        c4 += 1
+                    else:
+                        c2 += 1
         print("==========================================================")
         print("TEG construction")
         print("==========================================================")
         print("Number of events", len(events))
         print("Inter-patient event connections: ", c1)
         print("Same-patient event connections: ", c2)
-        print("Total connections: ", c1 + c2)
+        print("Inter-patient event connections (concurrent): ", c3)
+        print("Same-patient event connections (concurrent): ", c4)
+        print("Total connections: ", c1 + c2 + c3 + c4)
         if c1 == 0:
             return A, False
     return A, True
@@ -184,4 +210,3 @@ def get_t_max(e1, e2, join_rules):
     else:
         t_max = join_rules['t_max']['diff_type_same_patient']
     return t_max
-

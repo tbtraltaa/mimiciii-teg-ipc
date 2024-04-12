@@ -10,6 +10,7 @@ from mimiciii_teg.teg.eventgraphs import *
 from mimiciii_teg.teg.build_graph import *
 from mimiciii_teg.teg.paths import *
 
+
 def visualize_centrality(A, events, patients, CENTRALITY_all, CENTRALITY_P, conf, join_rules, fname):
     '''
     Visualize 
@@ -88,13 +89,17 @@ def visualize_SCP(patients, events, A, CENTRALITY_all, CENTRALITY_P, v_paths, pa
     # Visualize Patient SCP 
     for n_paths in conf['n_patient_paths']:
         patient_paths, patient_paths_list = get_patient_SCP(events, CENTRALITY_all, paths, n_paths)
-        visualize_paths(G, patient_paths_list, fname + f"_{n_paths}_patient_SCP")
+        G_tmp = copy.deepcopy(G)
+        visualize_paths(G_tmp, patient_paths_list, fname + f"_{n_paths}_patient_SCP")
         patient_paths, patient_paths_list = get_patient_SP(A, events, CENTRALITY_all, paths, n_paths)
-        visualize_paths(G, patient_paths_list, fname + f"_{n_paths}_patient_SP")
+        G_tmp = copy.deepcopy(G)
+        visualize_paths(G_tmp, patient_paths_list, fname + f"_{n_paths}_patient_SP")
     # Visualize SCP of vertices with higher centrality percentile placement
     v_paths_P = dict([(i, v_paths[i]) for i in CENTRALITY_P])
-    visualize_V_paths(G, v_paths, fname+"_SCP")
-    visualize_V_paths(G, v_paths_P, fname + "_SCP_P")
+    G_tmp = copy.deepcopy(G)
+    visualize_V_paths(G_tmp, v_paths, fname+"_SCP")
+    G_tmp = copy.deepcopy(G)
+    visualize_V_paths(G_tmp, v_paths_P, fname + "_SCP_P")
     G_tmp = copy.deepcopy(G)
     visualize_graph(G_tmp, v_paths=v_paths_P, fname=fname + "_Graph_SCP_P")
     G_tmp = copy.deepcopy(G)
@@ -212,9 +217,9 @@ def visualize_graph(G, V = None, v_paths=None, fname='Graph', paths=None):
             for j in path[1:]:
                 # an edge may not exist for paths filtered by event types
                 if not G.has_edge(i, j):
-                    G.add_edge(i, j, weight=3, color='grey')
+                    G.add_edge(i, j, weight=3, color="grey")
                 else:
-                    G[i][j]['color']='black'
+                    G[i][j]["color"]="black"
                 i = j
 
     if v_paths:
@@ -224,9 +229,9 @@ def visualize_graph(G, V = None, v_paths=None, fname='Graph', paths=None):
                 for j in path[1:]:
                     # an edge may not exist for paths filtered by event types
                     if not G.has_edge(i, j):
-                        G.add_edge(i, j, weight=3, color='grey')
+                        G.add_edge(i, j, weight=3, color="grey")
                     else:
-                        G[i][j]['color']='black'
+                        G[i][j]["color"]="black"
                     i = j
     '''
     unique_paths = set()
@@ -244,7 +249,8 @@ def visualize_graph(G, V = None, v_paths=None, fname='Graph', paths=None):
         height=1000,
         width='90%',
         neighborhood_highlight=True,
-        select_menu=True)
+        select_menu=True,
+        filter_menu=True)
     if V is not None:
         g.from_nx(G.subgraph(V), show_edge_weights=False)
     else:
@@ -267,8 +273,45 @@ def visualize_vertices(G, V, fname):
         height=1000,
         width='90%',
         neighborhood_highlight=True,
-        select_menu=True)
+        select_menu=True,
+        filter_menu=True)
     g.from_nx(G.subgraph(V), show_edge_weights=False)
+    '''
+    g.set_options("""
+        const options = {
+            "nodes": {
+                "borderWidth": null,
+                "borderWidthSelected": null,
+                "opacity": null,
+                "font": {
+                    "size": 30
+                },
+                "size": null
+            },
+            "edges": {
+                "color": {
+                "inherit": true
+            },
+            "selfReferenceSize": null,
+            "selfReference": {
+              "angle": 0.7853981633974483
+            },
+            "smooth": {
+              "forceDirection": "none"
+            }
+          },
+          "physics": {
+            "enabled": false,
+            "barnesHut": {
+              "gravitationalConstant": -13100,
+              "springLength": 215,
+              "avoidOverlap": 0.3
+            },
+            "minVelocity": 0.75
+          }
+        }
+    """)
+    '''
     g.repulsion()
     #g.barnes_hut()
     g.toggle_physics(True)
@@ -286,7 +329,8 @@ def visualize_vertex_subgraph(G, V, fname):
         height=1000,
         width='90%',
         neighborhood_highlight=True,
-        select_menu=True)
+        select_menu=True,
+        filter_menu=True)
     g.from_nx(G.subgraph(V), show_edge_weights=False)
     g.repulsion()
     #g.barnes_hut()
@@ -306,7 +350,7 @@ def visualize_V_paths(G, v_paths, fname):
             for j in path[1:]:
                 # an edge may not exist for paths filtered by event types
                 if not G.has_edge(i, j):
-                    G.add_edge(i, j, weight=3, color='grey')
+                    G.add_edge(i, j, weight=3, color="grey")
                 edges.add((i,j))
                 i = j
     edges = list(edges)
@@ -326,7 +370,8 @@ def visualize_V_paths(G, v_paths, fname):
         height=1000,
         width='90%',
         neighborhood_highlight=True,
-        select_menu=True)
+        select_menu=True,
+        filter_menu=True)
     g.from_nx(G.edge_subgraph(edges), show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()
@@ -346,7 +391,7 @@ def visualize_paths(G, paths, fname):
         for j in path[1:]:
             # an edge may not exist for paths filtered by event types
             if not G.has_edge(i, j):
-                G.add_edge(i, j, weight=3, color='grey')
+                G.add_edge(i, j, weight=3, color="grey")
             edges.add((i,j))
             i = j
     edges = list(edges)
@@ -355,7 +400,8 @@ def visualize_paths(G, paths, fname):
         height=1000,
         width='90%',
         neighborhood_highlight=True,
-        select_menu=True)
+        select_menu=True,
+        filter_menu=True)
     g.from_nx(G.edge_subgraph(edges), show_edge_weights=True)
     g.repulsion()
     #g.barnes_hut()

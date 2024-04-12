@@ -243,7 +243,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             print(vitals_nan)
             print(vitals_nan.loc[:, col])
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
-            plt.xlabel("Value")
+            plt.xlabel("Value (mg/dL)")
             plt.ylabel("Frequency")
             plt.ylim(0, 16000)
             plt.xlim(0, 5)
@@ -255,7 +255,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.figure(figsize=(12, 8))
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
             plt.ylim(0, 1000000)
-            plt.xlabel("Value")
+            plt.xlabel("Value (mg/dL)")
             plt.xscale("log")
             plt.yscale("log")
             plt.ylabel("Frequency")
@@ -453,7 +453,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 # draw the percentile line
                 plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
                 i += 1
-            plt.xlabel("Value")
+            plt.xlabel("Value (mg/dL)")
             plt.ylabel("Frequency")
             plt.ylim(0, 16000)
             plt.xlim(0, 5)
@@ -465,7 +465,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.figure(figsize=(12, 8))
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
             plt.ylim(0, 1000000)
-            plt.xlabel("Value")
+            plt.xlabel("Value (mg/dL)")
             plt.xscale("log")
             plt.yscale("log")
             i = 1

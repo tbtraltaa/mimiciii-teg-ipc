@@ -61,7 +61,6 @@ def get_patient_SCP(events, CENTRALITY_all, paths, n):
         t = events_grouped[p_id][-1]['i']
         if (s, t) not in paths:
             print(f'{s, t} path missing')
-            pprint.pprint(events_grouped[p_id])
             k += 1
         elif (s, t) in paths:
             patient_paths[p_id] = []
@@ -89,7 +88,6 @@ def get_patient_SP(A, events, CENTRALITY_all, paths, n):
         t = events_grouped[p_id][-1]['i']
         if (s, t) not in paths:
             print(f'{s, t} path missing')
-            pprint.pprint(events_grouped[p_id])
             k += 1
         elif (s, t) in paths:
             patient_paths[p_id] = []

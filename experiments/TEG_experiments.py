@@ -100,6 +100,7 @@ TEG_conf = {
         'age',
         'oasis'],
     'max_node_size': 100,
+    'max_n_for_ICP_paths': 7000,
 }
 
 # Event graph configuration

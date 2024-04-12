@@ -98,7 +98,8 @@ TEG_conf = {
         'age',
         'oasis'],
     'max_node_size': 100,
-    'check_IPC_values': True
+    'check_IPC_values': True,
+    'max_n_for_ICP_paths': 7000,
 }
 
 # Event graph configuration
@@ -125,7 +126,8 @@ t_max = {
 
 TEG_join_rules = {
     'IDs': EVENT_IDs if not TEG_conf['duration'] else EVENT_IDs + ['duration'],
-    "t_min": timedelta(days=0, hours=0, minutes=5),
+    #"t_min": timedelta(days=0, hours=0, minutes=5),
+    "t_min": timedelta(0), # connect concurrent events
     "t_max": t_max,
     'w_e_max': 0.3,  # maximum event difference
     # default event difference for different types of events
