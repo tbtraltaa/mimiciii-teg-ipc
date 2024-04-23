@@ -4,12 +4,12 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='mimiciii_teg',
+    name='mimiciii_teg_ipc',
     version='1.0',
-    description='MIMIC III - Temporal Event Graphs',
+    description='MIMIC III - Temporal Event Graphs and Inverse Percolation Centrality',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/tbtraltaa/mimiciii-eventgraphs',
+    url='https://github.com/tbtraltaa/mimiciii-teg-ipc',
     packages=setuptools.find_packages('.'),
     classifiers=[
         'Programming Language :: Python :: 3',

@@ -268,30 +268,23 @@ def run_iterations(PI_admissions, NPI_admissions, PI_events, NPI_events, conf, j
 def check_IPC_values(A, x):
     C_paths, v_paths, paths = algebraic_IPC_with_paths(A, x)
     C = algebraic_IPC(A, x)
-    # Check if algebraic IPC matches IPC computed using NetworkX
-    G = nx.from_numpy_array(A.todense(), create_using=nx.DiGraph)
-    C_nx_paths, v_paths_nx, paths_nx = IPC_with_paths_nx(G, x=x)
-    C_nx = IPC_nx(G, x)
     C_dense = IPC_dense(A, x)
     C_sparse= IPC_sparse(A, x)
     print('C', C)
-    print('C_nx', C_nx)
     print('C_dense', C_dense)
     print('C_sparse', C_sparse)
     print('C matches C_paths', np.allclose(C, C_paths))
-    print('C matches C_nx', np.allclose(C, C_nx))
     print('C matches C_sparse:', np.allclose(C, C_sparse))
     print('C matches C_dense:', np.allclose(C, C_dense))
-    print('C_nx matches C_nx_paths:', np.allclose(C_nx_paths, C_nx))
-    print('C_nx matches C_sparse:', np.allclose(C_sparse, C_nx))
-    print('C_nx matches C_dense:', np.allclose(C_dense, C_nx))
     print('C_dense matches C_sparse:', np.allclose(C_sparse, C_dense))
-    #print('v_paths match:',v_paths==v_paths_nx)
-    #print('paths match:', paths==paths_nx)
-    
-    '''
-    P, pred, D = algebraic_IPC_with_pred(A, states=states)
-    V, v_paths, paths = IPC_paths(D, pred, states)
-
-    IPC_values, V, v_paths = algebraic_IPC_with_paths_v1(A, states=states)
-    '''
+    # Check if algebraic IPC matches IPC computed using NetworkX
+    # NetworkX has some numerical instability and doesn't satisfy Bellman criterion
+    # of sigma_sr == sigma_sv * sigma_vr
+    #G = nx.from_numpy_array(A.todense(), create_using=nx.DiGraph)
+    #C_nx_paths, v_paths_nx, paths_nx = IPC_with_paths_nx(G, x=x)
+    #C_nx = IPC_nx(G, x)
+    #print('C matches C_nx', np.allclose(C, C_nx))
+    #print('C_nx', C_nx)
+    #print('C_nx matches C_nx_paths:', np.allclose(C_nx_paths, C_nx))
+    #print('C_nx matches C_sparse:', np.allclose(C_sparse, C_nx))
+    #print('C_nx matches C_dense:', np.allclose(C_dense, C_nx))

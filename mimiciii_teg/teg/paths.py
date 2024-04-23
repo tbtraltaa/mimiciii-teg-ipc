@@ -181,7 +181,7 @@ def get_influential_SCP(events, conf, CENTRALITY, paths,  CENTRALITY_P = None):
                 del_paths.append(i)
         for i in sorted(del_paths, reverse=True):
             del SCP_P[i]
-        print(f'Deleted {len(del_paths)} paths which do not contain any of the most influential vertices.')
+        print(f'Deleted {len(del_paths)} SCP paths which do not contain any of the most influential vertices.')
     return SCP_P
 
 

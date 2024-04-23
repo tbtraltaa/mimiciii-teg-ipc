@@ -48,7 +48,7 @@ def IPC_nx(G, x):
                     w_v_sr = (x[r] - x[s]) / (w_s_r - w_v[v]) 
                     C[v] += sigma_v_sr / sigma_sr * w_v_sr
                     '''
-                    # debugging NetworX using the network in experiments/example.py
+                    # debugging NetworX using the network in experiments/PI_example.py
                     # NetworkX has some numerical instability and doesn't satisfy Bellman criterion
                     # of sigma_sr == sigma_sv * sigma_vr
                     if s == 1 and r == 23 and v == 4:
