@@ -141,7 +141,7 @@ TEG_join_rules = {
     'include_numeric': False
 }
 
-TEG_fname = f'output/TEG-PI-ONLY'
+TEG_fname = f'output/TEG-PI-EXAMPLE'
 
 
 def TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
@@ -169,5 +169,5 @@ def TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
 
 if __name__ == "__main__":
     os.mkdir(TEG_fname)
-    fname = f'{TEG_fname}/TEG-PI-ONLY'
+    fname = f'{TEG_fname}/TEG-PI-EXAMPLE'
     TEG_CENTRALITY_PI_ONLY(PI_RISK_EVENTS, TEG_join_rules, TEG_conf, fname)

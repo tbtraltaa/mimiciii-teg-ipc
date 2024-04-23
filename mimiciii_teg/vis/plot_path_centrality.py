@@ -14,7 +14,7 @@ def plot_path_CENTRALITY(events, conf, CENTRALITY, paths, fname='Path_Figure'):
     plt.cla()
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    plt.figure(figsize = (8, 8))
     plt.title(f"Path Centrality Distribution " + str(conf['path_percentile']), fontsize=14)
     plt.hist(C, bins=30, rwidth=0.7)
     plt.xlabel("Log Centrality Values of Paths", fontsize=14)
@@ -30,7 +30,7 @@ def plot_path_CENTRALITY(events, conf, CENTRALITY, paths, fname='Path_Figure'):
     '''
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    plt.figure(figsize = (8, 8))
     plt.title(f"Path Centrality Distribution (log_10)" + str(conf['path_percentile']),
               fontsize=14)
 
@@ -50,7 +50,7 @@ def plot_path_CENTRALITY(events, conf, CENTRALITY, paths, fname='Path_Figure'):
     C_P = [math.exp(val) for i, val in enumerate(C) if P[0] <= val <= P[1]] 
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    plt.figure(figsize = (8, 8))
     plt.title(f"Path Centrality Distribution " + str(conf['path_percentile']), fontsize=14)
     plt.hist(C_P, bins=30, rwidth=0.7)
     plt.xlabel("Centrality Values of Paths", fontsize=14)
@@ -66,7 +66,7 @@ def plot_path_CENTRALITY(events, conf, CENTRALITY, paths, fname='Path_Figure'):
     '''
     plt.style.use('default')
     plt.rcParams['font.size'] = 14
-    plt.figure(figsize = (12, 8))
+    plt.figure(figsize = (8, 8))
     plt.title(f"Path Centrality Distribution (log_10) " + str(conf['path_percentile']),
               fontsize=14)
 

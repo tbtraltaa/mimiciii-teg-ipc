@@ -1,0 +1,210 @@
+(tegg) atumur@son-atumurb-mbp experiments % python IPC_performance.py 
+Admissions including subsequent admissions 30
+First admissions 19
+Admissions 19
+Patients 19
+==========================================================
+Events from MIMIC-III
+==========================================================
+Admissions 19
+ICU In 23
+ICU Out 15
+Callout 12
+Transfer In 2
+Transfer Out 2
+Services 28
+Interventions skipped:  0
+Interventions 44
+Vitals skipped:  0
+Excluded by missing percent:  set()
+Vitals 698
+PI Stage 84
+CPT 85
+1 admissions with less than 10) events are removed
+Excluded admissions 2
+Non PI admissions 0
+Excluded PI admissions with less than or equal to 10 events 9
+==========================================================
+Events in TEG for PI:
+==========================================================
+Admissions 7
+Vitals/Labs 355
+CPT 29
+Intervention 24
+ICU In 7
+PI Stage 2 7
+Services 9
+Transfer In 2
+Total patients 7
+Total admissions 7
+Total events:  440
+==========================================================
+TEG construction
+==========================================================
+Number of events 440
+Inter-patient event connections:  388
+Same-patient event connections:  4833
+Inter-patient event connections (concurrent):  0
+Same-patient event connections (concurrent):  0
+Total connections:  5221
+Time for algebraic IPC 3.213556208 Seconds
+ Time for IPC (dense) 69.08186620799998 Seconds
+Admissions including subsequent admissions 60
+First admissions 41
+Admissions 41
+Patients 41
+==========================================================
+Events from MIMIC-III
+==========================================================
+Admissions 41
+ICU In 47
+ICU Out 27
+Callout 21
+Transfer In 12
+Transfer Out 6
+Services 61
+Interventions skipped:  0
+Interventions 93
+Vitals skipped:  0
+Excluded by missing percent:  set()
+Vitals 1250
+PI Stage 164
+CPT 215
+5 admissions with less than 10) events are removed
+Excluded admissions 2
+Non PI admissions 0
+Excluded PI admissions with less than or equal to 10 events 16
+==========================================================
+Events in TEG for PI:
+==========================================================
+Admissions 18
+Vitals/Labs 707
+CPT 91
+Callout 2
+Intervention 58
+ICU In 19
+ICU Out 1
+PI Stage 2 18
+Services 26
+Transfer In 7
+Transfer Out 1
+Total patients 18
+Total admissions 18
+Total events:  948
+==========================================================
+TEG construction
+==========================================================
+Number of events 948
+Inter-patient event connections:  3418
+Same-patient event connections:  8331
+Inter-patient event connections (concurrent):  0
+Same-patient event connections (concurrent):  0
+Total connections:  11749
+Time for algebraic IPC 28.604423666000002 Seconds
+Time for IPC (dense) 702.4438699169999 Seconds
+Admissions including subsequent admissions 90
+First admissions 65
+Admissions 65
+Patients 65
+==========================================================
+Events from MIMIC-III
+==========================================================
+Admissions 65
+ICU In 72
+ICU Out 43
+Callout 32
+Transfer In 21
+Transfer Out 11
+Services 90
+Interventions skipped:  0
+Interventions 157
+Vitals skipped:  0
+Excluded by missing percent:  set()
+Vitals 2064
+PI Stage 250
+CPT 355
+6 admissions with less than 10) events are removed
+Excluded admissions 5
+Non PI admissions 0
+Excluded PI admissions with less than or equal to 10 events 30
+==========================================================
+Events in TEG for PI:
+==========================================================
+Admissions 24
+Vitals/Labs 889
+CPT 116
+Callout 3
+Intervention 72
+ICU In 25
+ICU Out 1
+PI Stage 2 24
+Services 33
+Transfer In 8
+Transfer Out 1
+Total patients 24
+Total admissions 24
+Total events:  1196
+==========================================================
+TEG construction
+==========================================================
+Number of events 1196
+Inter-patient event connections:  5630
+Same-patient event connections:  10269
+Inter-patient event connections (concurrent):  0
+Same-patient event connections (concurrent):  0
+Total connections:  15899
+Time for algebraic IPC 54.05885341600015 Seconds
+Time for IPC (dense) 1326.304758792 Seconds
+Admissions including subsequent admissions 120
+First admissions 86
+Admissions 86
+Patients 86
+==========================================================
+Events from MIMIC-III
+==========================================================
+Admissions 86
+ICU In 96
+ICU Out 60
+Callout 48
+Transfer In 29
+Transfer Out 16
+Services 122
+Interventions skipped:  0
+Interventions 246
+Vitals skipped:  0
+Excluded by missing percent:  set()
+Vitals 3222
+PI Stage 314
+CPT 434
+6 admissions with less than 10) events are removed
+Excluded admissions 6
+Non PI admissions 0
+Excluded PI admissions with less than or equal to 10 events 39
+==========================================================
+Events in TEG for PI:
+==========================================================
+Admissions 35
+Vitals/Labs 1275
+CPT 176
+Callout 5
+Intervention 105
+ICU In 38
+ICU Out 3
+PI Stage 2 35
+Services 46
+Transfer In 10
+Transfer Out 1
+Total patients 35
+Total admissions 35
+Total events:  1729
+==========================================================
+TEG construction
+==========================================================
+Number of events 1729
+Inter-patient event connections:  13130
+Same-patient event connections:  12595
+Inter-patient event connections (concurrent):  0
+Same-patient event connections (concurrent):  0
+Total connections:  25725
+Time for algebraic IPC 185.25020412499998 Seconds
+Time for IPC (dense) 4259.7287088329995 Seconds

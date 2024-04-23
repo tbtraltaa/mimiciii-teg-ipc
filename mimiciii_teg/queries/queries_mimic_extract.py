@@ -239,7 +239,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.cla()
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
-            plt.figure(figsize=(12, 8))
+            plt.figure(figsize=(10, 8))
             print(vitals_nan)
             print(vitals_nan.loc[:, col])
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
@@ -252,7 +252,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.cla()
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
-            plt.figure(figsize=(12, 8))
+            plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
             plt.ylim(0, 1000000)
             plt.xlabel("Value (mg/dL)")
@@ -441,7 +441,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.cla()
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
-            plt.figure(figsize=(12, 8))
+            plt.figure(figsize=(10, 8))
             print(vitals_nan)
             print(vitals_nan.loc[:, (col, 'mean')])
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
@@ -462,7 +462,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.cla()
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
-            plt.figure(figsize=(12, 8))
+            plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
             plt.ylim(0, 1000000)
             plt.xlabel("Value (mg/dL)")

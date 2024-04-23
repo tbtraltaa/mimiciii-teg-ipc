@@ -1,6 +1,5 @@
 # Byte-compiled / optimized / DLL files
 #
-experiments/scalability_data_misc/*
 docs/*
 cmd/*
 teg/*

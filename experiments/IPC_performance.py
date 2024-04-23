@@ -154,12 +154,12 @@ TEG_join_rules = {
 }
 
 
-def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
+def IPC_performance(event_list, join_rules, conf, IPC_algs, fname, save_data):
     '''
     An experiment to compare non-algebraic and algebraic IPC run time.
     '''
     conn = get_db_connection()
-    algebraic_IPC_timess = []
+    algebraic_IPC_times = []
     IPC_sparse_times = []
     IPC_dense_times = []
     IPC_nx_times = []
@@ -169,7 +169,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     global G, A, states
     options_set(nthreads=12)
 
-    for i in range(20, 101, 20):
+    for i in range(30, 121, 30):
         # number of patients
         conf['hadm_limit'] = i
         PI_df, admissions = get_patient_demography(conn, conf) 
@@ -190,24 +190,24 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         for e in all_events:
             states[e['i']] = e['pi_state']
         if save_data:
-            np.savetxt(f'{fname}/A_{n}_{m}_new.txt', A.toarray())
-            np.savetxt(f'{fname}/percolation_states_{n}_new.txt', states)
+            np.save(f'{fname}/A_{n}_{m}.npy', A.toarray())
+            np.save(f'{fname}/percolation_states_{n}.npy', states)
         if IPC_algs['algebraic_IPC']:
             # algebraic IPC
             timer = timeit.Timer('algebraic_IPC(A, x=states)', globals=globals())
-            t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
+            t = min(timer.repeat(repeat=3, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
             print("Time for algebraic IPC", t, TIME_UNIT )
-            algebraic_IPC_timess.append(t)
+            algebraic_IPC_times.append(t)
         if IPC_algs['IPC_sparse']:
             # non-algebraic IPC using sparse matrices 
             timer = timeit.Timer("IPC_sparse(A, states)", globals=globals())
-            t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
+            t = min(timer.repeat(repeat=3, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
             print("Time for IPC (sparse)", t, TIME_UNIT )
             IPC_sparse_times.append(t)
         if IPC_algs['IPC_dense']:
             # non-algebraic IPC using dense matrices 
             timer = timeit.Timer("IPC_dense(A, states)", globals=globals())
-            t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
+            t = min(timer.repeat(repeat=3, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
             print("Time for IPC (dense)", t, TIME_UNIT )
             IPC_dense_times.append(t)
         if IPC_algs['IPC_nx']:
@@ -215,7 +215,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
             # NetworkX graph
             G = nx.from_numpy_array(A, create_using=nx.DiGraph)
             timer = timeit.Timer("IPC_nx(G, x=states)", globals=globals())
-            t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
+            t = min(timer.repeat(repeat=3, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
             print("Time for IPC (NetworkX)", t, TIME_UNIT )
             IPC_nx_times.append(t)
 
@@ -224,11 +224,11 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     plt.rcParams['font.size'] = 14
     plt.figure(figsize=(6, 6), layout='constrained')
     if IPC_algs['algebraic_IPC']:
-        plt.plot(n_nodes, algebraic_IPC_timess, label='Algebraic IPC', color='blue')
+        plt.plot(n_nodes, algebraic_IPC_times, label='Algebraic IPC', color='blue')
     if IPC_algs['IPC_sparse']:
         plt.plot(n_nodes, IPC_sparse_times, label='Non-algebriac IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(n_nodes, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
+        plt.plot(n_nodes, IPC_dense_times, label='Non-algebraic IPC', color='red')
     if IPC_algs['IPC_nx']:
         plt.plot(n_nodes, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Nodes')
@@ -249,7 +249,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         plt.plot(m_edges, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(m_edges, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
+        plt.plot(m_edges, IPC_dense_times, label='Non-algebraic IPC', color='red')
     if IPC_algs['IPC_nx']:
         plt.plot(m_edges, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Edges')
@@ -269,7 +269,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         plt.plot(num_hadms, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        plt.plot(num_hadms, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
+        plt.plot(num_hadms, IPC_dense_times, label='Non-algebraic IPC', color='red')
     if IPC_algs['IPC_nx']:
         plt.plot(num_hadms, IPC_nx_times, label='IPC using NetworkX', color='orange')
     plt.xlabel('Number of Patients')
@@ -289,7 +289,7 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
     if IPC_algs['IPC_sparse']:
         ax.plot(n_nodes, m_edges, IPC_sparse_times, label='Non-algebraic IPC (sparse)', color='red')
     if IPC_algs['IPC_dense']:
-        ax.plot(n_nodes, m_edges, IPC_dense_times, label='Non-algebraic IPC', color='magenta')
+        ax.plot(n_nodes, m_edges, IPC_dense_times, label='Non-algebraic IPC', color='red')
     if IPC_algs['IPC_nx']:
         ax.plot(n_nodes, m_edges, IPC_nx_times, label='IPC using NetworkX', color='orange')
     '''
@@ -376,14 +376,15 @@ def IPC_performance(event_list, join_rules, conf, IPC_algs, save_data, fname):
         ax.set_zlabel(f'Time (in {TIME_UNIT})')
         plt.show()
 
+
 def algebraic_IPC_n_threads(event_list, join_rules, conf, fname, save_data):
-    global A, states
+    global A, states, n_threads
     conn = get_db_connection()
     algebraic_IPC_times = []
     # number of threads
-    threads = [int(i) for i in range(4, 33, 4)]
+    threads = [int(i) for i in range(4, 17, 4)]
     # admissions limit
-    conf['hadm_limit'] = 300
+    conf['hadm_limit'] = 100
     PI_df, admissions = get_patient_demography(conn, conf) 
     print('Patients', len(admissions))
     PI_hadms = tuple(PI_df['hadm_id'].tolist())
@@ -401,17 +402,18 @@ def algebraic_IPC_n_threads(event_list, join_rules, conf, fname, save_data):
         states[e['i']] = e['pi_state']
     if save_data:
         np.save(f"{fname}/A_{n}_{m}_n_thread_{conf['hadm_limit']}.npy", A.todense())
-        np.save(f"{fname}/percolation_states_{n}_n_thread_{conf['hamd_limit']}.npy", states)
+        np.save(f"{fname}/percolation_states_{n}_n_thread_{conf['hadm_limit']}.npy", states)
     for i in threads:
         # set the number of threads for GraphBLAS
         # algebraic IPC
         print('i', i)
         #print(options_get())
-        options_set(nthreads=i)
+        #options_set(nthreads=i)
         #print(options_get())
         #print("Globals", globals())
-        #timer = timeit.Timer('algebraic_IPC(A, states)', setup='options_set(nthreads=i)', globals=globals())
-        timer = timeit.Timer('algebraic_IPC(A, states)', globals=globals())
+        n_threads = i
+        timer = timeit.Timer('algebraic_IPC(A, states)', setup='options_set(nthreads=n_threads)', globals=globals())
+        #timer = timeit.Timer('algebraic_IPC(A, states)', globals=globals())
         t = min(timer.repeat(repeat=1, number=1)) / TIME_UNIT_DICT[TIME_UNIT]
         print("Time for Algebraic IPC", t, TIME_UNIT )
         algebraic_IPC_times.append(t)
@@ -479,12 +481,18 @@ if __name__ == "__main__":
                                      TEG_conf,
                                      IPC_algs,
                                      fname,
-                                     False)
+                                     True)
     '''
+    algebraic_IPC_n_threads(SCALABILITY_EXPERIMENT_EVENTS, 
+                            TEG_join_rules,
+                            TEG_conf,
+                            fname,
+                            True)
+
     TIME_UNIT = 'Minutes'
     A_fname = 'IPC_performance_data/A_1588_24376_n_thread_100.npy'
     x_fname = 'IPC_performance_data/percolation_states_1588_n_thread_100.npy'
-    algebraic_IPC_n_threads(A_fname,
+    algebraic_IPC_n_threads_data(A_fname,
                             x_fname,
                             fname,
                             False)
