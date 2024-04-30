@@ -4,7 +4,7 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='mimiciii_teg_ipc',
+    name='mimiciii_teg',
     version='1.0',
     description='MIMIC III - Temporal Event Graphs and Inverse Percolation Centrality',
     long_description=long_description,

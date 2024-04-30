@@ -53,7 +53,7 @@ TEG_conf = {
     'ET_P': [70, 100], # Event Type CENTRALITY percentile
     'P_results': [90, 100], # CENTRALITY percentile
     'path_percentile': [72, 100],
-    'P_patients': [80, 100],
+    'P_patients': [90, 100],
     'P_remove': False,
     'ET_CENTRALITY_min_freq': 0,
     'CENTRALITY_path': False,
@@ -161,8 +161,15 @@ def TEG_CENTRALITY_PI_ONLY(event_list, join_rules, conf, fname):
                     PI_df,
                     conf,
                     all_events,
-                    fname=f"{fname}_PI_Patients",
-                    c='blue')
+                    results,                    
+                    fname=f"{fname}_PI_Patients")
+    plot_patients(patients,
+                    PI_df,
+                    conf,
+                    all_events,
+                    results,
+                    P = True,
+                    fname = f"{fname}_PI_Patients_P")
 
     #plot_CENTRALITY_and_BS(conn, conf, results['patient_CENTRALITY'], PI_hadms, PI_hadm_stage_t)
 

@@ -232,12 +232,46 @@ def plot_patients(Patients,
                          results = None,
                          P = '',
                          fname = 'Patients',
-                         c = 'blue'):
+                         c = None):
     patients = dict()
-    if results:
+    if P and results:
         for idd in results['patient_CENTRALITY_P']:
             patients[idd] = Patients[idd]
         df = df[df['id'].isin(patients)] 
+        plt.style.use('default')
+        plt.rcParams['font.size'] = 14
+        plt.figure(figsize = (10, 8))
+        plt.title(f" Centrality of Patients {P}")
+        if c:
+            plt.hist(results['patient_CENTRALITY_P'].values(), bins=30, rwidth=0.7, color=c)
+        else:
+            plt.hist(results['patient_CENTRALITY_P'].values(), bins=30, rwidth=0.7)
+        plt.axvline(results['PCENTRALITY_P'][0], color='red', linestyle='dashed', linewidth=1,
+                    label=f"{conf['P_patients'][0]}th Percentile")
+        plt.xlabel("Centrality of Entities")
+        plt.ylabel("Frequency")
+        plt.legend()
+        plt.savefig(f"{fname}_centrality_of_entities_P")
+        plt.clf()
+        plt.cla()
+    elif results:
+        patients = Patients
+        plt.style.use('default')
+        plt.rcParams['font.size'] = 14
+        plt.figure(figsize = (10, 8))
+        plt.title(f" Centrality of Patients")
+        if c:
+            plt.hist(results['patient_CENTRALITY_total'].values(), bins=30, rwidth=0.7, color=c)
+        else:
+            plt.hist(results['patient_CENTRALITY_total'].values(), bins=30, rwidth=0.7)
+        plt.axvline(results['PCENTRALITY_P'][0], color='red', linestyle='dashed', linewidth=1,
+                    label=f"{conf['P_patients'][0]}th Percentile")
+        plt.xlabel("Centrality of Entities")
+        plt.ylabel("Frequency")
+        plt.legend()
+        plt.savefig(f"{fname}_centrality_of_entities")
+        plt.clf()
+        plt.cla()
     else:
         patients = Patients
     patient_dict = dict()
@@ -379,3 +413,4 @@ def plot_patients(Patients,
     plt.savefig(f"{fname}_event_count")
     plt.clf()
     plt.cla()
+    

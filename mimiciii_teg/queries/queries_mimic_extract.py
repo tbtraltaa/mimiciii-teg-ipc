@@ -240,9 +240,16 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(10, 8))
-            print(vitals_nan)
-            print(vitals_nan.loc[:, col])
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
+            i = 1
+            for q_val in Qs.loc[:, (col, 'mean')]:
+                print(i, q_val)
+                if i == 1 or i == len(conf['quantiles']):
+                    i += 1
+                    continue
+                # draw the percentile line
+                plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
+                i += 1
             plt.xlabel("Value (mg/dL)")
             plt.ylabel("Frequency")
             plt.ylim(0, 16000)
@@ -254,7 +261,16 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
-            plt.ylim(0, 1000000)
+            i = 1
+            for q_val in Qs.loc[:, (col, 'mean')]:
+                if i == 1 or i == len(conf['quantiles']):
+                    i += 1
+                    continue
+                # draw the percentile line
+                plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
+                i += 1
+            plt.ylabel("Frequency")
+            #plt.ylim(0, 1000000)
             plt.xlabel("Value (mg/dL)")
             plt.xscale("log")
             plt.yscale("log")
@@ -442,11 +458,10 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.style.use('default')
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(10, 8))
-            print(vitals_nan)
-            print(vitals_nan.loc[:, (col, 'mean')])
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
             i = 1
             for q_val in Qs.loc[:, (col, 'mean')]:
+                print(i, q_val)
                 if i == 1 or i == len(conf['quantiles']):
                     i += 1
                     continue
@@ -464,10 +479,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.rcParams['font.size'] = 14
             plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
-            plt.ylim(0, 1000000)
+            #plt.ylim(0, 1000000)
             plt.xlabel("Value (mg/dL)")
-            plt.xscale("log")
-            plt.yscale("log")
             i = 1
             for q_val in Qs.loc[:, (col, 'mean')]:
                 if i == 1 or i == len(conf['quantiles']):
@@ -476,6 +489,8 @@ def get_events_vitals_X(conn, conf, hadms=None):
                 # draw the percentile line
                 plt.axvline(q_val, color='red', linestyle='dashed', linewidth=1)
                 i += 1
+            plt.xscale("log")
+            plt.yscale("log")
             plt.ylabel("Frequency")
             plt.savefig(f"{fname}_log")
     if conf['PI_vitals']:
