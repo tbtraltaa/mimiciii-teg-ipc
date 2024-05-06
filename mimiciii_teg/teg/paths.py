@@ -68,7 +68,7 @@ def get_patient_SCP(events, CENTRALITY_all, paths, n):
                 val = get_path_centrality(events, CENTRALITY_all, path)
                 if val:
                     patient_paths[p_id].append({'CENTRALITY': val, 'path': path})
-    print(f'{k} (s, t) SCP path missing')
+    #print(f'{k} (s, t) SCP path missing')
     path_list = []
     for p_id in patient_paths:
         patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['CENTRALITY'], reverse=True)[:n]
@@ -95,7 +95,7 @@ def get_patient_SP(A, events, CENTRALITY_all, paths, n):
                 val = get_path_weight(A, events, path)
                 if val:
                     patient_paths[p_id].append({'w': val, 'path': path})
-    print(f'{k} (s, t) SP path missing')
+    #print(f'{k} (s, t) SP path missing')
     path_list = []
     for p_id in patient_paths:
         patient_paths[p_id] = sorted(patient_paths[p_id], key = lambda x: x['w'])[: n]

@@ -8,6 +8,18 @@ Events from MIMIC-III
 ==========================================================
 Admissions 19
 Interventions 0
+Percentiles
+1 0.7333333333333334
+2 1.7
+3 1.8
+4 1.8999999999999997
+5 1.9499999999999997
+6 2.0
+7 2.1
+8 2.1500000000000004
+9 2.25
+10 2.4
+11 10.8
 Vitals skipped:  0
 Excluded by missing percent:  set()
 Vitals 31
@@ -53,7 +65,7 @@ C matches C_paths True
 C matches C_sparse: True
 C matches C_dense: True
 C_dense matches C_sparse: True
-Algebraic IPC time with paths 0.0002503673235575358 min
+Algebraic IPC time with paths 0.0002530654271443685 min
 Nonzero CENTRALITY 16
 Min, Max CENTRALITY 0.0 0.263157894736842
 Percentile 0.21052631578947362 0.263157894736842
@@ -66,3 +78,5 @@ Average Event CENTRALITY Percentile 0.11403508771929824 0.1984649122807017
 Number of average Event CENTRALITY above Percentile 2
 Patient CENTRALITY Percentile 0.8361842105263158 0.9407894736842104
 Number of patient CENTRALITY above percentile 1
+Deleted 4 SCP paths which do not contain any of the most influential vertices.
+Deleted 4 SCP paths which do not contain any of the most influential vertices.

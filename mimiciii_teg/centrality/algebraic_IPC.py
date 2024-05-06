@@ -161,7 +161,7 @@ def algebraic_IPC_with_paths(Adj, x):
                     if (s, r) not in paths:
                         paths[(s, r)] = st_paths(pred[s], s, r)
                     if v not in v_paths:
-                        v_paths[v] = []
+                        v_paths[v] = set()
                     #for p in paths[(s, r)]:
                     #    if v in p:
                     #        v_paths[v].append(p)
@@ -169,7 +169,9 @@ def algebraic_IPC_with_paths(Adj, x):
                     vr_paths = st_paths(pred[s], v, r)
                     for p1 in sv_paths:
                         for p2 in vr_paths:
-                            v_paths[v].append(p1 + p2[1:])
+                            v_paths[v].add(tuple(p1 + p2[1:]))
+    for v in v_paths:
+        v_paths[v] = list(v_paths[v])
     return C, v_paths, paths
 
 

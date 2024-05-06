@@ -242,6 +242,7 @@ def get_events_vitals_X_mean(conn, conf, hadms=None, fname='output/'):
             plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, col], bins=100, rwidth=0.7)
             i = 1
+            print("Percentiles")
             for q_val in Qs.loc[:, (col, 'mean')]:
                 print(i, q_val)
                 if i == 1 or i == len(conf['quantiles']):
@@ -460,6 +461,7 @@ def get_events_vitals_X(conn, conf, hadms=None):
             plt.figure(figsize=(10, 8))
             plt.hist(vitals_nan.loc[:, (col, 'mean')], bins=100, rwidth=0.7)
             i = 1
+            print("Percentiles")
             for q_val in Qs.loc[:, (col, 'mean')]:
                 print(i, q_val)
                 if i == 1 or i == len(conf['quantiles']):

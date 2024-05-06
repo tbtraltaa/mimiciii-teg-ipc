@@ -6,8 +6,8 @@ teg/*
 data*/
 *experiments/data/
 *experiments/data-old/
-experiments/output/TEG-PI-EXAMPLE/*.html
-experiments/output/TEG-PI-EXAMPLE/lib
+experiments/output/TEG-PI-Example/*.html
+experiments/output/TEG-PI-Example/lib
 .DS_Store
 .*
 __pycache__/
