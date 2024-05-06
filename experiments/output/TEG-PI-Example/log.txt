@@ -1,0 +1,82 @@
+(tegg) atumur@son-atumurb-mbp experiments % python PI_example.py 
+Admissions including subsequent admissions 30
+First admissions 19
+Admissions 19
+Patients 19
+==========================================================
+Events from MIMIC-III
+==========================================================
+Admissions 19
+Interventions 0
+Percentiles
+1 0.7333333333333334
+2 1.7
+3 1.8
+4 1.8999999999999997
+5 1.9499999999999997
+6 2.0
+7 2.1
+8 2.1500000000000004
+9 2.25
+10 2.4
+11 10.8
+Vitals skipped:  0
+Excluded by missing percent:  set()
+Vitals 31
+PI Stage 84
+0 admissions with less than 2) events are removed
+Excluded admissions 2
+Non PI admissions 0
+Excluded PI admissions with less than or equal to 2 events 13
+==========================================================
+Events in TEG for PI:
+==========================================================
+Admissions 4
+Vitals/Labs 16
+PI Stage 2 4
+Total patients 4
+Total admissions 4
+Total events:  24
+Admissions including subsequent admissions 4
+First admissions 4
+Admissions 4
+==========================================================
+TEG construction
+==========================================================
+Number of events 24
+Inter-patient event connections:  11
+Same-patient event connections:  20
+Inter-patient event connections (concurrent):  0
+Same-patient event connections (concurrent):  0
+Total connections:  31
+C [0.         0.         0.         0.         0.07894737 0.13157895
+ 0.14473684 0.02631579 0.05263158 0.07894737 0.03947368 0.05263158
+ 0.07894737 0.15789474 0.19736842 0.19736842 0.14912281 0.16008772
+ 0.26315789 0.22368421 0.         0.         0.         0.        ]
+C_dense [0.         0.         0.         0.         0.07894737 0.13157895
+ 0.14473684 0.02631579 0.05263158 0.07894737 0.03947368 0.05263158
+ 0.07894737 0.15789474 0.19736842 0.19736842 0.14912281 0.16008772
+ 0.26315789 0.22368421 0.         0.         0.         0.        ]
+C_sparse [0.         0.         0.         0.         0.07894737 0.13157895
+ 0.14473684 0.02631579 0.05263158 0.07894737 0.03947368 0.05263158
+ 0.07894737 0.15789474 0.19736842 0.19736842 0.14912281 0.16008772
+ 0.26315789 0.22368421 0.         0.         0.         0.        ]
+C matches C_paths True
+C matches C_sparse: True
+C matches C_dense: True
+C_dense matches C_sparse: True
+Algebraic IPC time with paths 0.0002530654271443685 min
+Nonzero CENTRALITY 16
+Min, Max CENTRALITY 0.0 0.263157894736842
+Percentile 0.21052631578947362 0.263157894736842
+Nodes above percentile 2
+None zero event type CENTRALITY 5
+Min, Max event type CENTRALITY  0.039473684210526314 1.1907894736842102
+Percentile 0.34210526315789475 1.1907894736842102
+Number of event types CENTRALITY above percentile 2
+Average Event CENTRALITY Percentile 0.11403508771929824 0.1984649122807017
+Number of average Event CENTRALITY above Percentile 2
+Patient CENTRALITY Percentile 0.8361842105263158 0.9407894736842104
+Number of patient CENTRALITY above percentile 1
+Deleted 4 SCP paths which do not contain any of the most influential vertices.
+Deleted 4 SCP paths which do not contain any of the most influential vertices.
