@@ -247,7 +247,7 @@ function highlightFilter(filter) {
 
              #mynetwork {
                  width: 100%;
-                 height: 600px;
+                 height: 300;
                  background-color: #ffffff;
                  border: 1px solid lightgray;
                  position: relative;
@@ -303,7 +303,7 @@ function highlightFilter(filter) {
 
                   // parsing and collecting nodes and edges from the python
                   nodes = new vis.DataSet([{"color": "#97c2fc", "id": 0, "label": "0", "shape": "circle"}, {"color": "#97c2fc", "id": 1, "label": "1", "shape": "circle"}, {"color": "#97c2fc", "id": 3, "label": "3", "shape": "circle"}, {"color": "#97c2fc", "id": 5, "label": "5", "shape": "circle"}, {"color": "#97c2fc", "id": 2, "label": "2", "shape": "circle"}, {"color": "#97c2fc", "id": 4, "label": "4", "shape": "circle"}]);
-                  edges = new vis.DataSet([{"arrows": "to", "from": 0, "label": "9.0", "to": 1}, {"arrows": "to", "from": 0, "label": "3.0", "to": 3}, {"arrows": "to", "from": 0, "label": "4.0", "to": 5}, {"arrows": "to", "from": 1, "label": "8.0", "to": 2}, {"arrows": "to", "from": 1, "label": "7.0", "to": 5}, {"arrows": "to", "from": 3, "label": "6.0", "to": 4}, {"arrows": "to", "from": 3, "label": "1.0", "to": 5}, {"arrows": "to", "from": 4, "label": "4.0", "to": 2}, {"arrows": "to", "from": 5, "label": "2.0", "to": 4}]);
+                  edges = new vis.DataSet([]);
 
                   nodeColors = {};
                   allNodes = nodes.get({ returnType: "Object" });
